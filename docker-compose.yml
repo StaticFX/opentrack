@@ -1,0 +1,50 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      ORIGIN: ${ORIGIN:-http://localhost:3000}
+      SECRET: ${SECRET:?set SECRET in .env}
+      DATABASE_DRIVER: postgres
+      DATABASE_URL: postgres://opentrack:${POSTGRES_PASSWORD:-opentrack}@db:5432/opentrack
+      PUBSUB_DRIVER: ${PUBSUB_DRIVER:-postgres}
+      # OAuth / GitHub App secrets are read from the environment / .env
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+      MODRINTH_CLIENT_ID: ${MODRINTH_CLIENT_ID:-}
+      MODRINTH_CLIENT_SECRET: ${MODRINTH_CLIENT_SECRET:-}
+      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
+      GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
+      GITHUB_APP_WEBHOOK_SECRET: ${GITHUB_APP_WEBHOOK_SECRET:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    ports:
+      - '${APP_PORT:-3000}:3000'
+    # Traefik labels are added at deploy time (see homelab-deploy). Example:
+    # labels:
+    #   - traefik.enable=true
+    #   - traefik.http.routers.opentrack.rule=Host(`track.example.com`)
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: opentrack
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opentrack}
+      POSTGRES_DB: opentrack
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U opentrack -d opentrack']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:

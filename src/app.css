@@ -1,0 +1,23 @@
+@import 'tailwindcss';
+
+/* OpenTrack design tokens — theme-aware (light/dark). */
+@theme {
+	--color-brand-50: oklch(0.97 0.02 265);
+	--color-brand-500: oklch(0.62 0.19 265);
+	--color-brand-600: oklch(0.55 0.2 265);
+	--color-brand-700: oklch(0.48 0.19 265);
+}
+
+:root {
+	color-scheme: light dark;
+}
+
+html {
+	@apply bg-white text-neutral-900;
+}
+
+@media (prefers-color-scheme: dark) {
+	html {
+		@apply bg-neutral-950 text-neutral-100;
+	}
+}

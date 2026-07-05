@@ -1,0 +1,3 @@
+ALTER TABLE "github_installations" ADD COLUMN "workspace_id" text;--> statement-breakpoint
+ALTER TABLE "github_installations" ADD CONSTRAINT "github_installations_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "gh_installation_ws_idx" ON "github_installations" USING btree ("workspace_id");
