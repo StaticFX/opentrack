@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronUp, Link2, Plus, Trash2, X, Check, Search, GitPullRequest, GitMerge } from '@lucide/svelte';
+	import { ChevronUp, Link2, Plus, Trash2, X, Check, Search, GitPullRequest, GitMerge, ExternalLink } from '@lucide/svelte';
 	import { RELATION_TYPES, type Priority } from '$lib/constants';
 	import { PALETTE } from '$lib/colors';
 	import { PRIORITY_META } from '$lib/priority';
@@ -474,6 +474,34 @@
 							</div>
 						{/if}
 					</div>
+
+					{#if detail.githubRepo && detail.githubIssueNumber}
+						<div>
+							<p class="mb-1.5 text-xs font-medium text-neutral-400">GitHub</p>
+							<a
+								href={`https://github.com/${detail.githubRepo}/issues/${detail.githubIssueNumber}`}
+								target="_blank"
+								rel="noreferrer"
+								class="flex items-center gap-1.5 rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800"
+							>
+								<Link2 size={14} class="text-neutral-400" /> Issue #{detail.githubIssueNumber}
+								<ExternalLink size={12} class="ml-auto text-neutral-400" />
+							</a>
+							{#if detail.githubPrNumber}
+								<a
+									href={`https://github.com/${detail.githubRepo}/pull/${detail.githubPrNumber}`}
+									target="_blank"
+									rel="noreferrer"
+									class="mt-1.5 flex items-center gap-1.5 rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800"
+								>
+									{#if detail.githubPrState === 'merged'}<GitMerge size={14} class="text-violet-500" />{:else}<GitPullRequest size={14} class={detail.githubPrState === 'closed' ? 'text-red-400' : 'text-green-500'} />{/if}
+									PR #{detail.githubPrNumber}
+									{#if detail.githubPrState}<span class="text-xs text-neutral-400">{detail.githubPrState}</span>{/if}
+									<ExternalLink size={12} class="ml-auto text-neutral-400" />
+								</a>
+							{/if}
+						</div>
+					{/if}
 
 					<div class="border-t border-neutral-100 pt-3 text-xs text-neutral-400 dark:border-neutral-800">
 						{#if detail.authorName}Opened by {detail.authorName}{/if}

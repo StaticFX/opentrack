@@ -1,11 +1,12 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { ProjectRole, Visibility } from '$lib/constants';
 import { PROJECT_ROLES } from '$lib/constants';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { env } from '$lib/server/env';
 import { generateInviteCode } from '$lib/server/auth/invite';
 import { db, schema } from '$lib/server/db';
 import { githubConfigured } from '$lib/server/github/app';
+import { createStatusLabels } from '$lib/server/github/import';
 import { listWorkspaceRepos } from '$lib/server/github/installations';
 import { canManageProject } from '$lib/server/permissions';
 import {
@@ -27,6 +28,20 @@ async function requireManage(locals: App.Locals, wsSlug: string, projectSlug: st
 
 const VIS: Visibility[] = ['inherit', 'public', 'private'];
 
+/** Distinct board-column names (+ a color) across the project's boards. */
+async function projectColumns(projectId: string): Promise<Array<{ name: string; color: string }>> {
+	const rows = await db
+		.select({ name: schema.boardColumns.name, color: schema.boardColumns.color })
+		.from(schema.boardColumns)
+		.innerJoin(schema.boards, eq(schema.boardColumns.boardId, schema.boards.id))
+		.where(eq(schema.boards.projectId, projectId))
+		.orderBy(asc(schema.boardColumns.position));
+	const seen = new Set<string>();
+	const out: Array<{ name: string; color: string }> = [];
+	for (const r of rows) if (!seen.has(r.name)) { seen.add(r.name); out.push({ name: r.name, color: r.color }); }
+	return out;
+}
+
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
 	const ghEnabled = await githubConfigured();
@@ -36,7 +51,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		githubEnabled: ghEnabled,
 		repos: repos.map((r) => ({ value: `${r.installationId}::${r.fullName}`, label: r.fullName })),
 		linkedRepo: ctx.project.githubRepo,
-		linkedInstallation: ctx.project.githubInstallationId
+		linkedInstallation: ctx.project.githubInstallationId,
+		columns: await projectColumns(ctx.project.id),
+		progressLabels: (ctx.project.githubProgressLabels as string[] | null) ?? []
 	};
 };
 
@@ -82,9 +99,30 @@ export const actions: Actions = {
 		const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
 		await db
 			.update(schema.projects)
-			.set({ githubInstallationId: null, githubRepo: null })
+			.set({ githubInstallationId: null, githubRepo: null, githubProgressLabels: null })
 			.where(eq(schema.projects.id, ctx.project.id));
 		return { unlinked: true };
+	},
+
+	// Configure which board columns mirror to the linked issue as a
+	// "Status: <col>" label (post-import; picks up newly added lanes).
+	saveProgressLabels: async ({ request, locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
+		const selected = (await request.formData()).getAll('progressColumn').map(String);
+		await updateProject(ctx.project.id, { githubProgressLabels: selected.length ? selected : null });
+
+		// Create the Status: labels on GitHub for any selected column (best-effort).
+		let created = 0;
+		if (ctx.project.githubRepo && ctx.project.githubInstallationId && selected.length) {
+			const byName = new Map((await projectColumns(ctx.project.id)).map((c) => [c.name, c.color]));
+			const cols = selected.map((n) => ({ name: n, color: byName.get(n) ?? '#6b7280' }));
+			try {
+				created = await createStatusLabels(ctx.project.githubInstallationId, ctx.project.githubRepo, cols);
+			} catch {
+				created = 0;
+			}
+		}
+		return { progressSaved: true, created };
 	},
 
 	generateInvite: async ({ request, locals, params }) => {

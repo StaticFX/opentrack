@@ -112,6 +112,40 @@ export interface ImportResult {
 	progressLabels: number;
 }
 
+/** Create `Status: <col>` labels on the repo (idempotent-ish; 422 = exists). */
+async function postStatusLabels(
+	octokit: OctokitLike,
+	repo: { owner: string; repo: string },
+	columns: Array<{ name: string; color: string }>
+): Promise<number> {
+	let n = 0;
+	for (const c of columns) {
+		try {
+			await octokit.request('POST /repos/{owner}/{repo}/labels', {
+				...repo,
+				name: `Status: ${c.name}`,
+				color: (c.color || '#6b7280').replace(/^#/, '')
+			});
+			n++;
+		} catch {
+			// already exists / no permission — non-fatal
+		}
+	}
+	return n;
+}
+
+/** Create `Status: <col>` labels for a linked repo (used from project settings). */
+export async function createStatusLabels(
+	installationId: string,
+	repoFullName: string,
+	columns: Array<{ name: string; color: string }>
+): Promise<number> {
+	const repo = parseRepo(repoFullName);
+	if (!repo || columns.length === 0) return 0;
+	const octokit = await installationOctokit(installationId);
+	return postStatusLabels(octokit, repo, columns);
+}
+
 /** Repo labels (name + color) for the import settings modal. */
 export async function fetchRepoLabels(
 	installationId: string,
@@ -189,21 +223,11 @@ export async function importRepo(
 	}
 
 	// ── Progress labels: create a "Status: <col>" label on GitHub per selected column ──
-	let progressLabelCount = 0;
-	for (const colName of o.progressColumns) {
-		const col = cols.find((c) => c.name === colName);
-		if (!col) continue;
-		try {
-			await octokit.request('POST /repos/{owner}/{repo}/labels', {
-				...repo,
-				name: `Status: ${colName}`,
-				color: (col.color || '#6b7280').replace(/^#/, '')
-			});
-			progressLabelCount++;
-		} catch {
-			// 422 = already exists (or no permission) — non-fatal.
-		}
-	}
+	const progressCols = o.progressColumns
+		.map((name) => cols.find((c) => c.name === name))
+		.filter((c): c is (typeof cols)[number] => !!c)
+		.map((c) => ({ name: c.name, color: c.color }));
+	const progressLabelCount = await postStatusLabels(octokit, repo, progressCols);
 
 	// ── Issues → tickets ──
 	const issues = o.importIssues
