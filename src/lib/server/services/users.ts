@@ -1,5 +1,5 @@
 import { desc, eq } from 'drizzle-orm';
-import type { OAuthProvider, UserStatus } from '$lib/constants';
+import type { UserStatus } from '$lib/constants';
 import { db, schema } from '$lib/server/db';
 
 export interface AdminUserRow {
@@ -14,7 +14,7 @@ export interface AdminUserRow {
 	/** True when the user can reach the internal app (member, invitee, or admin). */
 	internal: boolean;
 	/** OAuth providers the user has linked, e.g. ['github', 'discord']. */
-	providers: OAuthProvider[];
+	providers: string[];
 }
 
 /**
@@ -53,7 +53,7 @@ export async function listUsersAdmin(): Promise<AdminUserRow[]> {
 	for (const r of projMembers) internalIds.add(r.userId);
 	for (const r of redemptions) internalIds.add(r.userId);
 
-	const providersByUser = new Map<string, OAuthProvider[]>();
+	const providersByUser = new Map<string, string[]>();
 	for (const a of accounts) {
 		const list = providersByUser.get(a.userId) ?? [];
 		if (!list.includes(a.provider)) list.push(a.provider);

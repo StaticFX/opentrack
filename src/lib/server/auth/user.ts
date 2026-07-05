@@ -1,5 +1,4 @@
 import { and, eq } from 'drizzle-orm';
-import type { OAuthProvider } from '$lib/constants';
 import { db, schema } from '$lib/server/db';
 import { hashPassword } from './password';
 import type { OAuthProfile } from './oauth';
@@ -36,7 +35,7 @@ export async function ensureUniqueUsername(desired: string): Promise<string> {
  *  3. otherwise create a fresh user + account
  */
 export async function findOrCreateUserFromOAuth(
-	provider: OAuthProvider,
+	provider: string,
 	profile: OAuthProfile
 ): Promise<User> {
 	const [linked] = await db
@@ -102,7 +101,7 @@ export async function findOrCreateUserFromOAuth(
 /** OAuth providers currently linked to a user (for the account page). */
 export async function listLinkedAccounts(
 	userId: string
-): Promise<Array<{ provider: OAuthProvider; providerUsername: string | null; avatarUrl: string | null }>> {
+): Promise<Array<{ provider: string; providerUsername: string | null; avatarUrl: string | null }>> {
 	return db
 		.select({
 			provider: schema.oauthAccounts.provider,
@@ -120,7 +119,7 @@ export async function listLinkedAccounts(
  */
 export async function linkOAuthAccount(
 	userId: string,
-	provider: OAuthProvider,
+	provider: string,
 	profile: OAuthProfile
 ): Promise<{ ok: true } | { ok: false; reason: 'taken' }> {
 	const [existing] = await db
@@ -158,7 +157,7 @@ export async function linkOAuthAccount(
 }
 
 /** Remove a linked OAuth identity from a user. */
-export async function unlinkOAuthAccount(userId: string, provider: OAuthProvider): Promise<void> {
+export async function unlinkOAuthAccount(userId: string, provider: string): Promise<void> {
 	await db
 		.delete(schema.oauthAccounts)
 		.where(and(eq(schema.oauthAccounts.userId, userId), eq(schema.oauthAccounts.provider, provider)));

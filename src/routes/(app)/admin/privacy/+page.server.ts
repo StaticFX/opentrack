@@ -1,5 +1,10 @@
 import { error, fail } from '@sveltejs/kit';
 import { OAUTH_PROVIDERS } from '$lib/constants';
+import {
+	deleteCustomProvider,
+	listCustomProvidersView,
+	upsertCustomProvider
+} from '$lib/server/auth/oauth-providers';
 import { getConfigView, setSetting } from '$lib/server/config';
 import { env } from '$lib/server/env';
 import type { Actions, PageServerLoad } from './$types';
@@ -29,7 +34,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const config = await getConfigView();
 	return {
 		oauth: config.oauth.map((p) => ({ ...p, meta: PROVIDER_META[p.provider] })),
-		oauthCallback: `${env.origin}/auth/oauth/{provider}/callback`
+		oauthCallback: `${env.origin}/auth/oauth/{provider}/callback`,
+		customProviders: await listCustomProvidersView(),
+		origin: env.origin
 	};
 };
 
@@ -51,5 +58,37 @@ export const actions: Actions = {
 			if (clientSecret) await setSetting(`oauth.${provider}.clientSecret`, clientSecret, true);
 		}
 		return { savedOAuth: provider };
+	},
+
+	saveCustomProvider: async ({ request, locals }) => {
+		requireAdmin(locals);
+		const form = await request.formData();
+		const val = (k: string) => String(form.get(k) ?? '').trim();
+		try {
+			await upsertCustomProvider({
+				id: val('id') || undefined,
+				key: val('key'),
+				label: val('label'),
+				icon: val('icon') || null,
+				discoveryUrl: val('discoveryUrl') || undefined,
+				authorizationEndpoint: val('authorizationEndpoint') || undefined,
+				tokenEndpoint: val('tokenEndpoint') || undefined,
+				userinfoEndpoint: val('userinfoEndpoint') || undefined,
+				scopes: val('scopes'),
+				clientId: val('clientId'),
+				clientSecret: val('clientSecret') || undefined,
+				enabled: form.get('enabled') === 'on'
+			});
+			return { savedCustom: true };
+		} catch (e) {
+			return fail(400, { customError: e instanceof Error ? e.message : 'Could not save provider.' });
+		}
+	},
+
+	deleteCustomProvider: async ({ request, locals }) => {
+		requireAdmin(locals);
+		const id = String((await request.formData()).get('id') ?? '');
+		if (id) await deleteCustomProvider(id);
+		return { deletedCustom: true };
 	}
 };

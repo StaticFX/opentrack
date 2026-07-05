@@ -2,7 +2,6 @@ import { sql } from 'drizzle-orm';
 import type {
 	InviteScope,
 	JobStatus,
-	OAuthProvider,
 	Priority,
 	ProjectRole,
 	RelationType,
@@ -62,7 +61,8 @@ export function defineSchema(kit: Kit) {
 			userId: text('user_id')
 				.notNull()
 				.references(() => users.id, { onDelete: 'cascade' }),
-			provider: text('provider').$type<OAuthProvider>().notNull(),
+			// Built-in enum keys OR an admin-defined custom provider key.
+			provider: text('provider').notNull(),
 			providerUserId: text('provider_user_id').notNull(),
 			providerUsername: text('provider_username'),
 			avatarUrl: text('avatar_url'),
@@ -537,7 +537,29 @@ export function defineSchema(kit: Kit) {
 		updatedAt: updatedAt()
 	});
 
+	// Admin-defined custom OAuth2/OIDC login providers (beyond the built-ins).
+	const oauthProviders = table(
+		'oauth_providers',
+		{
+			id: pk(),
+			key: text('key').notNull(), // url slug, e.g. "google"
+			label: text('label').notNull(),
+			icon: text('icon'), // emoji or image URL
+			authorizationEndpoint: text('authorization_endpoint').notNull(),
+			tokenEndpoint: text('token_endpoint').notNull(),
+			userinfoEndpoint: text('userinfo_endpoint').notNull(),
+			scopes: text('scopes').notNull().default('openid email profile'),
+			clientId: text('client_id').notNull(),
+			clientSecret: text('client_secret').notNull(), // AES-256-GCM encrypted
+			enabled: bool('enabled').default(true).notNull(),
+			createdAt: createdAt(),
+			updatedAt: updatedAt()
+		},
+		(t) => [uniqueIndex('oauth_providers_key_uq').on(t.key)]
+	);
+
 	return {
+		oauthProviders,
 		settings,
 		users,
 		oauthAccounts,

@@ -4,6 +4,11 @@ import type { OAuthProvider } from '$lib/constants';
 import { OAUTH_PROVIDERS } from '$lib/constants';
 import { getConfig } from '$lib/server/config';
 import { env } from '$lib/server/env';
+import {
+	getCustomProvider,
+	listEnabledCustomProviders,
+	type CustomProvider
+} from './oauth-providers';
 
 /** Normalized profile returned by every provider adapter. */
 export interface OAuthProfile {
@@ -15,14 +20,28 @@ export interface OAuthProfile {
 }
 
 export interface OAuthAdapter {
-	name: OAuthProvider;
+	name: string;
 	createAuthorizationURL(state: string): URL;
 	/** Exchange the code for an access token. */
 	validateCode(code: string): Promise<string>;
 	fetchProfile(accessToken: string): Promise<OAuthProfile>;
 }
 
-function redirectURI(provider: OAuthProvider): string {
+/** A provider available to render as a login button. */
+export interface ProviderButton {
+	key: string;
+	label: string;
+	icon: string | null;
+	builtin: boolean;
+}
+
+const BUILTIN_LABELS: Record<OAuthProvider, string> = {
+	github: 'GitHub',
+	discord: 'Discord',
+	modrinth: 'Modrinth'
+};
+
+function redirectURI(provider: string): string {
 	return `${env.origin}/auth/oauth/${provider}/callback`;
 }
 
@@ -145,28 +164,82 @@ function modrinthAdapter(clientId: string, clientSecret: string): OAuthAdapter {
 	};
 }
 
-/** Build the adapter for a provider, or null if it isn't configured. */
-export async function getOAuthAdapter(provider: string): Promise<OAuthAdapter | null> {
-	if (!OAUTH_PROVIDERS.includes(provider as OAuthProvider)) return null;
-	const cfg = await getConfig();
-	const cred = cfg.oauth[provider as OAuthProvider];
-	if (!cred) return null;
-	switch (provider) {
-		case 'github':
-			return githubAdapter(cred.clientId, cred.clientSecret);
-		case 'discord':
-			return discordAdapter(cred.clientId, cred.clientSecret);
-		case 'modrinth':
-			return modrinthAdapter(cred.clientId, cred.clientSecret);
-		default:
-			return null;
-	}
+// ── Generic OAuth2 / OIDC (admin-defined custom providers) ─────────────────
+function genericAdapter(p: CustomProvider): OAuthAdapter {
+	const redirect = redirectURI(p.key);
+	return {
+		name: p.key,
+		createAuthorizationURL(state) {
+			const u = new URL(p.authorizationEndpoint);
+			u.searchParams.set('response_type', 'code');
+			u.searchParams.set('client_id', p.clientId);
+			u.searchParams.set('redirect_uri', redirect);
+			u.searchParams.set('scope', p.scopes);
+			u.searchParams.set('state', state);
+			return u;
+		},
+		async validateCode(code) {
+			const data = await fetchJson(p.tokenEndpoint, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+				body: new URLSearchParams({
+					grant_type: 'authorization_code',
+					code,
+					client_id: p.clientId,
+					client_secret: p.clientSecret,
+					redirect_uri: redirect
+				})
+			});
+			return data.access_token as string;
+		},
+		async fetchProfile(accessToken) {
+			const u = await fetchJson(p.userinfoEndpoint, {
+				headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' }
+			});
+			// Resolve standard OIDC claims with common fallbacks.
+			const s = (v: unknown) => (v == null || v === '' ? null : String(v));
+			const id = s(u.sub) ?? s(u.id) ?? s(u.user_id);
+			if (!id) throw new Error('userinfo response had no user id (sub/id)');
+			const email = s(u.email);
+			const username =
+				s(u.preferred_username) ?? s(u.login) ?? s(u.username) ?? (email ? email.split('@')[0] : id);
+			const displayName = s(u.name) ?? s(u.display_name) ?? username;
+			const avatarUrl = s(u.picture) ?? s(u.avatar_url) ?? s(u.avatar);
+			return { providerUserId: id, username, displayName, email, avatarUrl };
+		}
+	};
 }
 
-/** Provider names that are configured (used to render login buttons). */
-export async function enabledProviders(): Promise<OAuthProvider[]> {
+/** Build the adapter for a provider, or null if it isn't configured/enabled. */
+export async function getOAuthAdapter(provider: string): Promise<OAuthAdapter | null> {
+	if (OAUTH_PROVIDERS.includes(provider as OAuthProvider)) {
+		const cred = (await getConfig()).oauth[provider as OAuthProvider];
+		if (!cred) return null;
+		if (provider === 'github') return githubAdapter(cred.clientId, cred.clientSecret);
+		if (provider === 'discord') return discordAdapter(cred.clientId, cred.clientSecret);
+		if (provider === 'modrinth') return modrinthAdapter(cred.clientId, cred.clientSecret);
+		return null;
+	}
+	const custom = await getCustomProvider(provider);
+	return custom ? genericAdapter(custom) : null;
+}
+
+/** Providers configured & enabled — for rendering login buttons (built-in + custom). */
+export async function enabledProviders(): Promise<ProviderButton[]> {
 	const cfg = await getConfig();
-	return OAUTH_PROVIDERS.filter((p) => cfg.oauth[p] !== null);
+	const builtins: ProviderButton[] = OAUTH_PROVIDERS.filter((p) => cfg.oauth[p] !== null).map((p) => ({
+		key: p,
+		label: BUILTIN_LABELS[p],
+		icon: null,
+		builtin: true
+	}));
+	const custom: ProviderButton[] = (await listEnabledCustomProviders()).map((c) => ({
+		key: c.key,
+		label: c.label,
+		icon: c.icon,
+		builtin: false
+	}));
+	return [...builtins, ...custom];
 }
 
 // ── OAuth flow cookies (state + post-login redirect target) ───────────────
