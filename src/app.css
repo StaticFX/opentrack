@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@plugin '@tailwindcss/typography';
 
 /* OpenTrack design tokens — theme-aware (light/dark). */
 @theme {

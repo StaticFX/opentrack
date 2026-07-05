@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { LayoutGrid, Lightbulb, Tag } from '@lucide/svelte';
+	import { LayoutGrid, Lightbulb, Tag, GitBranch, ExternalLink } from '@lucide/svelte';
 	import { cn } from '$lib/utils/cn';
 
 	let { data, children } = $props();
@@ -25,7 +25,7 @@
 		</div>
 		{#if data.project.description}<p class="mt-1 text-sm text-neutral-500">{data.project.description}</p>{/if}
 
-		<div class="mt-4 flex gap-1">
+		<div class="mt-4 flex items-center gap-1">
 			{#each tabs as tab (tab.href)}
 				{@const active = tab.match(page.url.pathname)}
 				<a
@@ -41,6 +41,16 @@
 					{tab.label}
 				</a>
 			{/each}
+			{#if data.project.githubRepo}
+				<a
+					href={`https://github.com/${data.project.githubRepo}`}
+					target="_blank"
+					rel="noreferrer"
+					class="ml-auto flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
+				>
+					<GitBranch size={15} /> GitHub <ExternalLink size={12} class="text-neutral-400" />
+				</a>
+			{/if}
 		</div>
 	</div>
 </div>

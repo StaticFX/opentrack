@@ -17,7 +17,7 @@
 	</div>
 {:else}
 	<div class="overflow-x-auto px-6 py-6">
-		<div class="flex min-w-max items-start gap-3">
+		<div class="mx-auto flex w-max items-start gap-3">
 			{#each data.columns as col (col.id)}
 				<section class="w-72 rounded-xl bg-neutral-50 dark:bg-neutral-900/40">
 					<div class="flex items-center gap-2 px-3 py-2.5">

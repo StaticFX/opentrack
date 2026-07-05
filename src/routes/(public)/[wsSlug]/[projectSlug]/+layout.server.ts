@@ -15,7 +15,8 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 			name: ctx.project.name,
 			description: ctx.project.description,
 			color: ctx.project.color,
-			allowPublicComments: ctx.project.allowPublicComments
+			allowPublicComments: ctx.project.allowPublicComments,
+			githubRepo: ctx.project.githubRepo
 		},
 		workspace: { slug: ctx.workspace.slug, name: ctx.workspace.name },
 		effectiveVisibility: ctx.visibility,
