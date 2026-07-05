@@ -179,6 +179,9 @@ export function defineSchema(kit: Kit) {
 			visibility: text('visibility').$type<Visibility>().default('inherit').notNull(),
 			githubInstallationId: text('github_installation_id'),
 			githubRepo: text('github_repo'),
+			// Column names whose status is mirrored to the linked issue as a
+			// "Status: <name>" GitHub label (OpenTrack → GitHub progress sync).
+			githubProgressLabels: json<string[]>('github_progress_labels'),
 			allowPublicComments: bool('allow_public_comments').default(false).notNull(),
 			githubSyncedAt: ts('github_synced_at'),
 			position: text('position').notNull().default('a0'),
@@ -266,6 +269,8 @@ export function defineSchema(kit: Kit) {
 			githubIssueNumber: int('github_issue_number'),
 			githubNodeId: text('github_node_id'),
 			githubPrNumber: int('github_pr_number'),
+			// Linked pull request state: 'open' | 'closed' | 'merged'.
+			githubPrState: text('github_pr_state'),
 			githubSyncedAt: ts('github_synced_at'),
 			closedAt: ts('closed_at'),
 			createdAt: createdAt(),

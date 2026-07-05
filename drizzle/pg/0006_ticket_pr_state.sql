@@ -1,0 +1,1 @@
+ALTER TABLE "tickets" ADD COLUMN "github_pr_state" text;

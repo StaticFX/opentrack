@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { CLOSED_CATEGORIES } from '$lib/constants';
 import { db, schema } from '$lib/server/db';
 import { boardEvent } from '$lib/server/realtime/board';
@@ -68,9 +68,60 @@ interface GhIssue {
 	labels?: Array<string | { name?: string }>;
 }
 
+interface GhRelease {
+	id: number;
+	tag_name?: string;
+	name?: string | null;
+	body?: string | null;
+	draft?: boolean;
+	published_at?: string | null;
+	html_url?: string;
+}
+interface GhPull {
+	number: number;
+	title?: string;
+	body?: string | null;
+	state?: string;
+	merged_at?: string | null;
+}
+
+/** Per-import choices from the settings modal. */
+export interface ImportOptions {
+	importIssues: boolean;
+	importPrs: boolean;
+	importReleases: boolean;
+	/** Names of repo labels to import; null imports all. */
+	issueLabels: string[] | null;
+	/** Board column names to create "Status: <name>" GitHub labels for. */
+	progressColumns: string[];
+}
+
+const DEFAULT_OPTIONS: ImportOptions = {
+	importIssues: true,
+	importPrs: true,
+	importReleases: true,
+	issueLabels: null,
+	progressColumns: []
+};
+
 export interface ImportResult {
 	labels: number;
 	issues: number;
+	prs: number;
+	releases: number;
+	progressLabels: number;
+}
+
+/** Repo labels (name + color) for the import settings modal. */
+export async function fetchRepoLabels(
+	installationId: string,
+	repoFullName: string
+): Promise<Array<{ name: string; color: string }>> {
+	const repo = parseRepo(repoFullName);
+	if (!repo) return [];
+	const octokit = await installationOctokit(installationId);
+	const labels = await fetchAll<GhLabel>(octokit, 'GET /repos/{owner}/{repo}/labels', repo);
+	return labels.map((l) => ({ name: l.name, color: `#${(l.color || '6b7280').replace(/^#/, '')}` }));
 }
 
 /**
@@ -84,11 +135,14 @@ export async function importRepo(
 		projectId: string;
 		installationId: string;
 		repoFullName: string;
+		options?: Partial<ImportOptions>;
 	},
 	injectedOctokit?: OctokitLike
 ): Promise<ImportResult> {
+	const o: ImportOptions = { ...DEFAULT_OPTIONS, ...(opts.options ?? {}) };
+	const empty: ImportResult = { labels: 0, issues: 0, prs: 0, releases: 0, progressLabels: 0 };
 	const repo = parseRepo(opts.repoFullName);
-	if (!repo) return { labels: 0, issues: 0 };
+	if (!repo) return empty;
 	const octokit = injectedOctokit ?? (await installationOctokit(opts.installationId));
 
 	const [board] = await db
@@ -97,18 +151,26 @@ export async function importRepo(
 		.where(eq(schema.boards.projectId, opts.projectId))
 		.orderBy(asc(schema.boards.position))
 		.limit(1);
-	if (!board) return { labels: 0, issues: 0 };
+	if (!board) return empty;
 	const cols = await db
-		.select({ id: schema.boardColumns.id, category: schema.boardColumns.category })
+		.select({
+			id: schema.boardColumns.id,
+			name: schema.boardColumns.name,
+			category: schema.boardColumns.category,
+			color: schema.boardColumns.color
+		})
 		.from(schema.boardColumns)
 		.where(eq(schema.boardColumns.boardId, board.id))
 		.orderBy(asc(schema.boardColumns.position));
-	if (cols.length === 0) return { labels: 0, issues: 0 };
+	if (cols.length === 0) return empty;
 	const openCol = pickOpenColumn(cols);
 	const closedCol = pickClosedColumn(cols);
 
-	// ── Labels ──
-	const ghLabels = await fetchAll<GhLabel>(octokit, 'GET /repos/{owner}/{repo}/labels', repo);
+	// ── Issue labels (only the selected subset; null = all) ──
+	const wanted = o.issueLabels ? new Set(o.issueLabels) : null;
+	const ghLabels = (await fetchAll<GhLabel>(octokit, 'GET /repos/{owner}/{repo}/labels', repo)).filter(
+		(l) => l.name && (!wanted || wanted.has(l.name))
+	);
 	const existingLabels = await db
 		.select({ id: schema.labels.id, name: schema.labels.name })
 		.from(schema.labels)
@@ -116,7 +178,7 @@ export async function importRepo(
 	const labelIdByName = new Map(existingLabels.map((l) => [l.name, l.id]));
 	let labelCount = 0;
 	for (const l of ghLabels) {
-		if (!l.name || labelIdByName.has(l.name)) continue;
+		if (labelIdByName.has(l.name)) continue;
 		const color = `#${(l.color || '6b7280').replace(/^#/, '')}`;
 		const [row] = await db
 			.insert(schema.labels)
@@ -126,11 +188,27 @@ export async function importRepo(
 		labelCount++;
 	}
 
+	// ── Progress labels: create a "Status: <col>" label on GitHub per selected column ──
+	let progressLabelCount = 0;
+	for (const colName of o.progressColumns) {
+		const col = cols.find((c) => c.name === colName);
+		if (!col) continue;
+		try {
+			await octokit.request('POST /repos/{owner}/{repo}/labels', {
+				...repo,
+				name: `Status: ${colName}`,
+				color: (col.color || '#6b7280').replace(/^#/, '')
+			});
+			progressLabelCount++;
+		} catch {
+			// 422 = already exists (or no permission) — non-fatal.
+		}
+	}
+
 	// ── Issues → tickets ──
-	const issues = await fetchAll<GhIssue>(octokit, 'GET /repos/{owner}/{repo}/issues', {
-		...repo,
-		state: 'all'
-	});
+	const issues = o.importIssues
+		? await fetchAll<GhIssue>(octokit, 'GET /repos/{owner}/{repo}/issues', { ...repo, state: 'all' })
+		: [];
 	const existing = await db
 		.select({ n: schema.tickets.githubIssueNumber })
 		.from(schema.tickets)
@@ -199,5 +277,79 @@ export async function importRepo(
 	}
 
 	await boardEvent(board.id, 'ticket.synced', { imported: issueCount });
-	return { labels: labelCount, issues: issueCount };
+
+	// ── Pull requests → link to the ticket(s) they reference ──
+	let prCount = 0;
+	if (o.importPrs) {
+		try {
+			const pulls = await fetchAll<GhPull>(octokit, 'GET /repos/{owner}/{repo}/pulls', {
+				...repo,
+				state: 'all'
+			});
+			for (const pr of pulls) {
+				const refs = [...`${pr.title ?? ''} ${pr.body ?? ''}`.matchAll(/#(\d+)/g)].map((m) => Number(m[1]));
+				if (refs.length === 0) continue;
+				const prState = pr.merged_at ? 'merged' : pr.state === 'closed' ? 'closed' : 'open';
+				const upd = await db
+					.update(schema.tickets)
+					.set({ githubPrNumber: pr.number, githubPrState: prState })
+					.where(
+						and(
+							eq(schema.tickets.projectId, opts.projectId),
+							inArray(schema.tickets.githubIssueNumber, refs)
+						)
+					)
+					.returning({ id: schema.tickets.id });
+				prCount += upd.length;
+			}
+		} catch {
+			prCount = 0; // no PR access — non-fatal
+		}
+	}
+
+	// ── Releases (best-effort — needs Contents:read; skip silently if denied) ──
+	let releaseCount = 0;
+	if (o.importReleases) try {
+		const ghReleases = await fetchAll<GhRelease>(octokit, 'GET /repos/{owner}/{repo}/releases', repo);
+		const existingRel = await db
+			.select({ gh: schema.releases.githubReleaseId })
+			.from(schema.releases)
+			.where(eq(schema.releases.projectId, opts.projectId));
+		const haveRel = new Set(existingRel.map((r) => r.gh).filter((v): v is string => v != null));
+		for (const rel of ghReleases) {
+			const ghId = String(rel.id);
+			if (haveRel.has(ghId)) continue;
+			const [ins] = await db
+				.insert(schema.releases)
+				.values({
+					projectId: opts.projectId,
+					version: rel.tag_name || rel.name || 'untagged',
+					name: rel.name ?? null,
+					notes: rel.body ?? null,
+					status: rel.draft ? 'draft' : 'published',
+					releasedAt: rel.published_at ? new Date(rel.published_at) : null,
+					githubReleaseId: ghId
+				})
+				.onConflictDoNothing() // (projectId, version) unique — skip collisions
+				.returning({ id: schema.releases.id });
+			if (ins?.id) {
+				if (rel.html_url) {
+					await db
+						.insert(schema.releaseLinks)
+						.values({ releaseId: ins.id, label: 'View on GitHub', url: rel.html_url, type: 'github' });
+				}
+				releaseCount++;
+			}
+		}
+	} catch {
+		releaseCount = 0; // releases permission not granted, or none — non-fatal
+	}
+
+	return {
+		labels: labelCount,
+		issues: issueCount,
+		prs: prCount,
+		releases: releaseCount,
+		progressLabels: progressLabelCount
+	};
 }

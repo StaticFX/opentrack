@@ -43,6 +43,20 @@
       "when": 1783272203221,
       "tag": "0005_workspace_public_hero",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783276388167,
+      "tag": "0006_ticket_pr_state",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783279814924,
+      "tag": "0007_project_progress_labels",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { CLOSED_CATEGORIES } from '$lib/constants';
 import { db, schema } from '$lib/server/db';
 import { boardEvent } from '$lib/server/realtime/board';
@@ -56,20 +56,26 @@ export async function pushTicket(ticketId: string): Promise<void> {
 	if (!repo || !project.githubInstallationId) return;
 
 	let category = 'todo';
+	let columnName: string | null = null;
 	if (ticket.columnId) {
 		const [c] = await db
-			.select({ category: schema.boardColumns.category })
+			.select({ category: schema.boardColumns.category, name: schema.boardColumns.name })
 			.from(schema.boardColumns)
 			.where(eq(schema.boardColumns.id, ticket.columnId))
 			.limit(1);
 		category = c?.category ?? 'todo';
+		columnName = c?.name ?? null;
 	}
 	const labelRows = await db
 		.select({ name: schema.labels.name })
 		.from(schema.ticketLabels)
 		.innerJoin(schema.labels, eq(schema.ticketLabels.labelId, schema.labels.id))
 		.where(eq(schema.ticketLabels.ticketId, ticketId));
-	const payload = ticketToIssue(ticket, category, labelRows.map((l) => l.name));
+	const labelNames = labelRows.map((l) => l.name);
+	// Progress sync: mirror the board column as a "Status: <name>" issue label.
+	const progress = (project.githubProgressLabels as string[] | null) ?? [];
+	if (columnName && progress.includes(columnName)) labelNames.push(`Status: ${columnName}`);
+	const payload = ticketToIssue(ticket, category, labelNames);
 	const octokit = await installationOctokit(project.githubInstallationId);
 
 	if (ticket.githubIssueNumber) {
@@ -79,6 +85,8 @@ export async function pushTicket(ticketId: string): Promise<void> {
 			title: payload.title,
 			body: payload.body,
 			state: payload.state,
+			// state_reason is only valid alongside a state change; 'reopened' applies when opening.
+			...(payload.stateReason ? { state_reason: payload.stateReason } : {}),
 			labels: payload.labels
 		});
 		await db.update(schema.tickets).set({ githubSyncedAt: new Date() }).where(eq(schema.tickets.id, ticketId));
@@ -228,19 +236,26 @@ async function applyIssueComment(action: string, payload: any) {
 }
 
 async function applyPullRequest(_action: string, payload: any) {
-	// Link a PR to a ticket when its title/body references "#<issue>".
+	// Link a PR to every ticket its title/body references via "#<issue>",
+	// tracking the PR's state (open / closed / merged) for display.
 	const repoFull = payload?.repository?.full_name;
 	const pr = payload?.pull_request;
 	if (!repoFull || !pr) return;
-	const match = `${pr.title ?? ''} ${pr.body ?? ''}`.match(/#(\d+)/);
-	if (!match) return;
-	const issueNumber = Number(match[1]);
+	const text = `${pr.title ?? ''} ${pr.body ?? ''}`;
+	const issueNumbers = [...text.matchAll(/#(\d+)/g)].map((m) => Number(m[1]));
+	if (issueNumbers.length === 0) return;
+	const prState = pr.merged ? 'merged' : pr.state === 'closed' ? 'closed' : 'open';
 	const projects = await findLinkedProjects(repoFull);
 	for (const project of projects) {
 		await db
 			.update(schema.tickets)
-			.set({ githubPrNumber: pr.number })
-			.where(and(eq(schema.tickets.projectId, project.id), eq(schema.tickets.githubIssueNumber, issueNumber)));
+			.set({ githubPrNumber: pr.number, githubPrState: prState })
+			.where(
+				and(
+					eq(schema.tickets.projectId, project.id),
+					inArray(schema.tickets.githubIssueNumber, issueNumbers)
+				)
+			);
 	}
 }
 

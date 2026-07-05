@@ -22,6 +22,9 @@ export interface TicketCard {
 	githubIssueNumber: number | null;
 	hasDescription: boolean;
 	visibility: Visibility;
+	/** Linked GitHub PR number + its state ('open' | 'closed' | 'merged'), if any. */
+	githubPrNumber: number | null;
+	githubPrState: string | null;
 	labels: CardLabel[];
 	assignees: CardAssignee[];
 	votes: number;

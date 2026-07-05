@@ -75,7 +75,8 @@ export const actions: Actions = {
 		if (!canCreateProject(ctx.access)) throw error(403, 'You cannot create projects here.');
 		if (!(await githubConfigured())) return fail(400, { importError: 'GitHub is not configured on this instance.' });
 
-		const selected = String((await request.formData()).get('repo') ?? '');
+		const form = await request.formData();
+		const selected = String(form.get('repo') ?? '');
 		const sep = selected.indexOf('::');
 		const installationId = sep >= 0 ? selected.slice(0, sep) : '';
 		const fullName = sep >= 0 ? selected.slice(sep + 2) : '';
@@ -95,17 +96,41 @@ export const actions: Actions = {
 			return fail(502, { importError: 'Could not reach GitHub for that repository.' });
 		}
 
+		// Import settings from the modal. Unchecked checkboxes are simply absent.
+		// `configured` distinguishes "modal submitted with none selected" (import
+		// nothing) from the plain button (import everything, backwards-compatible).
+		const configured = form.get('configured') === '1';
+		const issueLabels = form.getAll('issueLabel').map(String);
+		const progressColumns = form.getAll('progressColumn').map(String);
+		const options = {
+			importIssues: configured ? form.get('importIssues') === 'on' : true,
+			importPrs: configured ? form.get('importPrs') === 'on' : true,
+			importReleases: configured ? form.get('importReleases') === 'on' : true,
+			// When configured, only the checked labels; otherwise all (null).
+			issueLabels: configured ? issueLabels : null,
+			progressColumns
+		};
+
 		const project = await createProject(locals.user!, ctx.workspace, {
 			name: meta.name,
 			description: meta.description ?? undefined
 		});
 		await db
 			.update(schema.projects)
-			.set({ githubInstallationId: installationId, githubRepo: fullName })
+			.set({
+				githubInstallationId: installationId,
+				githubRepo: fullName,
+				githubProgressLabels: progressColumns.length ? progressColumns : null
+			})
 			.where(eq(schema.projects.id, project.id));
 
 		// Issues/labels can be many — pull them in the background worker.
-		await enqueue('github:import', { projectId: project.id, installationId, repoFullName: fullName });
+		await enqueue('github:import', {
+			projectId: project.id,
+			installationId,
+			repoFullName: fullName,
+			options
+		});
 
 		throw redirect(303, `/w/${params.wsSlug}/p/${project.slug}`);
 	}

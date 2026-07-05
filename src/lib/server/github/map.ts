@@ -18,6 +18,8 @@ export interface IssuePayload {
 	title: string;
 	body: string;
 	state: 'open' | 'closed';
+	/** GitHub close reason — 'completed' for done, 'not_planned' for canceled. */
+	stateReason: 'completed' | 'not_planned' | 'reopened' | null;
 	labels: string[];
 }
 
@@ -26,10 +28,14 @@ export function ticketToIssue(
 	category: ColumnCategory | string,
 	labels: string[]
 ): IssuePayload {
+	const state = categoryToState(category);
+	const stateReason =
+		state === 'closed' ? (category === 'canceled' ? 'not_planned' : 'completed') : 'reopened';
 	return {
 		title: ticket.title,
 		body: ticket.description ?? '',
-		state: categoryToState(category),
+		state,
+		stateReason,
 		labels
 	};
 }

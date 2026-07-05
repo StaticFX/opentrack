@@ -42,7 +42,8 @@ export function registerGithubHandlers(): void {
 		await importRepo({
 			projectId: String(payload.projectId ?? ''),
 			installationId: String(payload.installationId ?? ''),
-			repoFullName: String(payload.repoFullName ?? '')
+			repoFullName: String(payload.repoFullName ?? ''),
+			options: (payload.options as Record<string, unknown>) ?? undefined
 		});
 	});
 }

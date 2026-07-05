@@ -105,6 +105,8 @@ export async function listBoardTickets(boardId: string): Promise<TicketCard[]> {
 		position: t.position,
 		dueDate: t.dueDate,
 		githubIssueNumber: t.githubIssueNumber,
+		githubPrNumber: t.githubPrNumber,
+		githubPrState: t.githubPrState,
 		hasDescription: !!(t.description && t.description.trim()),
 		visibility: t.visibility,
 		labels: labelsByTicket.get(t.id) ?? [],
@@ -278,9 +280,14 @@ const REL_LABEL_IN: Record<RelationType, string> = {
 /** Full ticket detail for the ticket modal. */
 export async function getTicketDetail(ticketId: string) {
 	const [row] = await db
-		.select({ ticket: schema.tickets, authorName: schema.users.displayName })
+		.select({
+			ticket: schema.tickets,
+			authorName: schema.users.displayName,
+			githubRepo: schema.projects.githubRepo
+		})
 		.from(schema.tickets)
 		.leftJoin(schema.users, eq(schema.tickets.authorId, schema.users.id))
+		.leftJoin(schema.projects, eq(schema.tickets.projectId, schema.projects.id))
 		.where(eq(schema.tickets.id, ticketId))
 		.limit(1);
 	if (!row) return null;
@@ -359,6 +366,8 @@ export async function getTicketDetail(ticketId: string) {
 		dueDate: row.ticket.dueDate,
 		githubIssueNumber: row.ticket.githubIssueNumber,
 		githubPrNumber: row.ticket.githubPrNumber,
+		githubPrState: row.ticket.githubPrState,
+		githubRepo: row.githubRepo,
 		createdAt: row.ticket.createdAt,
 		closedAt: row.ticket.closedAt,
 		authorName: row.authorName,

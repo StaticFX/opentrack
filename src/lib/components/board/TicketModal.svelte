@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronUp, Link2, Plus, Trash2, X, Check, Search } from '@lucide/svelte';
+	import { ChevronUp, Link2, Plus, Trash2, X, Check, Search, GitPullRequest, GitMerge } from '@lucide/svelte';
 	import { RELATION_TYPES, type Priority } from '$lib/constants';
 	import { PALETTE } from '$lib/colors';
 	import { PRIORITY_META } from '$lib/priority';
@@ -248,7 +248,26 @@
 			<div class="flex items-center justify-between border-b border-neutral-100 px-6 py-3 dark:border-neutral-800">
 				<div class="flex items-center gap-2 text-sm text-neutral-500">
 					<span class="font-mono font-medium">#{detail.number}</span>
-					{#if detail.githubIssueNumber}<span class="flex items-center gap-1"><Link2 size={13} /> {detail.githubIssueNumber}</span>{/if}
+					{#if detail.githubIssueNumber}
+						{#if detail.githubRepo}
+							<a href={`https://github.com/${detail.githubRepo}/issues/${detail.githubIssueNumber}`} target="_blank" rel="noreferrer" class="flex items-center gap-1 hover:text-neutral-800 hover:underline dark:hover:text-neutral-200"><Link2 size={13} /> {detail.githubIssueNumber}</a>
+						{:else}
+							<span class="flex items-center gap-1"><Link2 size={13} /> {detail.githubIssueNumber}</span>
+						{/if}
+					{/if}
+					{#if detail.githubPrNumber}
+						{@const prCls = detail.githubPrState === 'merged' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' : detail.githubPrState === 'closed' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'}
+						{@const PrIcon = detail.githubPrState === 'merged' ? GitMerge : GitPullRequest}
+						<a
+							href={detail.githubRepo ? `https://github.com/${detail.githubRepo}/pull/${detail.githubPrNumber}` : '#'}
+							target="_blank"
+							rel="noreferrer"
+							class={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${prCls}`}
+							title={`Pull request #${detail.githubPrNumber}${detail.githubPrState ? ' — ' + detail.githubPrState : ''}`}
+						>
+							<PrIcon size={11} /> PR #{detail.githubPrNumber}
+						</a>
+					{/if}
 					{#if detail.closedAt}<span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">Closed</span>{/if}
 				</div>
 				<button onclick={onclose} class="rounded-md p-1 text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close"><X size={17} /></button>

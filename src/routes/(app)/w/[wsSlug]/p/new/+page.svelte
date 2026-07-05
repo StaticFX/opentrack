@@ -3,6 +3,7 @@
 	import { Check, GitBranch, FilePlus2 } from '@lucide/svelte';
 	import { PALETTE, DEFAULT_COLOR } from '$lib/colors';
 	import Button from '$lib/components/ui/Button.svelte';
+	import Dialog from '$lib/components/ui/Dialog.svelte';
 	import Field from '$lib/components/ui/Field.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
@@ -18,6 +19,29 @@
 	let repo = $state<string>('');
 	let importing = $state(false);
 	const gh = $derived(data.github);
+
+	// Import settings modal.
+	let configOpen = $state(false);
+	let loadingLabels = $state(false);
+	let repoLabels = $state<Array<{ name: string; color: string }>>([]);
+	// A freshly imported project gets the default board columns.
+	const DEFAULT_COLUMNS = ['Backlog', 'Todo', 'In Progress', 'Done'];
+	const repoName = $derived(gh.repos.find((r) => r.value === repo)?.label ?? '');
+
+	async function openConfig() {
+		if (!repo) return;
+		configOpen = true;
+		loadingLabels = true;
+		repoLabels = [];
+		try {
+			const res = await fetch(
+				`/api/workspaces/${data.workspace.slug}/github/repo-labels?repo=${encodeURIComponent(repo)}`
+			);
+			repoLabels = res.ok ? (await res.json()).labels : [];
+		} finally {
+			loadingLabels = false;
+		}
+	}
 </script>
 
 <svelte:head><title>New project · OpenTrack</title></svelte:head>
@@ -123,29 +147,80 @@
 					No repositories are available. Make sure the GitHub App has access to the repos you want, then reload.
 				</div>
 			{:else}
-				<form
-					method="POST"
-					action="?/importGithub"
-					use:enhance={() => {
-						importing = true;
-						return async ({ update }) => { await update(); importing = false; };
-					}}
-					class="flex flex-col gap-4"
-				>
+				<div class="flex flex-col gap-4">
 					<Field label="Repository" error={form?.importError}>
 						<Select name="repo" bind:value={repo} options={gh.repos} placeholder="Choose a repository…" />
 					</Field>
 					<div class="rounded-lg border border-neutral-100 bg-neutral-50/60 p-3 text-xs text-neutral-500 dark:border-neutral-800/60 dark:bg-neutral-900/40">
-						Imports the repo's <span class="font-medium">name &amp; description</span>, its <span class="font-medium">labels</span>, and every <span class="font-medium">issue</span> as a ticket (open/closed placed accordingly). Issues keep syncing after import.
+						Imports the repo's <span class="font-medium">name &amp; description</span>. Choose what else to bring in on the next step.
 					</div>
 					<div class="flex gap-2">
-						<Button variant="primary" type="submit" disabled={!repo || importing}>
-							{importing ? 'Importing…' : 'Import repository'}
-						</Button>
+						<Button variant="primary" disabled={!repo} onclick={openConfig}>Configure import…</Button>
 						<Button variant="ghost" href={`/w/${data.workspace.slug}`}>Cancel</Button>
 					</div>
-				</form>
+				</div>
 			{/if}
 		</div>
 	{/if}
 </div>
+
+<!-- Import settings modal -->
+<Dialog bind:open={configOpen} title="Import from GitHub" description={repoName}>
+	<form
+		method="POST"
+		action="?/importGithub"
+		use:enhance={() => {
+			importing = true;
+			return async ({ update }) => { await update(); importing = false; };
+		}}
+		class="flex flex-col gap-4"
+	>
+		<input type="hidden" name="configured" value="1" />
+		<input type="hidden" name="repo" value={repo} />
+
+		<div class="space-y-2">
+			<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="importIssues" checked class="size-4 accent-brand-600" /> Import issues</label>
+			<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="importPrs" checked class="size-4 accent-brand-600" /> Import pull requests &amp; link them</label>
+			<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="importReleases" checked class="size-4 accent-brand-600" /> Import releases</label>
+		</div>
+
+		<div>
+			<p class="mb-1.5 text-sm font-medium">Issue labels to import</p>
+			{#if loadingLabels}
+				<p class="text-xs text-neutral-400">Loading labels…</p>
+			{:else if repoLabels.length}
+				<div class="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-neutral-200 p-2 dark:border-neutral-800">
+					{#each repoLabels as l (l.name)}
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" name="issueLabel" value={l.name} checked class="size-4 accent-brand-600" />
+							<span class="size-2.5 shrink-0 rounded-full" style={`background:${l.color}`}></span>
+							<span class="truncate">{l.name}</span>
+						</label>
+					{/each}
+				</div>
+			{:else}
+				<p class="text-xs text-neutral-400">This repo has no labels.</p>
+			{/if}
+		</div>
+
+		<div>
+			<p class="text-sm font-medium">Create progress labels</p>
+			<p class="mb-1.5 text-xs text-neutral-500">
+				When a ticket enters a selected column, its linked GitHub issue gets a <code class="rounded bg-neutral-100 px-1 text-[11px] dark:bg-neutral-800">Status: …</code> label.
+			</p>
+			<div class="space-y-1">
+				{#each DEFAULT_COLUMNS as c (c)}
+					<label class="flex items-center gap-2 text-sm">
+						<input type="checkbox" name="progressColumn" value={c} class="size-4 accent-brand-600" />
+						<span class="text-neutral-500">Status:</span> {c}
+					</label>
+				{/each}
+			</div>
+		</div>
+
+		<div class="flex justify-end gap-2 border-t border-neutral-100 pt-3 dark:border-neutral-800">
+			<Button variant="ghost" type="button" onclick={() => (configOpen = false)}>Cancel</Button>
+			<Button variant="primary" type="submit" disabled={importing}>{importing ? 'Importing…' : 'Import'}</Button>
+		</div>
+	</form>
+</Dialog>

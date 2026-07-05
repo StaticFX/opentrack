@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { MessageSquare, ChevronUp, Link2, AlignLeft, Ban } from '@lucide/svelte';
+	import { MessageSquare, ChevronUp, Link2, AlignLeft, Ban, GitPullRequest, GitMerge } from '@lucide/svelte';
 	import type { TicketCard } from '$lib/board';
 	import { PRIORITY_META } from '$lib/priority';
 
@@ -50,6 +50,15 @@
 		{#if ticket.githubIssueNumber}
 			<span class="flex items-center gap-0.5" title="Linked GitHub issue">
 				<Link2 size={11} /> {ticket.githubIssueNumber}
+			</span>
+		{/if}
+		{#if ticket.githubPrNumber}
+			{@const merged = ticket.githubPrState === 'merged'}
+			<span
+				class="flex items-center gap-0.5 {merged ? 'text-violet-500' : ticket.githubPrState === 'closed' ? 'text-red-400' : 'text-green-500'}"
+				title={`Pull request #${ticket.githubPrNumber}${ticket.githubPrState ? ' — ' + ticket.githubPrState : ''}`}
+			>
+				{#if merged}<GitMerge size={11} />{:else}<GitPullRequest size={11} />{/if} {ticket.githubPrNumber}
 			</span>
 		{/if}
 		{#if ticket.hasDescription}
