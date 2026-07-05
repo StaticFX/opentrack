@@ -7,7 +7,8 @@
 		LogOut,
 		LayoutDashboard,
 		Shield,
-		Hash
+		Hash,
+		UserRound
 	} from '@lucide/svelte';
 	import { clickOutside } from '$lib/utils/clickOutside';
 	import { cn } from '$lib/utils/cn';
@@ -224,6 +225,14 @@
 				use:clickOutside={() => (userMenuOpen = false)}
 				class="absolute inset-x-2 bottom-full z-20 mb-1 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-900"
 			>
+				<a
+					href="/account"
+					onclick={() => (userMenuOpen = false)}
+					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+				>
+					<UserRound size={15} class="text-neutral-400" /> Account
+				</a>
+				<div class="my-1 border-t border-neutral-100 dark:border-neutral-800"></div>
 				<form method="POST" action="/auth/logout">
 					<button
 						class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"

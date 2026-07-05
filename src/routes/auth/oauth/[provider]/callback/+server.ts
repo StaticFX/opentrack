@@ -9,15 +9,15 @@ import {
 	generateSessionToken,
 	setSessionCookie
 } from '$lib/server/auth/session';
-import { findOrCreateUserFromOAuth } from '$lib/server/auth/user';
+import { findOrCreateUserFromOAuth, linkOAuthAccount } from '$lib/server/auth/user';
 import { safeRedirect } from '$lib/server/util/redirect';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async ({ params, cookies, url }) => {
+export const GET: RequestHandler = async ({ params, cookies, url, locals }) => {
 	const adapter = await getOAuthAdapter(params.provider);
 	if (!adapter) throw error(404, 'Unknown or disabled login provider');
 
-	const { state: storedState, redirectTo } = readOAuthCookies(cookies);
+	const { state: storedState, redirectTo, link } = readOAuthCookies(cookies);
 	clearOAuthCookies(cookies);
 
 	const code = url.searchParams.get('code');
@@ -26,19 +26,26 @@ export const GET: RequestHandler = async ({ params, cookies, url }) => {
 		throw error(400, 'Invalid or expired OAuth state — please try signing in again.');
 	}
 
-	let userId: string;
+	let profile;
 	try {
 		const accessToken = await adapter.validateCode(code);
-		const profile = await adapter.fetchProfile(accessToken);
-		const user = await findOrCreateUserFromOAuth(adapter.name, profile);
-		userId = user.id;
+		profile = await adapter.fetchProfile(accessToken);
 	} catch (err) {
-		console.error(`[oauth:${adapter.name}] login failed:`, err);
-		throw error(502, 'Login failed while talking to the provider. Please try again.');
+		console.error(`[oauth:${adapter.name}] failed:`, err);
+		throw error(502, 'Failed while talking to the provider. Please try again.');
 	}
 
+	// Link mode: attach this identity to the already-logged-in user, no new session.
+	if (link && locals.user) {
+		const res = await linkOAuthAccount(locals.user.id, adapter.name, profile);
+		const dest = safeRedirect(redirectTo);
+		const sep = dest.includes('?') ? '&' : '?';
+		throw redirect(302, `${dest}${sep}linked=${res.ok ? adapter.name : 'taken'}`);
+	}
+
+	const user = await findOrCreateUserFromOAuth(adapter.name, profile);
 	const token = generateSessionToken();
-	const { expiresAt } = await createSession(token, userId);
+	const { expiresAt } = await createSession(token, user.id);
 	setSessionCookie(cookies, token, expiresAt);
 
 	throw redirect(302, safeRedirect(redirectTo));

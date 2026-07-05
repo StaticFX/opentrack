@@ -99,6 +99,71 @@ export async function findOrCreateUserFromOAuth(
 	return user;
 }
 
+/** OAuth providers currently linked to a user (for the account page). */
+export async function listLinkedAccounts(
+	userId: string
+): Promise<Array<{ provider: OAuthProvider; providerUsername: string | null; avatarUrl: string | null }>> {
+	return db
+		.select({
+			provider: schema.oauthAccounts.provider,
+			providerUsername: schema.oauthAccounts.providerUsername,
+			avatarUrl: schema.oauthAccounts.avatarUrl
+		})
+		.from(schema.oauthAccounts)
+		.where(eq(schema.oauthAccounts.userId, userId));
+}
+
+/**
+ * Attach an OAuth identity to an existing (logged-in) user. One identity per
+ * provider per user — re-linking replaces it. Fails if that identity already
+ * belongs to a different account.
+ */
+export async function linkOAuthAccount(
+	userId: string,
+	provider: OAuthProvider,
+	profile: OAuthProfile
+): Promise<{ ok: true } | { ok: false; reason: 'taken' }> {
+	const [existing] = await db
+		.select({ id: schema.oauthAccounts.id, userId: schema.oauthAccounts.userId })
+		.from(schema.oauthAccounts)
+		.where(
+			and(
+				eq(schema.oauthAccounts.provider, provider),
+				eq(schema.oauthAccounts.providerUserId, profile.providerUserId)
+			)
+		)
+		.limit(1);
+
+	if (existing) {
+		if (existing.userId !== userId) return { ok: false, reason: 'taken' };
+		await db
+			.update(schema.oauthAccounts)
+			.set({ providerUsername: profile.username, avatarUrl: profile.avatarUrl })
+			.where(eq(schema.oauthAccounts.id, existing.id));
+		return { ok: true };
+	}
+
+	// Replace any prior identity this user had for the same provider.
+	await db
+		.delete(schema.oauthAccounts)
+		.where(and(eq(schema.oauthAccounts.userId, userId), eq(schema.oauthAccounts.provider, provider)));
+	await db.insert(schema.oauthAccounts).values({
+		userId,
+		provider,
+		providerUserId: profile.providerUserId,
+		providerUsername: profile.username,
+		avatarUrl: profile.avatarUrl
+	});
+	return { ok: true };
+}
+
+/** Remove a linked OAuth identity from a user. */
+export async function unlinkOAuthAccount(userId: string, provider: OAuthProvider): Promise<void> {
+	await db
+		.delete(schema.oauthAccounts)
+		.where(and(eq(schema.oauthAccounts.userId, userId), eq(schema.oauthAccounts.provider, provider)));
+}
+
 /** Create (or return) an admin user with an email + password. */
 export async function createAdminUser(email: string, password: string): Promise<User> {
 	const [existing] = await db

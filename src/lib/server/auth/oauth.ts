@@ -172,8 +172,14 @@ export async function enabledProviders(): Promise<OAuthProvider[]> {
 // ── OAuth flow cookies (state + post-login redirect target) ───────────────
 const STATE_COOKIE = 'ot_oauth_state';
 const REDIRECT_COOKIE = 'ot_oauth_redirect';
+const LINK_COOKIE = 'ot_oauth_link';
 
-export function setOAuthCookies(cookies: Cookies, state: string, redirectTo: string): void {
+export function setOAuthCookies(
+	cookies: Cookies,
+	state: string,
+	redirectTo: string,
+	link = false
+): void {
 	const opts = {
 		path: '/',
 		httpOnly: true,
@@ -183,16 +189,24 @@ export function setOAuthCookies(cookies: Cookies, state: string, redirectTo: str
 	};
 	cookies.set(STATE_COOKIE, state, opts);
 	cookies.set(REDIRECT_COOKIE, redirectTo, opts);
+	if (link) cookies.set(LINK_COOKIE, '1', opts);
+	else cookies.delete(LINK_COOKIE, { path: '/' });
 }
 
-export function readOAuthCookies(cookies: Cookies): { state: string | null; redirectTo: string } {
+export function readOAuthCookies(cookies: Cookies): {
+	state: string | null;
+	redirectTo: string;
+	link: boolean;
+} {
 	return {
 		state: cookies.get(STATE_COOKIE) ?? null,
-		redirectTo: cookies.get(REDIRECT_COOKIE) ?? '/'
+		redirectTo: cookies.get(REDIRECT_COOKIE) ?? '/',
+		link: cookies.get(LINK_COOKIE) === '1'
 	};
 }
 
 export function clearOAuthCookies(cookies: Cookies): void {
 	cookies.delete(STATE_COOKIE, { path: '/' });
 	cookies.delete(REDIRECT_COOKIE, { path: '/' });
+	cookies.delete(LINK_COOKIE, { path: '/' });
 }
