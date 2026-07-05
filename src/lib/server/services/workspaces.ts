@@ -152,7 +152,25 @@ export async function updateWorkspace(
 }
 
 export async function deleteWorkspace(workspaceId: string): Promise<void> {
-	await db.delete(schema.workspaces).where(eq(schema.workspaces.id, workspaceId));
+	await db.transaction(async (tx) => {
+		// Clear FK children whose columns were added via ALTER TABLE (no ON DELETE
+		// CASCADE): `activity.project_id` (for every project in the workspace) and
+		// `github_installations.workspace_id`. The rest cascades from the project.
+		const projs = await tx
+			.select({ id: schema.projects.id })
+			.from(schema.projects)
+			.where(eq(schema.projects.workspaceId, workspaceId));
+		if (projs.length) {
+			await tx.delete(schema.activity).where(
+				inArray(
+					schema.activity.projectId,
+					projs.map((p) => p.id)
+				)
+			);
+		}
+		await tx.delete(schema.githubInstallations).where(eq(schema.githubInstallations.workspaceId, workspaceId));
+		await tx.delete(schema.workspaces).where(eq(schema.workspaces.id, workspaceId));
+	});
 }
 
 // ── Members ────────────────────────────────────────────────────────────────

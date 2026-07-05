@@ -200,7 +200,14 @@ export async function updateProject(projectId: string, patch: UpdateProjectInput
 }
 
 export async function deleteProject(projectId: string): Promise<void> {
-	await db.delete(schema.projects).where(eq(schema.projects.id, projectId));
+	await db.transaction(async (tx) => {
+		// `activity.project_id` was added by a later migration via ALTER TABLE, so
+		// its FK has no ON DELETE CASCADE (SQLite can't attach one that way). Clear
+		// those rows first, otherwise deleting a project that has activity fails
+		// with a foreign-key constraint error. Everything else cascades.
+		await tx.delete(schema.activity).where(eq(schema.activity.projectId, projectId));
+		await tx.delete(schema.projects).where(eq(schema.projects.id, projectId));
+	});
 }
 
 // ── Members ────────────────────────────────────────────────────────────────
