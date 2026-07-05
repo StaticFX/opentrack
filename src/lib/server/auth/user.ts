@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '$lib/server/db';
+import { encryptSecret } from '$lib/server/crypto';
 import { hashPassword } from './password';
 import type { OAuthProfile } from './oauth';
 
@@ -163,23 +164,20 @@ export async function unlinkOAuthAccount(userId: string, provider: string): Prom
 		.where(and(eq(schema.oauthAccounts.userId, userId), eq(schema.oauthAccounts.provider, provider)));
 }
 
-/** Create (or return) an admin user with an email + password. */
-export async function createAdminUser(email: string, password: string): Promise<User> {
-	const [existing] = await db
-		.select()
-		.from(schema.users)
-		.where(eq(schema.users.email, email))
-		.limit(1);
-	if (existing) return existing;
-
-	const username = await ensureUniqueUsername(email.split('@')[0] || 'admin');
-	const passwordHash = await hashPassword(password);
+/** Create an admin user with a username + password (email optional). */
+export async function createAdminUser(input: {
+	username: string;
+	password: string;
+	email?: string | null;
+}): Promise<User> {
+	const username = await ensureUniqueUsername(input.username || 'admin');
+	const passwordHash = await hashPassword(input.password);
 	const [user] = await db
 		.insert(schema.users)
 		.values({
-			email,
 			username,
 			displayName: username,
+			email: input.email ?? null,
 			isAdmin: true,
 			passwordHash
 		})
@@ -195,4 +193,44 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 		.where(eq(schema.users.email, email))
 		.limit(1);
 	return user ?? null;
+}
+
+/** Look up a user by username (case-insensitive) for password login. */
+export async function findUserByUsername(username: string): Promise<User | null> {
+	const [user] = await db
+		.select()
+		.from(schema.users)
+		.where(eq(schema.users.username, username.trim().toLowerCase()))
+		.limit(1);
+	return user ?? null;
+}
+
+export async function getUserById(id: string): Promise<User | null> {
+	const [user] = await db.select().from(schema.users).where(eq(schema.users.id, id)).limit(1);
+	return user ?? null;
+}
+
+/** Set (or replace) a user's password. */
+export async function setUserPassword(userId: string, newPassword: string): Promise<void> {
+	const passwordHash = await hashPassword(newPassword);
+	await db
+		.update(schema.users)
+		.set({ passwordHash, updatedAt: new Date() })
+		.where(eq(schema.users.id, userId));
+}
+
+/** Store a TOTP secret (encrypted) and its enabled state; null clears it. */
+export async function setUserTotp(
+	userId: string,
+	secretBase32: string | null,
+	enabled: boolean
+): Promise<void> {
+	await db
+		.update(schema.users)
+		.set({
+			totpSecret: secretBase32 ? encryptSecret(secretBase32) : null,
+			totpEnabled: enabled,
+			updatedAt: new Date()
+		})
+		.where(eq(schema.users.id, userId));
 }

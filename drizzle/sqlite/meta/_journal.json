@@ -64,6 +64,13 @@
       "when": 1783285245716,
       "tag": "0008_oauth_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1783286282582,
+      "tag": "0009_user_totp",
+      "breakpoints": true
     }
   ]
 }

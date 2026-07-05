@@ -1,16 +1,16 @@
+import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db, schema } from '$lib/server/db';
 import { env } from '$lib/server/env';
 import { createAdminUser } from './user';
 
 /**
- * Create the initial admin from ADMIN_EMAIL/ADMIN_PASSWORD if configured and no
- * admin exists yet. Safe to call repeatedly (no-op once an admin is present).
+ * Create the initial admin on first boot if none exists. The username defaults
+ * to ADMIN_USERNAME (or "admin") and the password to ADMIN_PASSWORD, or a
+ * random one that is printed to the container logs so the operator can read it
+ * from `docker logs` and sign in. No email required.
  */
 export async function bootstrapAdmin(): Promise<void> {
-	const { email, password } = env.bootstrapAdmin;
-	if (!email || !password) return;
-
 	const [existing] = await db
 		.select({ id: schema.users.id })
 		.from(schema.users)
@@ -18,6 +18,23 @@ export async function bootstrapAdmin(): Promise<void> {
 		.limit(1);
 	if (existing) return;
 
-	await createAdminUser(email, password);
-	console.log(`[bootstrap] created initial admin: ${email}`);
+	const username = env.bootstrapAdmin.username || 'admin';
+	const configured = env.bootstrapAdmin.password;
+	const password = configured || randomBytes(9).toString('base64url'); // ~12 chars
+
+	const user = await createAdminUser({ username, password, email: env.bootstrapAdmin.email || null });
+
+	const line = '━'.repeat(52);
+	console.log(
+		[
+			'',
+			line,
+			'  OpenTrack — initial admin account created',
+			`  Username: ${user.username}`,
+			configured ? '  Password: (from ADMIN_PASSWORD)' : `  Password: ${password}`,
+			'  → Sign in, then change it in Account → Security.',
+			line,
+			''
+		].join('\n')
+	);
 }

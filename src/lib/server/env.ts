@@ -71,6 +71,9 @@ export const env = {
 		}
 	},
 	bootstrapAdmin: {
+		get username() {
+			return opt('ADMIN_USERNAME');
+		},
 		get email() {
 			return opt('ADMIN_EMAIL');
 		},

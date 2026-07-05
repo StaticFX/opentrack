@@ -44,6 +44,9 @@ export function defineSchema(kit: Kit) {
 			avatarUrl: text('avatar_url'),
 			isAdmin: bool('is_admin').default(false).notNull(),
 			passwordHash: text('password_hash'),
+			// TOTP 2FA — secret is AES-256-GCM encrypted; only active when enabled.
+			totpSecret: text('totp_secret'),
+			totpEnabled: bool('totp_enabled').default(false).notNull(),
 			status: text('status').$type<UserStatus>().default('active').notNull(),
 			createdAt: createdAt(),
 			updatedAt: updatedAt()

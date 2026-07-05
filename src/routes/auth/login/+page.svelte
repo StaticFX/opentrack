@@ -60,19 +60,30 @@
 					</p>
 				{/if}
 				<input
-					name="email"
-					type="email"
-					placeholder="admin@example.com"
-					value={form?.email ?? ''}
+					name="username"
+					type="text"
+					autocomplete="username"
+					placeholder="Username"
+					value={form?.username ?? ''}
 					required
 					class="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
 				/>
 				<input
 					name="password"
 					type="password"
+					autocomplete="current-password"
 					placeholder="Password"
 					required
 					class="rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm dark:border-neutral-700"
+				/>
+				<input
+					name="code"
+					type="text"
+					inputmode="numeric"
+					autocomplete="one-time-code"
+					placeholder="One-time code (if 2FA is on)"
+					value=""
+					class={`rounded-lg border bg-transparent px-3 py-2 text-sm dark:border-neutral-700 ${(form as any)?.needCode ? 'border-brand-500 ring-2 ring-brand-500/30' : 'border-neutral-300'}`}
 				/>
 				<button
 					type="submit"

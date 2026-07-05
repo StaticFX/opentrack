@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
-	import { Link2, Check, X } from '@lucide/svelte';
+	import { Link2, Check, X, KeyRound, ShieldCheck } from '@lucide/svelte';
 	import Button from '$lib/components/ui/Button.svelte';
+	import Field from '$lib/components/ui/Field.svelte';
+	import Input from '$lib/components/ui/Input.svelte';
 
-	let { data } = $props();
+	let { data, form } = $props();
+	const f = $derived(form as Record<string, any> | null);
 	const user = $derived(data.user as { displayName: string; email: string | null; avatarUrl: string | null });
 
 	const builtinLabel: Record<string, string> = { github: 'GitHub', discord: 'Discord', modrinth: 'Modrinth' };
@@ -100,4 +103,54 @@
 			</p>
 		{/if}
 	</section>
+
+	{#if data.hasPassword}
+		<!-- Security -->
+		<section class="mt-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+			<h2 class="flex items-center gap-2 text-sm font-semibold"><KeyRound size={15} /> Security</h2>
+
+			<!-- Change password -->
+			<div class="mt-4">
+				<h3 class="mb-2 text-sm font-medium">Change password</h3>
+				{#if f?.pwError}<p class="mb-2 rounded-lg bg-red-50 p-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-300">{f.pwError}</p>{/if}
+				{#if f?.pwSaved}<p class="mb-2 text-sm text-green-600">Password updated.</p>{/if}
+				<form method="POST" action="?/changePassword" use:enhance={() => async ({ update }) => { await update({ reset: true }); }} class="flex max-w-sm flex-col gap-3">
+					<Field label="Current password"><Input name="current" type="password" autocomplete="current-password" /></Field>
+					<Field label="New password" hint="At least 8 characters."><Input name="next" type="password" autocomplete="new-password" /></Field>
+					<Field label="Confirm new password"><Input name="confirm" type="password" autocomplete="new-password" /></Field>
+					<div><Button variant="primary" type="submit">Update password</Button></div>
+				</form>
+			</div>
+
+			<!-- Two-factor -->
+			<div class="mt-6 border-t border-neutral-100 pt-4 dark:border-neutral-800">
+				<h3 class="mb-1 flex items-center gap-1.5 text-sm font-medium"><ShieldCheck size={14} /> Two-factor authentication</h3>
+				{#if f?.totpError}<p class="mb-2 rounded-lg bg-red-50 p-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-300">{f.totpError}</p>{/if}
+
+				{#if data.totp.state === 'on'}
+					<p class="mb-3 flex items-center gap-1 text-sm text-green-600 dark:text-green-400"><Check size={14} /> Two-factor is on. You'll be asked for a code at sign-in.</p>
+					<form method="POST" action="?/disableTotp" use:enhance class="flex max-w-sm items-end gap-2">
+						<div class="flex-1"><Field label="Password to disable"><Input name="password" type="password" /></Field></div>
+						<Button variant="ghost" type="submit" class="text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40">Disable</Button>
+					</form>
+				{:else if data.totp.state === 'pending'}
+					<p class="mb-2 text-sm text-neutral-500">Scan this with your authenticator app (or enter the key), then confirm with a code.</p>
+					<div class="mb-2 inline-block rounded-lg bg-white p-2 [&>svg]:size-40">{@html data.totp.qrSvg}</div>
+					<p class="mb-3 text-xs text-neutral-500">Setup key: <code class="rounded bg-neutral-100 px-1.5 py-0.5 dark:bg-neutral-800">{data.totp.secret}</code></p>
+					<form method="POST" action="?/confirmTotp" use:enhance class="flex max-w-xs items-end gap-2">
+						<div class="flex-1"><Field label="6-digit code"><Input name="code" inputmode="numeric" placeholder="123456" /></Field></div>
+						<Button variant="primary" type="submit">Enable</Button>
+					</form>
+					<form method="POST" action="?/cancelTotp" use:enhance class="mt-2">
+						<button class="text-xs text-neutral-400 hover:text-neutral-600">Cancel setup</button>
+					</form>
+				{:else}
+					<p class="mb-3 text-sm text-neutral-500">Protect sign-in with a one-time code from an authenticator app (Google Authenticator, 1Password, …).</p>
+					<form method="POST" action="?/startTotp" use:enhance>
+						<Button variant="default" type="submit"><ShieldCheck size={15} /> Set up two-factor</Button>
+					</form>
+				{/if}
+			</div>
+		</section>
+	{/if}
 </div>
