@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { invalidate } from '$app/navigation';
 	import { dndzone } from 'svelte-dnd-action';
-	import { Plus, Settings2, Trash2, ArrowLeft, ArrowRight, Search, X } from '@lucide/svelte';
+	import { Plus, Settings2, Trash2, ArrowLeft, ArrowRight, Search, X, CheckSquare } from '@lucide/svelte';
 	import { COLUMN_CATEGORIES, PRIORITIES, type ColumnCategory } from '$lib/constants';
 	import { COLUMN_ICON_KEYS } from '$lib/columnIcons';
 	import { PALETTE } from '$lib/colors';
@@ -11,6 +11,7 @@
 	import type { TicketCard } from '$lib/board';
 	import { clickOutside } from '$lib/utils/clickOutside';
 	import Select from '$lib/components/ui/Select.svelte';
+	import BoardViews from './BoardViews.svelte';
 	import Card from './Card.svelte';
 	import ColumnIcon from './ColumnIcon.svelte';
 	import TicketModal from './TicketModal.svelte';
@@ -66,6 +67,42 @@
 	});
 
 	let selectedTicket = $state<string | null>(null);
+
+	// ── Bulk selection ───────────────────────────────────────────────────
+	let selectMode = $state(false);
+	let selectedIds = $state<string[]>([]);
+	let bulkMembers = $state<Array<{ userId: string; displayName: string }>>([]);
+	function toggleSelect(id: string) {
+		selectedIds = selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id];
+	}
+	function cardClick(id: string) {
+		if (selectMode) toggleSelect(id);
+		else selectedTicket = id;
+	}
+	async function enterSelect() {
+		selectMode = true;
+		if (!bulkMembers.length) {
+			const res = await fetch(`/api/projects/${projectId}/members`);
+			if (res.ok) bulkMembers = (await res.json()).members;
+		}
+	}
+	function exitSelect() {
+		selectMode = false;
+		selectedIds = [];
+	}
+	async function bulkAction(action: string, extra: Record<string, unknown> = {}) {
+		if (!selectedIds.length) return;
+		if (action === 'delete' && !confirm(`Delete ${selectedIds.length} ticket(s)? This cannot be undone.`)) return;
+		const res = await fetch(`/api/boards/${boardId}/bulk`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ action, ticketIds: selectedIds, ...extra })
+		});
+		if (res.ok) { selectedIds = []; await invalidate(`board:${boardId}`); }
+	}
+	const bulkColumnOptions = $derived([{ value: '', label: 'Move to…' }, ...columns.map((c) => ({ value: c.id, label: c.name }))]);
+	const bulkLabelOptions = $derived([{ value: '', label: 'Add label…' }, ...labels.map((l) => ({ value: l.id, label: l.name }))]);
+	const bulkMemberOptions = $derived([{ value: '', label: 'Assign…' }, ...bulkMembers.map((m) => ({ value: m.userId, label: m.displayName }))]);
 	let composerCol = $state<string | null>(null);
 	let composerText = $state('');
 	let menuCol = $state<string | null>(null);
@@ -107,6 +144,13 @@
 		fLabel = '';
 		fAssignee = '';
 		fPriority = '';
+	}
+	/** Apply a saved view's filters to the live filter controls. */
+	function applyView(f: { q?: string; label?: string; assignee?: string; priority?: string }) {
+		fq = f.q ?? '';
+		fLabel = f.label ?? '';
+		fAssignee = f.assignee ?? '';
+		fPriority = f.priority ?? '';
 	}
 
 	// ── Drag & drop ──────────────────────────────────────────────────────
@@ -224,6 +268,23 @@
 		{#if filterActive}
 			<button onclick={clearFilters} class="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"><X size={13} /> Clear</button>
 		{/if}
+		<div class="ml-auto flex items-center gap-2">
+			{#if canEdit}
+				<button
+					onclick={() => (selectMode ? exitSelect() : enterSelect())}
+					class={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-sm ${selectMode ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'}`}
+				>
+					<CheckSquare size={14} /> {selectMode ? 'Done' : 'Select'}
+				</button>
+			{/if}
+			<BoardViews
+				{boardId}
+				current={{ q: fq, label: fLabel, assignee: fAssignee, priority: fPriority }}
+				{filterActive}
+				canShare={canEdit}
+				onapply={applyView}
+			/>
+		</div>
 	</div>
 
 	<div class="min-h-0 flex-1 overflow-x-auto">
@@ -313,7 +374,7 @@
 					use:dndzone={{
 						items,
 						flipDurationMs: flip,
-						dragDisabled: !canEdit || filterActive,
+						dragDisabled: !canEdit || filterActive || selectMode,
 						dropTargetStyle: {},
 						dropTargetClasses: ['ring-2', 'ring-brand-500/40', 'rounded-lg'],
 						type: 'card'
@@ -323,7 +384,9 @@
 				>
 					{#each items as item (item.id)}
 						<div class="shrink-0">
-							<Card ticket={item} onopen={(id) => (selectedTicket = id)} />
+							<div class={selectMode && selectedIds.includes(item.id) ? 'rounded-xl ring-2 ring-brand-500 ring-offset-1 dark:ring-offset-neutral-900' : ''}>
+								<Card ticket={item} onopen={cardClick} />
+							</div>
 						</div>
 					{/each}
 				</div>
@@ -338,6 +401,26 @@
 	</div>
 </div>
 </div>
+
+{#if selectMode && selectedIds.length}
+	{@const sc = 'h-8 rounded-md border border-neutral-200 bg-white px-2 text-sm dark:border-neutral-700 dark:bg-neutral-800'}
+	<div class="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
+		<span class="px-1 text-sm font-medium">{selectedIds.length} selected</span>
+		<select class={sc} onchange={(e) => { const v = e.currentTarget.value; if (v) bulkAction('move', { columnId: v }); e.currentTarget.value = ''; }}>
+			{#each bulkColumnOptions as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
+		</select>
+		<select class={sc} onchange={(e) => { const v = e.currentTarget.value; if (v) bulkAction('label', { labelId: v }); e.currentTarget.value = ''; }}>
+			{#each bulkLabelOptions as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
+		</select>
+		<select class={sc} onchange={(e) => { const v = e.currentTarget.value; if (v) bulkAction('assign', { userId: v }); e.currentTarget.value = ''; }}>
+			{#each bulkMemberOptions as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
+		</select>
+		{#if canManage}
+			<button onclick={() => bulkAction('delete')} class="flex h-8 items-center gap-1 rounded-md px-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"><Trash2 size={14} /> Delete</button>
+		{/if}
+		<button onclick={() => (selectedIds = [])} class="h-8 rounded-md px-2 text-sm text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800">Clear</button>
+	</div>
+{/if}
 
 {#if selectedTicket}
 	<TicketModal

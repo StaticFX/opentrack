@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Copy, Trash2, GitBranch, Plus } from '@lucide/svelte';
+	import { Copy, Trash2, GitBranch, Plus, KeyRound } from '@lucide/svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
 	import Field from '$lib/components/ui/Field.svelte';
@@ -243,6 +243,46 @@
 				<Plus size={15} /> Connect GitHub account
 			</Button>
 		{/if}
+	</section>
+
+	<!-- API keys -->
+	<section class="mt-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+		<h2 class="flex items-center gap-2 text-sm font-semibold"><KeyRound size={15} /> API keys</h2>
+		<p class="mt-1 mb-4 text-sm text-neutral-500">
+			Read-only access to this workspace's projects via the <code class="rounded bg-neutral-100 px-1 text-xs dark:bg-neutral-800">/api/v1</code> endpoints. Send the key as <code class="rounded bg-neutral-100 px-1 text-xs dark:bg-neutral-800">Authorization: Bearer &lt;key&gt;</code>.
+		</p>
+
+		{#if f?.apiKeyRaw}
+			<div class="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-900/50 dark:bg-green-950/30">
+				<p class="mb-1 text-xs font-medium text-green-700 dark:text-green-300">Copy your key now — it won't be shown again.</p>
+				<div class="flex items-center gap-2">
+					<code class="min-w-0 flex-1 truncate rounded bg-white px-2 py-1.5 font-mono text-xs dark:bg-neutral-900">{f.apiKeyRaw}</code>
+					<button type="button" onclick={() => copy(f.apiKeyRaw)} class="shrink-0 rounded-md p-1.5 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Copy"><Copy size={14} /></button>
+				</div>
+			</div>
+		{/if}
+
+		{#if data.apiKeys.length}
+			<div class="mb-3 divide-y divide-neutral-100 dark:divide-neutral-800">
+				{#each data.apiKeys as k (k.id)}
+					<div class="flex items-center gap-3 py-2">
+						<div class="min-w-0 flex-1">
+							<p class="truncate text-sm font-medium">{k.name}</p>
+							<p class="text-xs text-neutral-400">{k.prefix}…· {k.lastUsedAt ? `last used ${new Date(k.lastUsedAt).toLocaleDateString()}` : 'never used'}</p>
+						</div>
+						<form method="POST" action="?/revokeApiKey" use:enhance>
+							<input type="hidden" name="id" value={k.id} />
+							<button class="rounded-md p-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40" aria-label="Revoke"><Trash2 size={14} /></button>
+						</form>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+		<form method="POST" action="?/createApiKey" use:enhance class="flex items-end gap-2">
+			<div class="flex-1"><Field label="New key name"><Input name="name" placeholder="e.g. Docs website" /></Field></div>
+			<Button variant="primary" type="submit"><Plus size={15} /> Create key</Button>
+		</form>
 	</section>
 
 	<!-- Danger -->

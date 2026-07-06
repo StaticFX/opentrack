@@ -1,0 +1,26 @@
+import { error } from '@sveltejs/kit';
+import { buildRoadmapLanes } from '$lib/roadmap';
+import { env } from '$lib/server/env';
+import { getBoardColumns, listBoards } from '$lib/server/services/boards';
+import { getBySlugs } from '$lib/server/services/projects';
+import { listBoardTickets } from '$lib/server/services/tickets';
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async ({ params, locals }) => {
+	const ctx = await getBySlugs(locals.user, params.wsSlug, params.projectSlug);
+	// Embeds are for public projects only.
+	if (!ctx || ctx.visibility !== 'public') throw error(404, 'Not found');
+
+	const boards = await listBoards(ctx.project.id);
+	const board = boards[0];
+	let lanes: ReturnType<typeof buildRoadmapLanes> = [];
+	if (board) {
+		const [columns, tickets] = await Promise.all([getBoardColumns(board.id), listBoardTickets(board.id)]);
+		lanes = buildRoadmapLanes(columns, tickets, true);
+	}
+	return {
+		project: { name: ctx.project.name },
+		href: `${env.origin}/${params.wsSlug}/${params.projectSlug}/roadmap`,
+		lanes
+	};
+};

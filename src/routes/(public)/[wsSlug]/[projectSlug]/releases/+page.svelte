@@ -1,16 +1,23 @@
 <script lang="ts">
-	import { Tag, Download, ExternalLink, FileText } from '@lucide/svelte';
+	import { Tag, Download, ExternalLink, FileText, Rss } from '@lucide/svelte';
 	import { renderMarkdown } from '$lib/markdown';
 
 	let { data } = $props();
 	const base = $derived(`/${data.workspace.slug}/${data.project.slug}`);
+	const feed = $derived(`${base}/releases/rss.xml`);
 
 	const linkIcon = (type: string) => (type === 'download' ? Download : type === 'changelog' ? FileText : ExternalLink);
 </script>
 
-<svelte:head><title>Releases — {data.project.name}</title></svelte:head>
+<svelte:head>
+	<title>Releases — {data.project.name}</title>
+	<link rel="alternate" type="application/rss+xml" title={`${data.project.name} releases`} href={feed} />
+</svelte:head>
 
 <main class="mx-auto max-w-3xl px-6 py-8">
+	<div class="mb-4 flex justify-end">
+		<a href={feed} class="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-orange-500"><Rss size={13} /> RSS</a>
+	</div>
 	{#if data.releases.length}
 		<div class="space-y-10">
 			{#each data.releases as r (r.id)}

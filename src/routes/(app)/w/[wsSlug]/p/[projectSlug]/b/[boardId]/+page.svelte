@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Settings, Lock, Globe, Lightbulb, ExternalLink, Tag, Activity, LayoutDashboard } from '@lucide/svelte';
+	import { Settings, Lock, Globe, Lightbulb, ExternalLink, Tag, Activity, LayoutDashboard, ChartColumn } from '@lucide/svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import KanbanBoard from '$lib/components/board/KanbanBoard.svelte';
 
@@ -31,6 +31,9 @@
 			</Button>
 			<Button variant="ghost" size="sm" href={`/w/${wsSlug}/p/${projectSlug}/activity`}>
 				<Activity size={15} /> Activity
+			</Button>
+			<Button variant="ghost" size="sm" href={`/w/${wsSlug}/p/${projectSlug}/analytics`}>
+				<ChartColumn size={15} /> Analytics
 			</Button>
 			{#if data.canManageProject}
 				<Button variant="ghost" size="sm" href={`/w/${wsSlug}/p/${projectSlug}/releases`}>

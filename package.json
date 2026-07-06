@@ -16,7 +16,23 @@
     "worker": "tsx --tsconfig tsconfig.scripts.json src/lib/server/jobs/worker-entry.ts",
     "seed": "tsx --tsconfig tsconfig.scripts.json scripts/seed.ts",
     "smoke": "tsx --tsconfig tsconfig.scripts.json scripts/smoke.ts",
-    "smoke:import": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-import.ts"
+    "smoke:import": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-import.ts",
+    "smoke:notify": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-notify.ts",
+    "smoke:discord": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-discord.ts",
+    "smoke:views": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-views.ts",
+    "smoke:search": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-search.ts",
+    "smoke:roadmap": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-roadmap.ts",
+    "smoke:reactions": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-reactions.ts",
+    "smoke:feeds": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-feeds.ts",
+    "smoke:checklists": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-checklists.ts",
+    "smoke:merge": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-merge.ts",
+    "smoke:changelog": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-changelog.ts",
+    "smoke:bulk": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-bulk.ts",
+    "smoke:staleness": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-staleness.ts",
+    "smoke:analytics": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-analytics.ts",
+    "smoke:profiles": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-profiles.ts",
+    "smoke:apikeys": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-apikeys.ts",
+    "smoke:fields": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-fields.ts"
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.5.7",
@@ -26,6 +42,7 @@
     "@tailwindcss/vite": "^4.3.2",
     "@types/node": "^22.10.0",
     "@types/qrcode": "^1.5.6",
+    "@types/web-push": "^3.6.4",
     "drizzle-kit": "^0.31.10",
     "svelte": "^5.56.4",
     "svelte-check": "^4.1.0",
@@ -52,6 +69,7 @@
     "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
     "svelte-dnd-action": "^0.9.70",
-    "valibot": "^1.4.2"
+    "valibot": "^1.4.2",
+    "web-push": "^3.6.7"
   }
 }

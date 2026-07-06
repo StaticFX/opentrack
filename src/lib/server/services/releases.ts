@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNotNull, ne } from 'drizzle-orm';
 import type { ReleaseLinkType, ReleaseStatus } from '$lib/constants';
 import { db, schema } from '$lib/server/db';
 
@@ -38,6 +38,58 @@ export async function getReleaseDetail(id: string): Promise<ReleaseDetail | null
 			.orderBy(asc(schema.tickets.number))
 	]);
 	return { release, links, tickets };
+}
+
+/**
+ * Draft changelog markdown from tickets closed since the previous published
+ * release, grouped by their first label. Empty string when nothing qualifies.
+ */
+export async function generateChangelogDraft(projectId: string, releaseId: string): Promise<string> {
+	// Cutoff = the most recent *other* published release's date (else all-time).
+	const [prev] = await db
+		.select({ releasedAt: schema.releases.releasedAt })
+		.from(schema.releases)
+		.where(
+			and(
+				eq(schema.releases.projectId, projectId),
+				eq(schema.releases.status, 'published'),
+				ne(schema.releases.id, releaseId),
+				isNotNull(schema.releases.releasedAt)
+			)
+		)
+		.orderBy(desc(schema.releases.releasedAt))
+		.limit(1);
+
+	const conds = [eq(schema.tickets.projectId, projectId), isNotNull(schema.tickets.closedAt)];
+	if (prev?.releasedAt) conds.push(gt(schema.tickets.closedAt, prev.releasedAt));
+
+	const tickets = await db
+		.select({ id: schema.tickets.id, number: schema.tickets.number, title: schema.tickets.title })
+		.from(schema.tickets)
+		.where(and(...conds))
+		.orderBy(asc(schema.tickets.number));
+	if (!tickets.length) return '';
+
+	// First label per ticket (for grouping).
+	const labelRows = await db
+		.select({ ticketId: schema.ticketLabels.ticketId, name: schema.labels.name })
+		.from(schema.ticketLabels)
+		.innerJoin(schema.labels, eq(schema.ticketLabels.labelId, schema.labels.id))
+		.where(inArray(schema.ticketLabels.ticketId, tickets.map((t) => t.id)));
+	const firstLabel = new Map<string, string>();
+	for (const r of labelRows) if (!firstLabel.has(r.ticketId)) firstLabel.set(r.ticketId, r.name);
+
+	const groups = new Map<string, string[]>();
+	for (const t of tickets) {
+		const key = firstLabel.get(t.id) ?? 'Changes';
+		const line = `- #${t.number} ${t.title}`;
+		(groups.get(key) ?? groups.set(key, []).get(key)!).push(line);
+	}
+	// 'Changes' (unlabeled) sorts last; the rest alphabetically.
+	const keys = [...groups.keys()].sort((a, b) =>
+		a === 'Changes' ? 1 : b === 'Changes' ? -1 : a.localeCompare(b)
+	);
+	return keys.map((k) => `### ${k}\n${groups.get(k)!.join('\n')}`).join('\n\n');
 }
 
 export interface CreateReleaseInput {

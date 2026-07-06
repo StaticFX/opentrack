@@ -71,6 +71,62 @@
       "when": 1783286283273,
       "tag": "0009_user_totp",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783288430524,
+      "tag": "0010_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783315923701,
+      "tag": "0011_discord",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1783318227800,
+      "tag": "0012_board_views",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1783320968310,
+      "tag": "0013_reactions",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1783323786426,
+      "tag": "0014_checklists",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1783324009342,
+      "tag": "0015_suggestion_duplicate",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1783326117427,
+      "tag": "0016_api_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1783326704217,
+      "tag": "0017_custom_fields",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,8 @@
 	const base = $derived(`/w/${page.params.wsSlug}/p/${page.params.projectSlug}`);
 
 	let status = $state(r.status);
+	let notesDraft = $state(r.notes ?? '');
+	let genMsg = $state('');
 	const statusOptions = [
 		{ value: 'draft', label: 'Draft' },
 		{ value: 'published', label: 'Published' }
@@ -29,12 +31,34 @@
 
 	<!-- Details -->
 	<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
-		<form method="POST" action="?/update" use:enhance class="flex flex-col gap-4">
+		<form
+			method="POST"
+			action="?/update"
+			use:enhance={() => async ({ result, update }) => {
+				const d = result.type === 'success' ? (result.data as Record<string, unknown> | undefined) : undefined;
+				// The "Generate" button posts to ?/generateNotes and returns a draft;
+				// apply it into the editor instead of running the normal update flow.
+				if (d && ('draft' in d || 'empty' in d)) {
+					if (d.draft) { notesDraft = String(d.draft); genMsg = 'Draft generated from shipped tickets — edit before saving.'; }
+					else genMsg = 'No tickets shipped since the last release.';
+					return;
+				}
+				await update({ reset: false });
+			}}
+			class="flex flex-col gap-4"
+		>
 			<div class="flex gap-3">
 				<Field label="Version"><Input name="version" value={r.version} required class="w-40" /></Field>
 				<div class="flex-1"><Field label="Name (optional)"><Input name="name" value={r.name ?? ''} /></Field></div>
 			</div>
-			<Field label="Release notes (markdown)"><Textarea name="notes" rows={6} value={r.notes ?? ''} /></Field>
+			<div>
+				<div class="mb-1 flex items-center justify-between">
+					<span class="text-sm font-medium">Release notes (markdown)</span>
+					<Button variant="ghost" size="sm" type="submit" formaction="?/generateNotes">✨ Generate from shipped tickets</Button>
+				</div>
+				<Textarea name="notes" rows={8} bind:value={notesDraft} />
+				{#if genMsg}<p class="mt-1 text-xs text-neutral-500">{genMsg}</p>{/if}
+			</div>
 			<div class="flex items-end justify-between">
 				<Field label="Status"><input type="hidden" name="status" value={status} /><Select bind:value={status} options={statusOptions} class="w-40" /></Field>
 				<div class="flex items-center gap-3">

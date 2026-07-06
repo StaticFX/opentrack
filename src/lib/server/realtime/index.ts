@@ -10,7 +10,9 @@ export const channels = {
 	board: (boardId: string) => `board:${boardId}`,
 	ticket: (ticketId: string) => `ticket:${ticketId}`,
 	project: (projectId: string) => `project:${projectId}`,
-	suggestions: (projectId: string) => `suggestions:${projectId}`
+	suggestions: (projectId: string) => `suggestions:${projectId}`,
+	/** Per-user channel for the notification inbox (SSE-driven live badge). */
+	user: (userId: string) => `user:${userId}`
 };
 
 export type RealtimeEvent<T = unknown> = {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronUp, Link2, Plus, Trash2, X, Check, Search, GitPullRequest, GitMerge, ExternalLink } from '@lucide/svelte';
+	import { ChevronUp, Link2, Plus, Trash2, X, Check, Search, GitPullRequest, GitMerge, ExternalLink, Bell, BellOff } from '@lucide/svelte';
 	import { RELATION_TYPES, type Priority } from '$lib/constants';
 	import { PALETTE } from '$lib/colors';
 	import { PRIORITY_META } from '$lib/priority';
@@ -8,6 +8,7 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import Textarea from '$lib/components/ui/Textarea.svelte';
+	import ReactionBar from '$lib/components/ReactionBar.svelte';
 
 	type Label = { id: string; name: string; color: string };
 	type ColumnRef = { id: string; name: string; color: string; category: string };
@@ -28,6 +29,12 @@
 	let comments = $state<any[]>([]);
 	let access = $state<{ canEdit: boolean; canManage: boolean }>({ canEdit: false, canManage: false });
 	let voted = $state(false);
+	let watching = $state(false);
+	let reactions = $state<any[]>([]);
+	let checklist = $state<Array<{ id: string; text: string; done: boolean }>>([]);
+	let checklistDraft = $state('');
+	let fields = $state<Array<{ id: string; name: string; type: string; options: string[] | null; value: string | null }>>([]);
+	const checklistDone = $derived(checklist.filter((i) => i.done).length);
 	let members = $state<Array<{ userId: string; displayName: string; avatarUrl: string | null }>>([]);
 	let allLabels = $state<Label[]>([]);
 
@@ -85,6 +92,10 @@
 			comments = d.comments;
 			access = d.access;
 			voted = d.voted;
+			watching = d.watching;
+			reactions = d.reactions ?? [];
+			checklist = d.checklist ?? [];
+			fields = d.fields ?? [];
 			titleDraft = d.ticket.title;
 			descDraft = d.ticket.description ?? '';
 		}
@@ -101,7 +112,47 @@
 			detail = d.ticket;
 			comments = d.comments;
 			voted = d.voted;
+			reactions = d.reactions ?? [];
+			checklist = d.checklist ?? [];
+			fields = d.fields ?? [];
 		}
+	}
+
+	async function addChecklistItem() {
+		const text = checklistDraft.trim();
+		if (!text) return;
+		checklistDraft = '';
+		const res = await fetch(`/api/tickets/${ticketId}/checklist`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ text }) });
+		if (res.ok) checklist = [...checklist, (await res.json()).item];
+	}
+	async function toggleChecklistItem(item: { id: string; done: boolean }) {
+		const done = !item.done;
+		checklist = checklist.map((i) => (i.id === item.id ? { ...i, done } : i));
+		await fetch(`/api/checklist/${item.id}`, { method: 'PATCH', headers: jsonHeaders, body: JSON.stringify({ done }) });
+	}
+	async function removeChecklistItem(id: string) {
+		checklist = checklist.filter((i) => i.id !== id);
+		await fetch(`/api/checklist/${id}`, { method: 'DELETE' });
+	}
+
+	async function setField(fieldId: string, value: string) {
+		const res = await fetch(`/api/tickets/${ticketId}/fields`, {
+			method: 'POST',
+			headers: jsonHeaders,
+			body: JSON.stringify({ fieldId, value })
+		});
+		if (res.ok) fields = (await res.json()).fields;
+	}
+
+	async function toggleWatch() {
+		watching = !watching; // optimistic
+		const res = await fetch('/api/watch', {
+			method: 'POST',
+			headers: jsonHeaders,
+			body: JSON.stringify({ subjectType: 'ticket', subjectId: ticketId, watch: watching })
+		});
+		if (res.ok) watching = (await res.json()).watching;
+		else watching = !watching; // revert
 	}
 
 	$effect(() => {
@@ -270,7 +321,16 @@
 					{/if}
 					{#if detail.closedAt}<span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">Closed</span>{/if}
 				</div>
-				<button onclick={onclose} class="rounded-md p-1 text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close"><X size={17} /></button>
+				<div class="flex items-center gap-1">
+					<button
+						onclick={toggleWatch}
+						class={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium ${watching ? 'bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300' : 'text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
+						title={watching ? 'Stop watching this ticket' : 'Watch for updates'}
+					>
+						{#if watching}<Bell size={13} /> Watching{:else}<BellOff size={13} /> Watch{/if}
+					</button>
+					<button onclick={onclose} class="rounded-md p-1 text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close"><X size={17} /></button>
+				</div>
 			</div>
 
 			<div class="grid min-h-[34rem] sm:grid-cols-[1fr_19rem]">
@@ -304,6 +364,51 @@
 						{:else}
 							<p class="text-sm text-neutral-400">No description.</p>
 						{/if}
+						<div class="mt-3">
+							<ReactionBar subjectType="ticket" subjectId={ticketId} {reactions} />
+						</div>
+					</section>
+
+					<!-- Checklist -->
+					<section class="border-t border-neutral-100 pt-5 dark:border-neutral-800">
+						<div class="mb-2 flex items-center justify-between">
+							<h3 class="text-xs font-semibold tracking-wide text-neutral-400 uppercase">Checklist</h3>
+							{#if checklist.length}<span class="text-xs text-neutral-400">{checklistDone}/{checklist.length}</span>{/if}
+						</div>
+						{#if checklist.length}
+							<div class="mb-2 h-1 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+								<div class="h-full rounded-full bg-brand-500 transition-all" style={`width:${Math.round((checklistDone / checklist.length) * 100)}%`}></div>
+							</div>
+						{/if}
+						<div class="space-y-0.5">
+							{#each checklist as item (item.id)}
+								<div class="group flex items-center gap-2 rounded-md px-1 py-1 hover:bg-neutral-50 dark:hover:bg-neutral-800/40">
+									<button
+										onclick={() => toggleChecklistItem(item)}
+										disabled={!access.canEdit}
+										class={`grid size-4 shrink-0 place-items-center rounded border ${item.done ? 'border-brand-500 bg-brand-500 text-white' : 'border-neutral-300 dark:border-neutral-600'}`}
+										aria-label={item.done ? 'Mark incomplete' : 'Mark complete'}
+									>
+										{#if item.done}<Check size={11} />{/if}
+									</button>
+									<span class={`min-w-0 flex-1 text-sm ${item.done ? 'text-neutral-400 line-through' : ''}`}>{item.text}</span>
+									{#if access.canEdit}
+										<button onclick={() => removeChecklistItem(item.id)} class="shrink-0 text-neutral-300 opacity-0 group-hover:opacity-100 hover:text-red-600" aria-label="Remove"><X size={13} /></button>
+									{/if}
+								</div>
+							{/each}
+						</div>
+						{#if access.canEdit}
+							<div class="mt-1.5 flex items-center gap-2">
+								<input
+									bind:value={checklistDraft}
+									onkeydown={(e) => e.key === 'Enter' && addChecklistItem()}
+									placeholder="Add an item…"
+									class="h-8 w-full rounded-md border border-neutral-200 px-2 text-sm focus-visible:border-brand-500 focus-visible:outline-none dark:border-neutral-800 dark:bg-neutral-900"
+								/>
+								<Button size="sm" variant="ghost" onclick={addChecklistItem} disabled={!checklistDraft.trim()}><Plus size={14} /></Button>
+							</div>
+						{/if}
 					</section>
 
 					<!-- Activity / comments -->
@@ -325,6 +430,7 @@
 									<div class="min-w-0 flex-1 rounded-lg bg-neutral-50 px-3 py-2 dark:bg-neutral-800/40">
 										<p class="mb-0.5 text-xs font-medium text-neutral-600 dark:text-neutral-300">{c.authorName ?? 'Unknown'}</p>
 										<div class="prose prose-sm dark:prose-invert max-w-none">{@html renderMarkdown(c.body)}</div>
+										<div class="mt-1.5"><ReactionBar subjectType="comment" subjectId={c.id} reactions={c.reactions ?? []} size="sm" /></div>
 									</div>
 								</div>
 							{:else}
@@ -426,6 +532,36 @@
 							</div>
 						{/if}
 					</div>
+
+					{#if fields.length}
+						{@const fieldCls = 'h-8 w-full rounded-md border border-neutral-200 px-2 text-sm focus-visible:border-brand-500 focus-visible:outline-none dark:border-neutral-800 dark:bg-neutral-900'}
+						<div>
+							<p class="mb-1.5 text-xs font-medium text-neutral-400">Fields</p>
+							<div class="space-y-2">
+								{#each fields as f (f.id)}
+									<div>
+										<span class="mb-0.5 block text-[11px] text-neutral-500">{f.name}</span>
+										{#if !access.canEdit}
+											<p class="text-sm">{f.type === 'checkbox' ? (f.value === 'true' ? 'Yes' : 'No') : (f.value || '—')}</p>
+										{:else if f.type === 'select'}
+											<select value={f.value ?? ''} onchange={(e) => setField(f.id, e.currentTarget.value)} class={fieldCls}>
+												<option value="">—</option>
+												{#each f.options ?? [] as o (o)}<option value={o}>{o}</option>{/each}
+											</select>
+										{:else if f.type === 'checkbox'}
+											<input type="checkbox" checked={f.value === 'true'} onchange={(e) => setField(f.id, e.currentTarget.checked ? 'true' : 'false')} class="size-4 rounded accent-brand-600" />
+										{:else if f.type === 'date'}
+											<input type="date" value={f.value ?? ''} onchange={(e) => setField(f.id, e.currentTarget.value)} class={fieldCls} />
+										{:else if f.type === 'number'}
+											<input type="number" value={f.value ?? ''} onchange={(e) => setField(f.id, e.currentTarget.value)} class={fieldCls} />
+										{:else}
+											<input type="text" value={f.value ?? ''} onchange={(e) => setField(f.id, e.currentTarget.value)} class={fieldCls} />
+										{/if}
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
 
 					<div>
 						<p class="mb-1.5 text-xs font-medium text-neutral-400">Relations</p>

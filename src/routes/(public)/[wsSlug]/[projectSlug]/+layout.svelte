@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { LayoutGrid, Lightbulb, Tag, GitBranch, ExternalLink } from '@lucide/svelte';
+	import { LayoutGrid, Map, Lightbulb, Tag, GitBranch, ExternalLink } from '@lucide/svelte';
 	import { cn } from '$lib/utils/cn';
 
 	let { data, children } = $props();
@@ -8,6 +8,7 @@
 	const base = $derived(`/${data.workspace.slug}/${data.project.slug}`);
 	const tabs = $derived([
 		{ href: base, label: 'Board', icon: LayoutGrid, match: (p: string) => p === base },
+		{ href: `${base}/roadmap`, label: 'Roadmap', icon: Map, match: (p: string) => p.startsWith(`${base}/roadmap`) },
 		{ href: `${base}/suggestions`, label: 'Suggestions', icon: Lightbulb, match: (p: string) => p.startsWith(`${base}/suggestions`) },
 		{ href: `${base}/releases`, label: 'Releases', icon: Tag, match: (p: string) => p.startsWith(`${base}/releases`) }
 	]);

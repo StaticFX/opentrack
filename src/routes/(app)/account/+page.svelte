@@ -1,12 +1,71 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
-	import { Link2, Check, X, KeyRound, ShieldCheck } from '@lucide/svelte';
+	import { Link2, Check, X, KeyRound, ShieldCheck, Bell } from '@lucide/svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Field from '$lib/components/ui/Field.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 
 	let { data, form } = $props();
+
+	// ── Web Push ────────────────────────────────────────────────────────────
+	let pushOn = $state(data.push.subscribed);
+	let pushBusy = $state(false);
+	let pushError = $state('');
+	const pushSupported =
+		typeof navigator !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window;
+
+	function urlBase64ToUint8Array(base64: string): Uint8Array {
+		const padding = '='.repeat((4 - (base64.length % 4)) % 4);
+		const b64 = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
+		const raw = atob(b64);
+		return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+	}
+
+	async function enablePush() {
+		pushError = '';
+		pushBusy = true;
+		try {
+			const perm = await Notification.requestPermission();
+			if (perm !== 'granted') throw new Error('Notification permission was denied.');
+			const reg = await navigator.serviceWorker.register('/sw.js');
+			await navigator.serviceWorker.ready;
+			const sub = await reg.pushManager.subscribe({
+				userVisibleOnly: true,
+				applicationServerKey: urlBase64ToUint8Array(data.push.publicKey!) as BufferSource
+			});
+			const res = await fetch('/api/push/subscribe', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(sub)
+			});
+			if (!res.ok) throw new Error('Could not save the subscription.');
+			pushOn = true;
+		} catch (err) {
+			pushError = err instanceof Error ? err.message : 'Could not enable notifications.';
+		} finally {
+			pushBusy = false;
+		}
+	}
+
+	async function disablePush() {
+		pushBusy = true;
+		try {
+			const reg = await navigator.serviceWorker.getRegistration('/sw.js');
+			const sub = await reg?.pushManager.getSubscription();
+			if (sub) {
+				await fetch('/api/push/unsubscribe', {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ endpoint: sub.endpoint })
+				});
+				await sub.unsubscribe();
+			}
+			pushOn = false;
+		} finally {
+			pushBusy = false;
+		}
+	}
 	const f = $derived(form as Record<string, any> | null);
 	const user = $derived(data.user as { displayName: string; email: string | null; avatarUrl: string | null });
 
@@ -153,4 +212,42 @@
 			</div>
 		</section>
 	{/if}
+
+	<!-- Notifications -->
+	<section class="mt-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+		<h2 class="flex items-center gap-2 text-sm font-semibold"><Bell size={15} /> Notifications</h2>
+		<p class="mt-1 mb-3 text-sm text-neutral-500">
+			Get browser push alerts for tickets and suggestions you follow — replies, mentions, and status
+			changes.
+		</p>
+
+		{#if !data.push.configured}
+			<p class="rounded-lg bg-neutral-50 p-3 text-sm text-neutral-500 dark:bg-neutral-800/50">
+				Push isn't set up on this instance yet.{#if data.isAdmin}
+					Configure VAPID keys in <a href="/admin/notifications" class="text-brand-600 underline">Admin → Notifications</a>.{/if}
+			</p>
+		{:else if !pushSupported}
+			<p class="rounded-lg bg-neutral-50 p-3 text-sm text-neutral-500 dark:bg-neutral-800/50">
+				This browser doesn't support push notifications.
+			</p>
+		{:else}
+			{#if pushError}<p class="mb-2 rounded-lg bg-red-50 p-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-300">{pushError}</p>{/if}
+			<div class="flex items-center justify-between">
+				<span class="text-sm">
+					{#if pushOn}
+						<span class="flex items-center gap-1 text-green-600 dark:text-green-400"><Check size={14} /> Browser notifications are on</span>
+					{:else}
+						Browser notifications are off
+					{/if}
+				</span>
+				{#if pushOn}
+					<Button variant="ghost" onclick={disablePush} disabled={pushBusy}>Turn off</Button>
+				{:else}
+					<Button variant="default" onclick={enablePush} disabled={pushBusy}>
+						<Bell size={15} /> Enable
+					</Button>
+				{/if}
+			</div>
+		{/if}
+	</section>
 </div>

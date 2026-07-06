@@ -11,14 +11,18 @@ import {
 	unlinkOAuthAccount
 } from '$lib/server/auth/user';
 import { decryptSecret } from '$lib/server/crypto';
+import { getConfig } from '$lib/server/config';
+import { countPushSubscriptions } from '$lib/server/services/notifications';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/auth/login');
-	const [linked, providers, dbUser] = await Promise.all([
+	const [linked, providers, dbUser, cfg, pushCount] = await Promise.all([
 		listLinkedAccounts(locals.user.id),
 		enabledProviders(),
-		getUserById(locals.user.id)
+		getUserById(locals.user.id),
+		getConfig(),
+		countPushSubscriptions(locals.user.id)
 	]);
 
 	// Two-factor state: on | pending (secret set, not yet confirmed) | off.
@@ -39,7 +43,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 		enabledProviders: providers,
 		isAdmin: locals.user.isAdmin,
 		hasPassword: !!dbUser?.passwordHash,
-		totp
+		totp,
+		push: {
+			// VAPID public key is safe to expose; browsers need it to subscribe.
+			publicKey: cfg.push.publicKey ?? null,
+			configured: !!(cfg.push.publicKey && cfg.push.privateKey),
+			subscribed: pushCount > 0
+		}
 	};
 };
 

@@ -5,6 +5,13 @@ import { canComment, publicInteractionLocked } from '$lib/server/permissions';
 import { boardEvent } from '$lib/server/realtime/board';
 import { logActivity } from '$lib/server/services/activity';
 import { addComment } from '$lib/server/services/comments';
+import {
+	notifyUsers,
+	notifyWatchers,
+	parseMentions,
+	resolveMentions,
+	watch
+} from '$lib/server/services/notifications';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
@@ -30,5 +37,28 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	if (boardId) await boardEvent(boardId, 'ticket.commented', { ticketId: params.id }, user.id);
 	await enqueueCommentPush(id, params.id);
 	await logActivity({ projectId: access.project.id, subjectType: 'ticket', subjectId: params.id, actorId: user.id, type: 'ticket.commented' });
+
+	// Notifications: commenting subscribes you; @mentions get their own alert and
+	// also start watching; remaining watchers get the generic "commented" alert.
+	await watch('ticket', params.id, user.id, 'commented');
+	const mentionIds = (await resolveMentions(parseMentions(text))).filter((uid) => uid !== user.id);
+	if (mentionIds.length) {
+		await Promise.all(mentionIds.map((uid) => watch('ticket', params.id, uid, 'mention')));
+		await notifyUsers(mentionIds, {
+			type: 'mention',
+			subjectType: 'ticket',
+			subjectId: params.id,
+			actorId: user.id,
+			body: `${user.displayName} mentioned you`
+		});
+	}
+	await notifyWatchers({
+		type: 'ticket.commented',
+		subjectType: 'ticket',
+		subjectId: params.id,
+		actorId: user.id,
+		body: `${user.displayName} commented`,
+		exclude: mentionIds
+	});
 	return json({ id });
 };

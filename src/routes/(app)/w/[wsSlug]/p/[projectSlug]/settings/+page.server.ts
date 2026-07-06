@@ -5,6 +5,8 @@ import { asc, eq } from 'drizzle-orm';
 import { env } from '$lib/server/env';
 import { generateInviteCode } from '$lib/server/auth/invite';
 import { db, schema } from '$lib/server/db';
+import { getProjectDiscord, setProjectDiscord } from '$lib/server/discord/config';
+import { listFields } from '$lib/server/services/custom-fields';
 import { githubConfigured } from '$lib/server/github/app';
 import { createStatusLabels } from '$lib/server/github/import';
 import { listWorkspaceRepos } from '$lib/server/github/installations';
@@ -53,9 +55,19 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		linkedRepo: ctx.project.githubRepo,
 		linkedInstallation: ctx.project.githubInstallationId,
 		columns: await projectColumns(ctx.project.id),
-		progressLabels: (ctx.project.githubProgressLabels as string[] | null) ?? []
+		progressLabels: (ctx.project.githubProgressLabels as string[] | null) ?? [],
+		origin: env.origin,
+		isPublic: ctx.visibility === 'public',
+		fields: await listFields(ctx.project.id),
+		discord: await (async () => {
+			const d = await getProjectDiscord(ctx.project.id);
+			// Never send the decrypted webhook URL to the browser.
+			return { hasWebhook: !!d.webhookUrl, events: d.events };
+		})()
 	};
 };
+
+const DISCORD_WEBHOOK_RE = /^https:\/\/(?:[a-z]+\.)?discord(?:app)?\.com\/api\/webhooks\//i;
 
 export const actions: Actions = {
 	updateGeneral: async ({ request, locals, params }) => {
@@ -123,6 +135,51 @@ export const actions: Actions = {
 			}
 		}
 		return { progressSaved: true, created };
+	},
+
+	// Save the Discord webhook + which events announce to it. A blank URL field
+	// leaves the existing webhook untouched (so you can edit events without
+	// re-pasting the secret); use removeDiscord to clear it.
+	saveDiscord: async ({ request, locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
+		const form = await request.formData();
+		const webhookRaw = String(form.get('webhookUrl') ?? '').trim();
+		const events = form.getAll('event').map(String);
+		const patch: { webhookUrl?: string | null; events?: string[] } = { events };
+		if (webhookRaw) {
+			if (!DISCORD_WEBHOOK_RE.test(webhookRaw)) {
+				return fail(400, { discordError: "That doesn't look like a Discord webhook URL." });
+			}
+			patch.webhookUrl = webhookRaw;
+		}
+		await setProjectDiscord(ctx.project.id, patch);
+		return { discordSaved: true };
+	},
+
+	removeDiscord: async ({ locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
+		await setProjectDiscord(ctx.project.id, { webhookUrl: null });
+		return { discordRemoved: true };
+	},
+
+	testDiscord: async ({ locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
+		const cfg = await getProjectDiscord(ctx.project.id);
+		if (!cfg.webhookUrl) return fail(400, { discordError: 'Add a webhook URL and save first.' });
+		const { buildDiscordPayload, postDiscord } = await import('$lib/server/discord/send');
+		const body = buildDiscordPayload(
+			'ticket.created',
+			{
+				title: 'Test message from OpenTrack',
+				description: 'If you can read this, your webhook is wired up correctly. 🎉',
+				actor: locals.user?.displayName,
+				url: `/${params.wsSlug}/${params.projectSlug}`
+			},
+			env.origin
+		);
+		const { ok, status } = await postDiscord(cfg.webhookUrl, body);
+		if (!ok) return fail(400, { discordError: `Discord returned ${status}.` });
+		return { discordTested: true };
 	},
 
 	generateInvite: async ({ request, locals, params }) => {

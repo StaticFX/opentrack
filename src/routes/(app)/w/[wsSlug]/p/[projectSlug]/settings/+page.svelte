@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Copy, Trash2, Check, GitBranch, Settings, Users, TriangleAlert, ArrowLeft } from '@lucide/svelte';
+	import { Copy, Trash2, Check, GitBranch, Settings, Users, TriangleAlert, ArrowLeft, MessageSquare, Send, SlidersHorizontal, Plus } from '@lucide/svelte';
 	import { PALETTE } from '$lib/colors';
+	import { DISCORD_EVENTS } from '$lib/discord';
+	import { CUSTOM_FIELD_TYPES, FIELD_TYPE_LABELS } from '$lib/customFields';
 	import { cn } from '$lib/utils/cn';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
@@ -29,8 +31,36 @@
 		{ id: 'general', label: 'General', icon: Settings },
 		{ id: 'members', label: 'Collaborators', icon: Users },
 		{ id: 'github', label: 'GitHub', icon: GitBranch },
+		{ id: 'discord', label: 'Discord', icon: MessageSquare },
+		{ id: 'fields', label: 'Fields', icon: SlidersHorizontal },
 		{ id: 'danger', label: 'Danger', icon: TriangleAlert }
 	] as const;
+
+	// ── Custom fields (client-managed via the API) ───────────────────────────
+	let localFields = $state(data.fields);
+	let fName = $state('');
+	let fType = $state<string>('text');
+	let fOptions = $state('');
+	async function refreshFields() {
+		const res = await fetch(`/api/projects/${data.project.id}/fields`);
+		if (res.ok) localFields = (await res.json()).fields;
+	}
+	async function addField() {
+		const name = fName.trim();
+		if (!name) return;
+		const options = fType === 'select' ? fOptions.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+		if (fType === 'select' && !options?.length) return;
+		const res = await fetch(`/api/projects/${data.project.id}/fields`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ name, type: fType, options })
+		});
+		if (res.ok) { fName = ''; fOptions = ''; fType = 'text'; await refreshFields(); }
+	}
+	async function removeField(id: string) {
+		localFields = localFields.filter((f) => f.id !== id);
+		await fetch(`/api/fields/${id}`, { method: 'DELETE' });
+	}
 	let tab = $state<(typeof tabs)[number]['id']>('general');
 	const base = $derived(`/w/${data.workspace.slug}/p/${data.project.slug}`);
 
@@ -127,6 +157,26 @@
 						</div>
 					</form>
 				</section>
+
+				{#if data.isPublic}
+					<section class="mt-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+						<h3 class="text-sm font-semibold">Embed</h3>
+						<p class="mt-1 mb-3 text-sm text-neutral-500">Drop your roadmap or changelog into any website with an iframe.</p>
+						{#each [{ label: 'Roadmap', path: 'roadmap', h: 340 }, { label: 'Changelog', path: 'changelog', h: 320 }] as em (em.path)}
+							{@const snippet = `<iframe src="${data.origin}/embed/${data.workspace.slug}/${data.project.slug}/${em.path}" width="100%" height="${em.h}" style="border:1px solid #e5e7eb;border-radius:12px" title="${data.project.name} ${em.label}"></iframe>`}
+							<div class="mb-3">
+								<div class="mb-1 flex items-center justify-between">
+									<span class="text-xs font-medium text-neutral-500">{em.label}</span>
+									<div class="flex items-center gap-2">
+										<a href={`${data.origin}/embed/${data.workspace.slug}/${data.project.slug}/${em.path}`} target="_blank" rel="noreferrer" class="text-xs text-brand-600 hover:underline">Preview</a>
+										<button type="button" onclick={() => copy(snippet)} class="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"><Copy size={12} /> Copy</button>
+									</div>
+								</div>
+								<code class="block overflow-x-auto rounded-lg bg-neutral-50 px-2.5 py-2 font-mono text-[11px] whitespace-pre text-neutral-600 dark:bg-neutral-800/60 dark:text-neutral-400">{snippet}</code>
+							</div>
+						{/each}
+					</section>
+				{/if}
 			{:else if tab === 'members'}
 				<h2 class="mb-4 text-lg font-semibold tracking-tight">Collaborators</h2>
 				<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
@@ -223,6 +273,91 @@
 						</form>
 					</section>
 				{/if}
+			{:else if tab === 'discord'}
+				<h2 class="mb-4 text-lg font-semibold tracking-tight">Discord</h2>
+				<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+					<p class="mb-4 text-sm text-neutral-500">
+						Announce project activity to a Discord channel. In Discord: <span class="font-medium">Channel settings → Integrations → Webhooks → New Webhook</span>, then paste the webhook URL here.
+					</p>
+
+					{#if f?.discordError}<p class="mb-3 rounded-lg bg-red-50 p-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-300">{f.discordError}</p>{/if}
+					{#if f?.discordSaved}<p class="mb-3 rounded-lg bg-green-50 p-2.5 text-sm text-green-700 dark:bg-green-950/30 dark:text-green-300">Saved.</p>{/if}
+					{#if f?.discordTested}<p class="mb-3 rounded-lg bg-green-50 p-2.5 text-sm text-green-700 dark:bg-green-950/30 dark:text-green-300">Test message sent — check your channel.</p>{/if}
+					{#if f?.discordRemoved}<p class="mb-3 rounded-lg bg-neutral-100 p-2.5 text-sm text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">Webhook removed.</p>{/if}
+
+					<form method="POST" action="?/saveDiscord" use:enhance={() => async ({ update }) => { await update({ reset: false }); }} class="flex flex-col gap-4">
+						<Field label="Webhook URL">
+							<Input
+								name="webhookUrl"
+								type="password"
+								placeholder={data.discord.hasWebhook ? '•••••••• (leave blank to keep current)' : 'https://discord.com/api/webhooks/…'}
+							/>
+						</Field>
+
+						<div>
+							<span class="mb-2 block text-sm font-medium">Announce these events</span>
+							<div class="flex flex-col gap-2">
+								{#each DISCORD_EVENTS as ev (ev.key)}
+									<label class="flex items-start gap-2.5 text-sm">
+										<input
+											type="checkbox"
+											name="event"
+											value={ev.key}
+											checked={data.discord.events.includes(ev.key)}
+											class="mt-0.5 size-4 rounded border-neutral-300 text-brand-600 focus:ring-brand-500 dark:border-neutral-600 dark:bg-neutral-800"
+										/>
+										<span>
+											<span class="font-medium">{ev.label}</span>
+											<span class="block text-xs text-neutral-500">{ev.desc}</span>
+										</span>
+									</label>
+								{/each}
+							</div>
+						</div>
+
+						<div class="flex items-center gap-2">
+							<Button variant="primary" type="submit">Save</Button>
+							{#if data.discord.hasWebhook}
+								<Button variant="default" type="submit" formaction="?/testDiscord"><Send size={14} /> Send test</Button>
+								<Button variant="ghost" type="submit" formaction="?/removeDiscord">Remove</Button>
+							{/if}
+						</div>
+					</form>
+
+					{#if data.discord.hasWebhook}
+						<p class="mt-3 flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400"><Check size={13} /> A webhook is configured for this project.</p>
+					{/if}
+				</section>
+			{:else if tab === 'fields'}
+				<h2 class="mb-4 text-lg font-semibold tracking-tight">Custom fields</h2>
+				<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+					<p class="mb-4 text-sm text-neutral-500">Add typed fields that appear on every ticket in this project.</p>
+
+					{#if localFields.length}
+						<div class="mb-4 divide-y divide-neutral-100 dark:divide-neutral-800">
+							{#each localFields as f (f.id)}
+								<div class="flex items-center gap-3 py-2">
+									<div class="min-w-0 flex-1">
+										<p class="truncate text-sm font-medium">{f.name}</p>
+										<p class="text-xs text-neutral-400">{FIELD_TYPE_LABELS[f.type]}{#if f.type === 'select' && f.options} · {f.options.join(', ')}{/if}</p>
+									</div>
+									<button type="button" onclick={() => removeField(f.id)} class="rounded-md p-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40" aria-label="Delete field"><Trash2 size={14} /></button>
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					<div class="flex flex-wrap items-end gap-2">
+						<div class="min-w-40 flex-1"><Field label="Field name"><Input bind:value={fName} placeholder="e.g. Severity" /></Field></div>
+						<Field label="Type">
+							<Select bind:value={fType} options={CUSTOM_FIELD_TYPES.map((t) => ({ value: t, label: FIELD_TYPE_LABELS[t] }))} class="w-36" />
+						</Field>
+						<Button variant="primary" onclick={addField}><Plus size={15} /> Add</Button>
+					</div>
+					{#if fType === 'select'}
+						<div class="mt-2"><Field label="Options (comma-separated)"><Input bind:value={fOptions} placeholder="Low, Medium, High" /></Field></div>
+					{/if}
+				</section>
 			{:else if tab === 'danger'}
 				<h2 class="mb-4 text-lg font-semibold tracking-tight">Danger zone</h2>
 				<section class="rounded-xl border border-red-200 p-5 dark:border-red-900/50">

@@ -185,6 +185,10 @@ export function defineSchema(kit: Kit) {
 			// Column names whose status is mirrored to the linked issue as a
 			// "Status: <name>" GitHub label (OpenTrack → GitHub progress sync).
 			githubProgressLabels: json<string[]>('github_progress_labels'),
+			// Discord integration: incoming-webhook URL (AES-256-GCM encrypted at rest)
+			// + the set of event keys that should be announced to the channel.
+			discordWebhookUrl: text('discord_webhook_url'),
+			discordEvents: json<string[]>('discord_events'),
 			allowPublicComments: bool('allow_public_comments').default(false).notNull(),
 			githubSyncedAt: ts('github_synced_at'),
 			position: text('position').notNull().default('a0'),
@@ -423,6 +427,8 @@ export function defineSchema(kit: Kit) {
 			convertedTicketId: text('converted_ticket_id').references(() => tickets.id, {
 				onDelete: 'set null'
 			}),
+			// When merged as a duplicate, points at the canonical suggestion.
+			duplicateOfId: text('duplicate_of_id'),
 			isPublic: bool('is_public').default(true).notNull(),
 			createdAt: createdAt(),
 			updatedAt: updatedAt()
@@ -540,6 +546,187 @@ export function defineSchema(kit: Kit) {
 		updatedAt: updatedAt()
 	});
 
+	// ── Notifications & watching ─────────────────────────────────────────
+	// Who is subscribed to a subject's activity. Polymorphic subject (like
+	// comments/votes) so it spans tickets, suggestions, and whole projects.
+	const watchers = table(
+		'watchers',
+		{
+			subjectType: text('subject_type').notNull(), // 'ticket' | 'suggestion' | 'project'
+			subjectId: text('subject_id').notNull(),
+			userId: text('user_id')
+				.notNull()
+				.references(() => users.id, { onDelete: 'cascade' }),
+			// Why they're watching: 'manual' | 'author' | 'assignee' | 'commented' | 'mention'
+			reason: text('reason').notNull().default('manual'),
+			createdAt: createdAt()
+		},
+		(t) => [
+			primaryKey({ columns: [t.subjectType, t.subjectId, t.userId] }),
+			index('watchers_user_idx').on(t.userId),
+			index('watchers_subject_idx').on(t.subjectType, t.subjectId)
+		]
+	);
+
+	// A user-facing notification (the in-app inbox). `url` is a pre-resolved
+	// deep link so rendering never needs extra joins.
+	const notifications = table(
+		'notifications',
+		{
+			id: pk(),
+			userId: text('user_id')
+				.notNull()
+				.references(() => users.id, { onDelete: 'cascade' }),
+			type: text('type').notNull(), // 'ticket.commented' | 'ticket.assigned' | 'mention' | …
+			subjectType: text('subject_type').notNull(),
+			subjectId: text('subject_id').notNull(),
+			projectId: text('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+			actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
+			title: text('title').notNull(),
+			body: text('body'),
+			url: text('url').notNull(),
+			readAt: ts('read_at'),
+			createdAt: createdAt()
+		},
+		(t) => [
+			index('notifications_user_idx').on(t.userId, t.createdAt),
+			index('notifications_unread_idx').on(t.userId, t.readAt)
+		]
+	);
+
+	// Browser Web Push endpoints registered per user (one row per device/browser).
+	const pushSubscriptions = table(
+		'push_subscriptions',
+		{
+			id: pk(),
+			userId: text('user_id')
+				.notNull()
+				.references(() => users.id, { onDelete: 'cascade' }),
+			endpoint: text('endpoint').notNull(),
+			p256dh: text('p256dh').notNull(),
+			auth: text('auth').notNull(),
+			createdAt: createdAt()
+		},
+		(t) => [
+			uniqueIndex('push_sub_endpoint_uq').on(t.endpoint),
+			index('push_sub_user_idx').on(t.userId)
+		]
+	);
+
+	// Emoji reactions, polymorphic over ticket | suggestion | comment (like votes).
+	const reactions = table(
+		'reactions',
+		{
+			id: pk(),
+			subjectType: text('subject_type').notNull(),
+			subjectId: text('subject_id').notNull(),
+			userId: text('user_id')
+				.notNull()
+				.references(() => users.id, { onDelete: 'cascade' }),
+			emoji: text('emoji').notNull(),
+			createdAt: createdAt()
+		},
+		(t) => [
+			index('reactions_subject_idx').on(t.subjectType, t.subjectId),
+			uniqueIndex('reactions_uq').on(t.subjectType, t.subjectId, t.userId, t.emoji)
+		]
+	);
+
+	// Per-project custom fields (text|number|select|checkbox|date) + their values.
+	const customFields = table(
+		'custom_fields',
+		{
+			id: pk(),
+			projectId: text('project_id')
+				.notNull()
+				.references(() => projects.id, { onDelete: 'cascade' }),
+			name: text('name').notNull(),
+			type: text('type').notNull(), // 'text' | 'number' | 'select' | 'checkbox' | 'date'
+			options: json<string[]>('options'), // choices for 'select'
+			position: text('position').notNull().default('a0'),
+			createdAt: createdAt()
+		},
+		(t) => [index('custom_fields_project_idx').on(t.projectId)]
+	);
+
+	const ticketFieldValues = table(
+		'ticket_field_values',
+		{
+			id: pk(),
+			ticketId: text('ticket_id')
+				.notNull()
+				.references(() => tickets.id, { onDelete: 'cascade' }),
+			fieldId: text('field_id')
+				.notNull()
+				.references(() => customFields.id, { onDelete: 'cascade' }),
+			// All values stored as text; parsed per field type in the app.
+			value: text('value').notNull()
+		},
+		(t) => [uniqueIndex('ticket_field_uq').on(t.ticketId, t.fieldId)]
+	);
+
+	// Lightweight sub-tasks / acceptance criteria on a ticket.
+	const checklistItems = table(
+		'checklist_items',
+		{
+			id: pk(),
+			ticketId: text('ticket_id')
+				.notNull()
+				.references(() => tickets.id, { onDelete: 'cascade' }),
+			text: text('text').notNull(),
+			done: bool('done').default(false).notNull(),
+			position: text('position').notNull().default('a0'),
+			createdAt: createdAt()
+		},
+		(t) => [index('checklist_ticket_idx').on(t.ticketId)]
+	);
+
+	// Saved board filter presets ("views"). Personal by default; `shared` exposes
+	// a view to everyone who can see the board.
+	const boardViews = table(
+		'board_views',
+		{
+			id: pk(),
+			boardId: text('board_id')
+				.notNull()
+				.references(() => boards.id, { onDelete: 'cascade' }),
+			userId: text('user_id')
+				.notNull()
+				.references(() => users.id, { onDelete: 'cascade' }),
+			name: text('name').notNull(),
+			// { q?, label?, assignee?, priority? }
+			filters: json<Record<string, unknown>>('filters'),
+			shared: bool('shared').default(false).notNull(),
+			createdAt: createdAt()
+		},
+		(t) => [
+			index('board_views_board_idx').on(t.boardId),
+			index('board_views_user_idx').on(t.userId)
+		]
+	);
+
+	// Workspace-scoped API keys for the public read API. Only the SHA-256 hash is
+	// stored; the raw key is shown once on creation.
+	const apiKeys = table(
+		'api_keys',
+		{
+			id: pk(),
+			workspaceId: text('workspace_id')
+				.notNull()
+				.references(() => workspaces.id, { onDelete: 'cascade' }),
+			name: text('name').notNull(),
+			keyHash: text('key_hash').notNull(),
+			prefix: text('prefix').notNull(), // first chars, for display ("otk_ab12…")
+			createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+			lastUsedAt: ts('last_used_at'),
+			createdAt: createdAt()
+		},
+		(t) => [
+			uniqueIndex('api_keys_hash_uq').on(t.keyHash),
+			index('api_keys_ws_idx').on(t.workspaceId)
+		]
+	);
+
 	// Admin-defined custom OAuth2/OIDC login providers (beyond the built-ins).
 	const oauthProviders = table(
 		'oauth_providers',
@@ -562,6 +749,15 @@ export function defineSchema(kit: Kit) {
 	);
 
 	return {
+		watchers,
+		notifications,
+		pushSubscriptions,
+		reactions,
+		customFields,
+		ticketFieldValues,
+		checklistItems,
+		apiKeys,
+		boardViews,
 		oauthProviders,
 		settings,
 		users,

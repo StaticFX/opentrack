@@ -4,7 +4,16 @@ import { SUGGESTION_DECISIONS } from '$lib/constants';
 import { SUGGESTION_STATUS_META } from '$lib/suggestionStatus';
 import { ACCESS, canComment, canManageProject, publicInteractionLocked } from '$lib/server/permissions';
 import { addComment, listComments } from '$lib/server/services/comments';
+import {
+	isWatching,
+	notifyUsers,
+	notifyWatchers,
+	parseMentions,
+	resolveMentions,
+	watch
+} from '$lib/server/services/notifications';
 import { getBySlugs } from '$lib/server/services/projects';
+import { reactionsFor, summarize } from '$lib/server/services/reactions';
 import { convertToTicket, getSuggestion, setStatus } from '$lib/server/services/suggestions';
 import { countVotes, hasVoted } from '$lib/server/services/votes';
 import { resolveVoter } from '$lib/server/util/anon';
@@ -18,18 +27,29 @@ export const load: PageServerLoad = async ({ parent, params, locals, cookies, ge
 	if (!visible) throw error(404, 'Not found');
 
 	const voter = resolveVoter(locals.user, cookies, getClientAddress);
-	const [comments, votes, voted] = await Promise.all([
+	const [comments, votes, voted, watching] = await Promise.all([
 		listComments('suggestion', s.id),
 		countVotes('suggestion', s.id),
-		hasVoted('suggestion', s.id, voter)
+		hasVoted('suggestion', s.id, voter),
+		locals.user ? isWatching('suggestion', s.id, locals.user.id) : Promise.resolve(false)
 	]);
+
+	// Emoji reactions: suggestion-level + a batch for its comments.
+	const uid = locals.user?.id;
+	const [suggestionReactions, commentReactions] = await Promise.all([
+		summarize('suggestion', s.id, uid),
+		reactionsFor('comment', comments.map((c) => c.id), uid)
+	]);
+	const commentsWithReactions = comments.map((c) => ({ ...c, reactions: commentReactions.get(c.id) ?? [] }));
 
 	const interactionsLocked = publicInteractionLocked(s.status !== 'open', p.level);
 	return {
 		suggestion: s,
-		comments,
+		suggestionReactions,
+		comments: commentsWithReactions,
 		votes,
 		voted,
+		watching,
 		interactionsLocked,
 		canComment:
 			!interactionsLocked &&
@@ -62,6 +82,29 @@ export const actions: Actions = {
 		const body = String((await request.formData()).get('body') ?? '').trim();
 		if (!body) return fail(400, { error: 'Comment cannot be empty.' });
 		await addComment('suggestion', params.id, locals.user.id, body);
+
+		await watch('suggestion', params.id, locals.user.id, 'commented');
+		const mentionIds = (await resolveMentions(parseMentions(body))).filter(
+			(uid) => uid !== locals.user!.id
+		);
+		if (mentionIds.length) {
+			await Promise.all(mentionIds.map((uid) => watch('suggestion', params.id, uid, 'mention')));
+			await notifyUsers(mentionIds, {
+				type: 'mention',
+				subjectType: 'suggestion',
+				subjectId: params.id,
+				actorId: locals.user.id,
+				body: `${locals.user.displayName} mentioned you`
+			});
+		}
+		await notifyWatchers({
+			type: 'suggestion.commented',
+			subjectType: 'suggestion',
+			subjectId: params.id,
+			actorId: locals.user.id,
+			body: `${locals.user.displayName} commented`,
+			exclude: mentionIds
+		});
 		return { commented: true };
 	},
 
@@ -81,6 +124,21 @@ export const actions: Actions = {
 
 		const { logActivity } = await import('$lib/server/services/activity');
 		await logActivity({ projectId: ctx.project.id, subjectType: 'suggestion', subjectId: params.id, actorId: locals.user?.id, type: 'suggestion.status', data: { status } });
+
+		// Alert the author + everyone following the suggestion of the decision.
+		await notifyWatchers({
+			type: 'suggestion.status',
+			subjectType: 'suggestion',
+			subjectId: params.id,
+			actorId: locals.user?.id,
+			body: `${locals.user?.displayName ?? 'A maintainer'} marked this ${label.toLowerCase()}`
+		});
+
+		const { enqueueDiscordForSubject } = await import('$lib/server/discord/enqueue');
+		await enqueueDiscordForSubject(ctx.project.id, 'suggestion.resolved', 'suggestion', params.id, {
+			actor: locals.user?.displayName,
+			fields: [{ name: 'Decision', value: label }]
+		});
 		return { statusSet: true };
 	},
 
@@ -89,5 +147,27 @@ export const actions: Actions = {
 		const result = await convertToTicket(locals.user!, params.id);
 		if (!result) return fail(400, { error: 'Could not convert — the project has no board.' });
 		return { converted: true };
+	},
+
+	merge: async ({ request, params, locals }) => {
+		const ctx = await requireTriage(locals, params.wsSlug, params.projectSlug);
+		const targetId = String((await request.formData()).get('targetId') ?? '');
+		if (!targetId) return fail(400, { error: 'Pick a suggestion to merge into.' });
+		const { mergeSuggestion } = await import('$lib/server/services/suggestions');
+		const result = await mergeSuggestion(params.id, targetId);
+		if (!result) return fail(400, { error: 'Could not merge — invalid target.' });
+
+		// Record the merge on both threads + notify followers of the canonical one.
+		await addComment('suggestion', params.id, locals.user!.id, `Merged into **${result.targetTitle}** — votes and followers moved there.`);
+		const { logActivity } = await import('$lib/server/services/activity');
+		await logActivity({ projectId: ctx.project.id, subjectType: 'suggestion', subjectId: params.id, actorId: locals.user?.id, type: 'suggestion.status', data: { status: 'duplicate' } });
+		await notifyWatchers({
+			type: 'suggestion.status',
+			subjectType: 'suggestion',
+			subjectId: targetId,
+			actorId: locals.user?.id,
+			body: `A duplicate ("${result.sourceTitle}") was merged in`
+		});
+		return { merged: true };
 	}
 };

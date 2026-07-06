@@ -3,6 +3,7 @@ import type { Visibility, WorkspaceRole } from '$lib/constants';
 import { WORKSPACE_ROLES } from '$lib/constants';
 import { env } from '$lib/server/env';
 import { generateInviteCode } from '$lib/server/auth/invite';
+import { createApiKey, listApiKeys, revokeApiKey } from '$lib/server/services/api-keys';
 import { githubConfigured } from '$lib/server/github/app';
 import { listForWorkspace, removeInstallation } from '$lib/server/github/installations';
 import { ACCESS, canManageWorkspace } from '$lib/server/permissions';
@@ -35,7 +36,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			id: i.id,
 			accountLogin: i.accountLogin,
 			accountType: i.accountType
-		}))
+		})),
+		apiKeys: await listApiKeys(ctx.workspace.id),
+		origin: env.origin
 	};
 };
 
@@ -118,6 +121,21 @@ export const actions: Actions = {
 		if (userId === ctx.workspace.ownerId) return fail(400, { error: "Can't remove the owner." });
 		await removeMember(ctx.workspace.id, userId);
 		return { saved: true };
+	},
+
+	createApiKey: async ({ request, locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug);
+		const name = String((await request.formData()).get('name') ?? '').trim().slice(0, 60) || 'API key';
+		const { raw, key } = await createApiKey(ctx.workspace.id, name, locals.user!.id);
+		// The raw key is shown ONCE here and never again.
+		return { apiKeyRaw: raw, apiKeyName: key.name };
+	},
+
+	revokeApiKey: async ({ request, locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug);
+		const id = String((await request.formData()).get('id') ?? '');
+		if (id) await revokeApiKey(ctx.workspace.id, id);
+		return { apiKeyRevoked: true };
 	},
 
 	disconnectGithub: async ({ request, locals, params }) => {

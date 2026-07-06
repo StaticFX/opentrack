@@ -7,6 +7,15 @@ export const schema = defineSchema(sqliteKit);
 
 // Named exports so drizzle-kit discovers every table.
 export const {
+	watchers,
+	notifications,
+	pushSubscriptions,
+	reactions,
+	customFields,
+	ticketFieldValues,
+	checklistItems,
+	apiKeys,
+	boardViews,
 	oauthProviders,
 	settings,
 	users,

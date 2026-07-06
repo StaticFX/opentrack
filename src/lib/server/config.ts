@@ -21,10 +21,19 @@ export interface SiteConfig {
 	headline: string;
 	tagline: string;
 }
+export interface PushConfig {
+	/** VAPID public key — safe to expose to browsers. */
+	publicKey?: string;
+	/** VAPID private key — AES-256-GCM encrypted at rest. */
+	privateKey?: string;
+	/** `mailto:` contact required by the Web Push spec. */
+	subject: string;
+}
 export interface RuntimeConfig {
 	oauth: Record<OAuthProvider, OAuthCred | null>;
 	githubApp: GithubAppConfig;
 	site: SiteConfig;
+	push: PushConfig;
 }
 
 /** Defaults for the instance landing page (`/`), overridable from Admin. */
@@ -104,6 +113,11 @@ export async function getConfig(): Promise<RuntimeConfig> {
 			name: get('site.name') ?? SITE_DEFAULTS.name,
 			headline: get('site.headline') ?? SITE_DEFAULTS.headline,
 			tagline: get('site.tagline') ?? SITE_DEFAULTS.tagline
+		},
+		push: {
+			publicKey: get('push.publicKey') ?? undefined,
+			privateKey: get('push.privateKey') ?? undefined,
+			subject: get('push.subject') ?? `mailto:admin@${new URL(env.origin).hostname}`
 		}
 	};
 	globalForCfg.__otCfg = cache;
@@ -143,6 +157,18 @@ export async function getConfigView() {
 			name: val('site.name'),
 			headline: val('site.headline'),
 			tagline: val('site.tagline')
+		},
+		push: {
+			publicKey: val('push.publicKey'),
+			subject: val('push.subject'),
+			hasPrivateKey: has('push.privateKey'),
+			active: !!(cfg.push.publicKey && cfg.push.privateKey)
 		}
 	};
+}
+
+/** True when Web Push is fully configured (both VAPID keys present). */
+export async function pushConfigured(): Promise<boolean> {
+	const cfg = await getConfig();
+	return !!(cfg.push.publicKey && cfg.push.privateKey);
 }

@@ -6,7 +6,9 @@ import { db, schema } from '$lib/server/db';
 import { enqueueTicketPush } from '$lib/server/github/enqueue';
 import { ACCESS } from '$lib/server/permissions';
 import { boardEvent } from '$lib/server/realtime/board';
+import { enqueueDiscordForSubject } from '$lib/server/discord/enqueue';
 import { logActivity } from '$lib/server/services/activity';
+import { notifyWatchers } from '$lib/server/services/notifications';
 import { moveTicket } from '$lib/server/services/tickets';
 import type { RequestHandler } from './$types';
 
@@ -38,6 +40,19 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 			type: closed ? 'ticket.closed' : 'ticket.moved',
 			data: { column: col.name }
 		});
+		if (closed) {
+			await notifyWatchers({
+				type: 'ticket.closed',
+				subjectType: 'ticket',
+				subjectId: params.id,
+				actorId: user.id,
+				body: `${user.displayName} closed this (${col.name})`
+			});
+			await enqueueDiscordForSubject(projectId, 'ticket.closed', 'ticket', params.id, {
+				actor: user.displayName,
+				fields: [{ name: 'Column', value: col.name }]
+			});
+		}
 	}
 	return json({ ok: true });
 };

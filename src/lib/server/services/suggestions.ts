@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { SuggestionStatus } from '$lib/constants';
 import { db, schema } from '$lib/server/db';
 import type { SessionUser } from '$lib/server/auth/session';
@@ -87,13 +87,26 @@ export async function listSuggestions(
 
 export async function getSuggestion(id: string) {
 	const [row] = await db
-		.select({ suggestion: schema.suggestions, authorName: schema.users.displayName })
+		.select({
+			suggestion: schema.suggestions,
+			authorName: schema.users.displayName,
+			authorUsername: schema.users.username
+		})
 		.from(schema.suggestions)
 		.leftJoin(schema.users, eq(schema.suggestions.authorId, schema.users.id))
 		.where(eq(schema.suggestions.id, id))
 		.limit(1);
 	if (!row) return null;
-	return { ...row.suggestion, authorName: row.authorName };
+	let duplicateOfTitle: string | null = null;
+	if (row.suggestion.duplicateOfId) {
+		const [t] = await db
+			.select({ title: schema.suggestions.title })
+			.from(schema.suggestions)
+			.where(eq(schema.suggestions.id, row.suggestion.duplicateOfId))
+			.limit(1);
+		duplicateOfTitle = t?.title ?? null;
+	}
+	return { ...row.suggestion, authorName: row.authorName, authorUsername: row.authorUsername, duplicateOfTitle };
 }
 
 export async function createSuggestion(
@@ -117,6 +130,69 @@ export async function setStatus(
 		.update(schema.suggestions)
 		.set({ status, declineReason: declineReason ?? null, updatedAt: new Date() })
 		.where(eq(schema.suggestions.id, id));
+}
+
+/** Search a project's suggestions by title (for the merge picker). */
+export async function searchSuggestions(
+	projectId: string,
+	q: string,
+	excludeId?: string
+): Promise<Array<{ id: string; title: string; status: SuggestionStatus }>> {
+	const conds = [eq(schema.suggestions.projectId, projectId)];
+	if (excludeId) conds.push(ne(schema.suggestions.id, excludeId));
+	const term = q.trim().toLowerCase();
+	if (term) conds.push(sql`lower(${schema.suggestions.title}) like ${`%${term}%`}`);
+	return db
+		.select({ id: schema.suggestions.id, title: schema.suggestions.title, status: schema.suggestions.status })
+		.from(schema.suggestions)
+		.where(and(...conds))
+		.orderBy(desc(schema.suggestions.createdAt))
+		.limit(8);
+}
+
+/**
+ * Merge `sourceId` into `targetId` as a duplicate: transfers votes + watchers
+ * (deduped), marks the source `duplicate`, and records the canonical target.
+ * Returns the two titles, or null if the merge is invalid.
+ */
+export async function mergeSuggestion(
+	sourceId: string,
+	targetId: string
+): Promise<{ sourceTitle: string; targetTitle: string } | null> {
+	if (sourceId === targetId) return null;
+	const [source, target] = await Promise.all([getSuggestion(sourceId), getSuggestion(targetId)]);
+	if (!source || !target || source.projectId !== target.projectId) return null;
+
+	// Transfer votes (unique indexes dedupe voters already on the target).
+	const votes = await db
+		.select({ userId: schema.votes.userId, anonKey: schema.votes.anonKey })
+		.from(schema.votes)
+		.where(and(eq(schema.votes.subjectType, 'suggestion'), eq(schema.votes.subjectId, sourceId)));
+	for (const v of votes) {
+		await db
+			.insert(schema.votes)
+			.values({ subjectType: 'suggestion', subjectId: targetId, userId: v.userId, anonKey: v.anonKey })
+			.onConflictDoNothing();
+	}
+
+	// Transfer watchers.
+	const watchers = await db
+		.select({ userId: schema.watchers.userId })
+		.from(schema.watchers)
+		.where(and(eq(schema.watchers.subjectType, 'suggestion'), eq(schema.watchers.subjectId, sourceId)));
+	for (const w of watchers) {
+		await db
+			.insert(schema.watchers)
+			.values({ subjectType: 'suggestion', subjectId: targetId, userId: w.userId, reason: 'manual' })
+			.onConflictDoNothing();
+	}
+
+	await db
+		.update(schema.suggestions)
+		.set({ status: 'duplicate', duplicateOfId: targetId, updatedAt: new Date() })
+		.where(eq(schema.suggestions.id, sourceId));
+
+	return { sourceTitle: source.title, targetTitle: target.title };
 }
 
 /** Convert a suggestion into a ticket in the project's first board. */

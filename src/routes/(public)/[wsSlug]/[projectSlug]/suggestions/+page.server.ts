@@ -54,6 +54,28 @@ export const actions: Actions = {
 		const id = await createSuggestion(locals.user, ctx.project.id, { title, body });
 		const { logActivity } = await import('$lib/server/services/activity');
 		await logActivity({ projectId: ctx.project.id, subjectType: 'suggestion', subjectId: id, actorId: locals.user.id, type: 'suggestion.created' });
+
+		// The author follows their own suggestion; maintainers get a triage alert.
+		const { watch, notifyUsers, listProjectMaintainerIds } = await import(
+			'$lib/server/services/notifications'
+		);
+		await watch('suggestion', id, locals.user.id, 'author');
+		const maintainers = (await listProjectMaintainerIds(ctx.project.id)).filter(
+			(uid) => uid !== locals.user!.id
+		);
+		await notifyUsers(maintainers, {
+			type: 'suggestion.created',
+			subjectType: 'suggestion',
+			subjectId: id,
+			actorId: locals.user.id,
+			body: `${locals.user.displayName} suggested this`
+		});
+
+		const { enqueueDiscordForSubject } = await import('$lib/server/discord/enqueue');
+		await enqueueDiscordForSubject(ctx.project.id, 'suggestion.created', 'suggestion', id, {
+			actor: locals.user.displayName,
+			description: body
+		});
 		throw redirect(303, `/${params.wsSlug}/${params.projectSlug}/suggestions/${id}`);
 	}
 };

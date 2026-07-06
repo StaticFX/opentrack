@@ -1,4 +1,5 @@
 <script lang="ts">
+	import CommandPalette from '$lib/components/app/CommandPalette.svelte';
 	import Sidebar from '$lib/components/app/Sidebar.svelte';
 
 	let { children } = $props();
@@ -10,3 +11,4 @@
 		{@render children()}
 	</main>
 </div>
+<CommandPalette />

@@ -8,10 +8,12 @@
 		LayoutDashboard,
 		Shield,
 		Hash,
-		UserRound
+		UserRound,
+		Search
 	} from '@lucide/svelte';
 	import { clickOutside } from '$lib/utils/clickOutside';
 	import { cn } from '$lib/utils/cn';
+	import NotificationBell from './NotificationBell.svelte';
 
 	type WsRef = {
 		id: string;
@@ -116,6 +118,24 @@
 				</a>
 			</div>
 		{/if}
+	</div>
+
+	<!-- Search (⌘K) -->
+	<div class="px-2">
+		<button
+			type="button"
+			onclick={() => window.dispatchEvent(new CustomEvent('command-palette'))}
+			class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-neutral-500 hover:bg-neutral-200/60 dark:text-neutral-400 dark:hover:bg-neutral-800"
+		>
+			<Search size={15} class="text-neutral-400" />
+			<span class="min-w-0 flex-1 truncate">Search…</span>
+			<kbd class="shrink-0 rounded border border-neutral-200 px-1 text-[10px] text-neutral-400 dark:border-neutral-700">⌘K</kbd>
+		</button>
+	</div>
+
+	<!-- Notifications -->
+	<div class="px-2">
+		<NotificationBell />
 	</div>
 
 	<!-- Nav -->

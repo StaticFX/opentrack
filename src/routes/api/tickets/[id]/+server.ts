@@ -5,7 +5,11 @@ import { requireTicketAccess, requireUser } from '$lib/server/access';
 import { enqueueTicketPush } from '$lib/server/github/enqueue';
 import { ACCESS } from '$lib/server/permissions';
 import { boardEvent } from '$lib/server/realtime/board';
+import { listChecklist } from '$lib/server/services/checklists';
 import { listComments } from '$lib/server/services/comments';
+import { getTicketFields } from '$lib/server/services/custom-fields';
+import { isWatching } from '$lib/server/services/notifications';
+import { reactionsFor, summarize } from '$lib/server/services/reactions';
 import { deleteTicket, getTicketDetail, updateTicket } from '$lib/server/services/tickets';
 import { hasVoted } from '$lib/server/services/votes';
 import type { RequestHandler } from './$types';
@@ -16,10 +20,22 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!detail) throw error(404, 'Ticket not found');
 	const comments = await listComments('ticket', params.id);
 	const voted = locals.user ? await hasVoted('ticket', params.id, { userId: locals.user.id }) : false;
+	const watching = locals.user ? await isWatching('ticket', params.id, locals.user.id) : false;
+	// Reactions: ticket-level + a batch for its comments.
+	const uid = locals.user?.id;
+	const ticketReactions = await summarize('ticket', params.id, uid);
+	const commentReactions = await reactionsFor('comment', comments.map((c) => c.id), uid);
+	const commentsWithReactions = comments.map((c) => ({ ...c, reactions: commentReactions.get(c.id) ?? [] }));
+	const checklist = await listChecklist(params.id);
+	const fields = await getTicketFields(params.id, access.project.id);
 	return json({
 		ticket: detail,
-		comments,
+		comments: commentsWithReactions,
+		reactions: ticketReactions,
+		checklist,
+		fields,
 		voted,
+		watching,
 		access: {
 			level: access.level,
 			canEdit: access.level >= ACCESS.COLLABORATOR,

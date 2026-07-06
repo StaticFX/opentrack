@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { ArrowLeft, Users, ShieldCheck, Plug, Palette } from '@lucide/svelte';
+	import { ArrowLeft, Users, ShieldCheck, Plug, Palette, Bell } from '@lucide/svelte';
 	import { cn } from '$lib/utils/cn';
 
 	const tabs = [
 		{ href: '/admin/users', label: 'Users', icon: Users },
 		{ href: '/admin/appearance', label: 'Appearance', icon: Palette },
+		{ href: '/admin/notifications', label: 'Notifications', icon: Bell },
 		{ href: '/admin/privacy', label: 'Privacy', icon: ShieldCheck },
 		{ href: '/admin/integrations', label: 'Integrations', icon: Plug }
 	];

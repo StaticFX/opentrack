@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import { requireTicketAccess, requireUser } from '$lib/server/access';
 import { ACCESS } from '$lib/server/permissions';
 import { boardEvent } from '$lib/server/realtime/board';
+import { notifyUsers, watch } from '$lib/server/services/notifications';
 import { setAssignee } from '$lib/server/services/tickets';
 import type { RequestHandler } from './$types';
 
@@ -12,7 +13,22 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	const userId = String(body.userId ?? '');
 	if (!userId) throw error(400, 'userId is required');
 
-	await setAssignee(params.id, userId, body.add !== false);
+	const add = body.add !== false;
+	await setAssignee(params.id, userId, add);
 	if (boardId) await boardEvent(boardId, 'ticket.updated', { ticketId: params.id }, user.id);
+
+	// A newly-assigned user starts watching and is notified (unless self-assigning).
+	if (add) {
+		await watch('ticket', params.id, userId, 'assignee');
+		if (userId !== user.id) {
+			await notifyUsers([userId], {
+				type: 'ticket.assigned',
+				subjectType: 'ticket',
+				subjectId: params.id,
+				actorId: user.id,
+				body: `${user.displayName} assigned this to you`
+			});
+		}
+	}
 	return json({ ok: true });
 };

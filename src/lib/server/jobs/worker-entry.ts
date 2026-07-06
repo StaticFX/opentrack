@@ -1,10 +1,11 @@
 // Standalone worker process: `npm run worker`. Runs the job loop independently
 // of the web server (useful when scaling the app horizontally).
 import { closeDb } from '$lib/server/db';
-import { registerAllHandlers, startWorker } from './index';
+import { ensureScheduledJobs, registerAllHandlers, startWorker } from './index';
 
 registerAllHandlers();
 const worker = startWorker({ workerId: `standalone-${process.pid}` });
+void ensureScheduledJobs();
 console.log('[jobs] standalone worker started');
 
 async function shutdown() {

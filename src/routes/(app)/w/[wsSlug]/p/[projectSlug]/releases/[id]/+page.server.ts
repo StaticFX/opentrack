@@ -7,6 +7,7 @@ import {
 	addLink,
 	addTicketByNumber,
 	deleteRelease,
+	generateChangelogDraft,
 	getReleaseDetail,
 	removeLink,
 	removeTicket,
@@ -46,8 +47,19 @@ export const actions: Actions = {
 		if (status === 'published' && detail.release.status !== 'published') {
 			const { logActivity } = await import('$lib/server/services/activity');
 			await logActivity({ projectId: ctx.project.id, subjectType: 'release', subjectId: params.id, actorId: locals.user?.id, type: 'release.published' });
+			const { enqueueDiscordForSubject } = await import('$lib/server/discord/enqueue');
+			await enqueueDiscordForSubject(ctx.project.id, 'release.published', 'release', params.id, {
+				actor: locals.user?.displayName,
+				description: String(form.get('notes') ?? '').trim() || undefined
+			});
 		}
 		return { saved: true };
+	},
+
+	generateNotes: async ({ locals, params }) => {
+		const { ctx } = await requireManage(locals, params.wsSlug, params.projectSlug, params.id);
+		const draft = await generateChangelogDraft(ctx.project.id, params.id);
+		return { draft, empty: draft === '' };
 	},
 
 	addLink: async ({ request, locals, params }) => {

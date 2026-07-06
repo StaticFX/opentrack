@@ -1,0 +1,1 @@
+ALTER TABLE `suggestions` ADD `duplicate_of_id` text;

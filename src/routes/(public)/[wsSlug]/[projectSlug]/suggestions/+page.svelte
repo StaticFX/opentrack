@@ -32,7 +32,10 @@
 	let showForm = $state(false);
 </script>
 
-<svelte:head><title>Suggestions — {data.project.name}</title></svelte:head>
+<svelte:head>
+	<title>Suggestions — {data.project.name}</title>
+	<link rel="alternate" type="application/rss+xml" title={`${data.project.name} suggestions`} href={`${base}/rss.xml`} />
+</svelte:head>
 
 <main class="mx-auto max-w-3xl px-6 py-8">
 	<!-- Submit -->
