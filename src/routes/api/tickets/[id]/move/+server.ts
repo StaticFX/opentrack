@@ -52,6 +52,15 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 				actor: user.displayName,
 				fields: [{ name: 'Column', value: col.name }]
 			});
+		} else {
+			// A non-closing move is still activity watchers care about.
+			await notifyWatchers({
+				type: 'ticket.updated',
+				subjectType: 'ticket',
+				subjectId: params.id,
+				actorId: user.id,
+				body: `${user.displayName} moved this to ${col.name}`
+			});
 		}
 	}
 	return json({ ok: true });
