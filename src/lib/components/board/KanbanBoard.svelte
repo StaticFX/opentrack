@@ -124,7 +124,7 @@
 	]);
 	const assigneeOptions = $derived.by(() => {
 		const seen = new Map<string, string>();
-		for (const t of tickets) for (const a of t.assignees) seen.set(a.userId, a.displayName);
+		for (const t of tickets) for (const a of t.assignees) if (a.userId) seen.set(a.userId, a.displayName);
 		return [{ value: '', label: 'Anyone' }, ...[...seen].map(([value, label]) => ({ value, label }))];
 	});
 

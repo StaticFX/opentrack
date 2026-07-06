@@ -102,10 +102,16 @@ export const actions: Actions = {
 		const configured = form.get('configured') === '1';
 		const issueLabels = form.getAll('issueLabel').map(String);
 		const progressColumns = form.getAll('progressColumn').map(String);
+		const syncAssignees = configured ? form.get('syncAssignees') === 'on' : true;
+		const syncPriority = configured ? form.get('syncPriority') === 'on' : true;
+		const importMilestones = configured ? form.get('importMilestones') === 'on' : true;
 		const options = {
 			importIssues: configured ? form.get('importIssues') === 'on' : true,
 			importPrs: configured ? form.get('importPrs') === 'on' : true,
 			importReleases: configured ? form.get('importReleases') === 'on' : true,
+			importMilestones,
+			syncAssignees,
+			syncPriority,
 			// When configured, only the checked labels; otherwise all (null).
 			issueLabels: configured ? issueLabels : null,
 			progressColumns
@@ -120,7 +126,11 @@ export const actions: Actions = {
 			.set({
 				githubInstallationId: installationId,
 				githubRepo: fullName,
-				githubProgressLabels: progressColumns.length ? progressColumns : null
+				githubProgressLabels: progressColumns.length ? progressColumns : null,
+				// Steady-state sync toggles mirror the import choices.
+				githubSyncAssignees: syncAssignees,
+				githubSyncPriority: syncPriority,
+				githubSyncMilestones: importMilestones
 			})
 			.where(eq(schema.projects.id, project.id));
 

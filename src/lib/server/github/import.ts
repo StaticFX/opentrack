@@ -1,10 +1,12 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { CLOSED_CATEGORIES } from '$lib/constants';
+import { isPriorityLabel, priorityLabelSpecs } from '$lib/github-labels';
 import { db, schema } from '$lib/server/db';
 import { boardEvent } from '$lib/server/realtime/board';
 import { rankAfter } from '$lib/server/util/rank';
 import { installationOctokit } from './app';
-import { issueToTicketFields, parseRepo } from './map';
+import { resolveGithubUsers } from './identity';
+import { issueMilestone, issueToTicketFields, parseRepo } from './map';
 
 /** Minimal Octokit surface we use — lets tests inject a fake client. */
 export interface OctokitLike {
@@ -66,6 +68,24 @@ interface GhIssue {
 	state: string;
 	pull_request?: unknown;
 	labels?: Array<string | { name?: string }>;
+	assignees?: Array<{ login?: string | null; id?: number; avatar_url?: string | null }> | null;
+	milestone?: {
+		number?: number;
+		id?: number;
+		title?: string;
+		description?: string | null;
+		state?: string;
+		due_on?: string | null;
+	} | null;
+}
+
+interface GhMilestone {
+	number: number;
+	id?: number;
+	title?: string;
+	description?: string | null;
+	state?: string;
+	due_on?: string | null;
 }
 
 interface GhRelease {
@@ -90,6 +110,11 @@ export interface ImportOptions {
 	importIssues: boolean;
 	importPrs: boolean;
 	importReleases: boolean;
+	importMilestones: boolean;
+	/** Mirror issue assignees to linked OpenTrack users + a display snapshot. */
+	syncAssignees: boolean;
+	/** Read ticket priority from `priority: <level>` labels + seed those labels. */
+	syncPriority: boolean;
 	/** Names of repo labels to import; null imports all. */
 	issueLabels: string[] | null;
 	/** Board column names to create "Status: <name>" GitHub labels for. */
@@ -100,6 +125,9 @@ const DEFAULT_OPTIONS: ImportOptions = {
 	importIssues: true,
 	importPrs: true,
 	importReleases: true,
+	importMilestones: true,
+	syncAssignees: true,
+	syncPriority: true,
 	issueLabels: null,
 	progressColumns: []
 };
@@ -110,6 +138,29 @@ export interface ImportResult {
 	prs: number;
 	releases: number;
 	progressLabels: number;
+	milestones: number;
+}
+
+/** Create arbitrary labels on the repo (idempotent-ish; 422 = already exists). */
+async function postRepoLabels(
+	octokit: OctokitLike,
+	repo: { owner: string; repo: string },
+	labels: Array<{ name: string; color: string }>
+): Promise<number> {
+	let n = 0;
+	for (const l of labels) {
+		try {
+			await octokit.request('POST /repos/{owner}/{repo}/labels', {
+				...repo,
+				name: l.name,
+				color: (l.color || '#6b7280').replace(/^#/, '')
+			});
+			n++;
+		} catch {
+			// already exists / no permission — non-fatal
+		}
+	}
+	return n;
 }
 
 /** Create `Status: <col>` labels on the repo (idempotent-ish; 422 = exists). */
@@ -174,7 +225,7 @@ export async function importRepo(
 	injectedOctokit?: OctokitLike
 ): Promise<ImportResult> {
 	const o: ImportOptions = { ...DEFAULT_OPTIONS, ...(opts.options ?? {}) };
-	const empty: ImportResult = { labels: 0, issues: 0, prs: 0, releases: 0, progressLabels: 0 };
+	const empty: ImportResult = { labels: 0, issues: 0, prs: 0, releases: 0, progressLabels: 0, milestones: 0 };
 	const repo = parseRepo(opts.repoFullName);
 	if (!repo) return empty;
 	const octokit = injectedOctokit ?? (await installationOctokit(opts.installationId));
@@ -201,9 +252,15 @@ export async function importRepo(
 	const closedCol = pickClosedColumn(cols);
 
 	// ── Issue labels (only the selected subset; null = all) ──
+	// Priority labels are managed separately (they set ticket priority), so they
+	// are never imported as plain project labels when priority sync is on.
 	const wanted = o.issueLabels ? new Set(o.issueLabels) : null;
 	const ghLabels = (await fetchAll<GhLabel>(octokit, 'GET /repos/{owner}/{repo}/labels', repo)).filter(
-		(l) => l.name && (!wanted || wanted.has(l.name))
+		(l) =>
+			l.name &&
+			(!wanted || wanted.has(l.name)) &&
+			!(o.syncPriority && isPriorityLabel(l.name)) &&
+			!l.name.startsWith('Status: ')
 	);
 	const existingLabels = await db
 		.select({ id: schema.labels.id, name: schema.labels.name })
@@ -228,6 +285,47 @@ export async function importRepo(
 		.filter((c): c is (typeof cols)[number] => !!c)
 		.map((c) => ({ name: c.name, color: c.color }));
 	const progressLabelCount = await postStatusLabels(octokit, repo, progressCols);
+
+	// ── Priority labels: seed `priority: <level>` labels on the repo ──
+	if (o.syncPriority) {
+		await postRepoLabels(octokit, repo, priorityLabelSpecs());
+	}
+
+	// ── Milestones → local milestones (keyed by GitHub number) ──
+	const milestoneIdByNumber = new Map<number, string>();
+	let milestoneCount = 0;
+	if (o.importMilestones) {
+		const existingMs = await db
+			.select({ id: schema.milestones.id, num: schema.milestones.githubMilestoneNumber })
+			.from(schema.milestones)
+			.where(eq(schema.milestones.projectId, opts.projectId));
+		for (const m of existingMs) if (m.num != null) milestoneIdByNumber.set(m.num, m.id);
+
+		const ghMilestones = await fetchAll<GhMilestone>(octokit, 'GET /repos/{owner}/{repo}/milestones', {
+			...repo,
+			state: 'all'
+		});
+		for (const m of ghMilestones) {
+			if (milestoneIdByNumber.has(m.number)) continue;
+			const ref = issueMilestone(m);
+			if (!ref) continue;
+			const [row] = await db
+				.insert(schema.milestones)
+				.values({
+					projectId: opts.projectId,
+					title: ref.title,
+					description: ref.description,
+					state: ref.state,
+					dueDate: ref.dueOn,
+					githubMilestoneNumber: ref.number,
+					githubMilestoneId: ref.githubMilestoneId,
+					githubSyncedAt: new Date()
+				})
+				.returning({ id: schema.milestones.id });
+			milestoneIdByNumber.set(m.number, row.id);
+			milestoneCount++;
+		}
+	}
 
 	// ── Issues → tickets ──
 	const issues = o.importIssues
@@ -270,32 +368,49 @@ export async function importRepo(
 		const col = fields.closed ? closedCol : openCol;
 		if (!col) continue;
 		num++;
+		// Assignees: resolve GitHub logins → linked OpenTrack users (+ snapshot).
+		const resolved = o.syncAssignees
+			? await resolveGithubUsers(fields.assignees.map((a) => a.login))
+			: new Map();
 		const [ticket] = await db
 			.insert(schema.tickets)
 			.values({
 				projectId: opts.projectId,
 				boardId: board.id,
 				columnId: col.id,
+				milestoneId:
+					o.importMilestones && fields.milestone
+						? (milestoneIdByNumber.get(fields.milestone.number) ?? null)
+						: null,
 				number: num,
 				title: fields.title,
 				description: fields.description,
+				priority: o.syncPriority ? fields.priority : 'none',
 				position: await nextPos(col.id),
 				githubIssueNumber: fields.githubIssueNumber,
 				githubNodeId: fields.githubNodeId,
+				githubAssignees: o.syncAssignees ? fields.assignees : null,
 				closedAt: fields.closed ? new Date() : null,
 				githubSyncedAt: new Date()
 			})
 			.returning({ id: schema.tickets.id });
 
-		for (const lbl of issue.labels ?? []) {
-			const name = typeof lbl === 'string' ? lbl : lbl?.name;
-			const labelId = name ? labelIdByName.get(name) : undefined;
+		// Attach the imported (non-priority) labels that exist as project labels.
+		for (const name of fields.labels) {
+			const labelId = labelIdByName.get(name);
 			if (labelId) {
 				await db
 					.insert(schema.ticketLabels)
 					.values({ ticketId: ticket.id, labelId })
 					.onConflictDoNothing();
 			}
+		}
+		// Attach resolved assignees.
+		for (const u of resolved.values()) {
+			await db
+				.insert(schema.ticketAssignees)
+				.values({ ticketId: ticket.id, userId: u.userId })
+				.onConflictDoNothing();
 		}
 		issueCount++;
 	}
@@ -374,6 +489,7 @@ export async function importRepo(
 		issues: issueCount,
 		prs: prCount,
 		releases: releaseCount,
-		progressLabels: progressLabelCount
+		progressLabels: progressLabelCount,
+		milestones: milestoneCount
 	};
 }

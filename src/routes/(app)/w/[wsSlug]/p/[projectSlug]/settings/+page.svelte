@@ -250,6 +250,35 @@
 
 				{#if data.linkedRepo}
 					<section class="mt-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+						<h3 class="text-sm font-semibold">Sync options</h3>
+						<p class="mt-1 mb-3 text-sm text-neutral-500">Choose which issue facets sync between OpenTrack and GitHub.</p>
+						<form method="POST" action="?/saveGithubSync" use:enhance={() => async ({ update }) => { await update({ reset: false }); }} class="flex flex-col gap-3">
+							<div class="space-y-1.5">
+								<label class="flex items-center gap-2 text-sm">
+									<input type="checkbox" name="syncAssignees" checked={data.githubSync.assignees} class="size-4 accent-brand-600" />
+									Assignees <span class="text-xs text-neutral-400">— map GitHub assignees to linked accounts (and back)</span>
+								</label>
+								<label class="flex items-center gap-2 text-sm">
+									<input type="checkbox" name="syncLabels" checked={data.githubSync.labels} class="size-4 accent-brand-600" />
+									Labels <span class="text-xs text-neutral-400">— mirror issue labels onto tickets</span>
+								</label>
+								<label class="flex items-center gap-2 text-sm">
+									<input type="checkbox" name="syncPriority" checked={data.githubSync.priority} class="size-4 accent-brand-600" />
+									Priority <span class="text-xs text-neutral-400">— mirror priority as a <code class="rounded bg-neutral-100 px-1 text-[11px] dark:bg-neutral-800">priority: …</code> label</span>
+								</label>
+								<label class="flex items-center gap-2 text-sm">
+									<input type="checkbox" name="syncMilestones" checked={data.githubSync.milestones} class="size-4 accent-brand-600" />
+									Milestones <span class="text-xs text-neutral-400">— bidirectional milestone sync</span>
+								</label>
+							</div>
+							<div class="flex items-center gap-3">
+								<Button variant="primary" type="submit">Save sync options</Button>
+								{#if f?.githubSyncSaved}<span class="text-sm text-green-600">Saved</span>{/if}
+							</div>
+						</form>
+					</section>
+
+					<section class="mt-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
 						<h3 class="text-sm font-semibold">Progress labels</h3>
 						<p class="mt-1 mb-3 text-sm text-neutral-500">
 							When a ticket enters a selected column, its linked GitHub issue gets a <code class="rounded bg-neutral-100 px-1 text-[11px] dark:bg-neutral-800">Status: …</code> label (created on GitHub on save). Add newly created lanes here.

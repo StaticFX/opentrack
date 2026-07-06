@@ -37,6 +37,7 @@
 	const checklistDone = $derived(checklist.filter((i) => i.done).length);
 	let members = $state<Array<{ userId: string; displayName: string; avatarUrl: string | null }>>([]);
 	let allLabels = $state<Label[]>([]);
+	let milestones = $state<Array<{ id: string; title: string; state: string }>>([]);
 
 	let editingTitle = $state(false);
 	let titleDraft = $state('');
@@ -82,10 +83,12 @@
 	async function load() {
 		loading = true;
 		detail = null;
-		const [tRes, mRes] = await Promise.all([
+		const [tRes, mRes, msRes] = await Promise.all([
 			fetch(`/api/tickets/${ticketId}`),
-			fetch(`/api/projects/${projectId}/members`)
+			fetch(`/api/projects/${projectId}/members`),
+			fetch(`/api/projects/${projectId}/milestones`)
 		]);
+		if (msRes.ok) milestones = (await msRes.json()).milestones ?? [];
 		if (tRes.ok) {
 			const d = await tRes.json();
 			detail = d.ticket;
@@ -168,6 +171,22 @@
 		await apiPatch({ priority: v });
 		onchanged();
 	}
+	async function setMilestone(v: string) {
+		const milestoneId = v || null;
+		const m = milestones.find((x) => x.id === milestoneId);
+		detail.milestoneId = milestoneId; // optimistic
+		detail.milestone = m ? { id: m.id, title: m.title, state: m.state } : null;
+		await fetch(`/api/tickets/${ticketId}/milestone`, {
+			method: 'POST',
+			headers: jsonHeaders,
+			body: JSON.stringify({ milestoneId })
+		});
+		onchanged();
+	}
+	const milestoneOptions = $derived([
+		{ value: '', label: 'No milestone' },
+		...milestones.map((m) => ({ value: m.id, label: m.state === 'closed' ? `${m.title} (closed)` : m.title }))
+	]);
 	async function setStatus(columnId: string) {
 		detail.columnId = columnId; // optimistic
 		await fetch(`/api/tickets/${ticketId}/move`, {
@@ -465,13 +484,29 @@
 						{/if}
 					</div>
 
+					{#if milestones.length || detail.milestone}
+						<div>
+							<p class="mb-1.5 text-xs font-medium text-neutral-400">Milestone</p>
+							{#if access.canEdit}
+								<Select value={detail.milestoneId ?? ''} options={milestoneOptions} onchange={setMilestone} />
+							{:else}
+								<span>{detail.milestone?.title ?? '—'}</span>
+							{/if}
+						</div>
+					{/if}
+
 					<div class="relative">
 						<p class="mb-1.5 text-xs font-medium text-neutral-400">Assignees</p>
 						<div class="flex flex-wrap items-center gap-1">
-							{#each detail.assignees as a (a.userId)}
-								<span class="flex items-center gap-1 rounded-full bg-white py-0.5 pr-2 pl-0.5 text-xs shadow-sm dark:bg-neutral-800">
-									<span class="grid size-4 place-items-center rounded-full bg-neutral-300 text-[8px] dark:bg-neutral-600">{a.displayName.slice(0, 1)}</span>
+							{#each detail.assignees as a (a.userId ?? a.githubLogin)}
+								<span class="flex items-center gap-1 rounded-full bg-white py-0.5 pr-2 pl-0.5 text-xs shadow-sm dark:bg-neutral-800" title={a.githubLogin ? `@${a.githubLogin}` : a.displayName}>
+									{#if a.avatarUrl}
+										<img src={a.avatarUrl} alt={a.displayName} class="size-4 rounded-full" />
+									{:else}
+										<span class="grid size-4 place-items-center rounded-full bg-neutral-300 text-[8px] dark:bg-neutral-600">{a.displayName.slice(0, 1)}</span>
+									{/if}
 									{a.displayName}
+									{#if a.githubLogin}<span class="text-neutral-400">@{a.githubLogin}</span>{/if}
 								</span>
 							{/each}
 							{#if access.canEdit}

@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import type {
 	InviteScope,
 	JobStatus,
+	MilestoneState,
 	Priority,
 	ProjectRole,
 	RelationType,
@@ -185,6 +186,11 @@ export function defineSchema(kit: Kit) {
 			// Column names whose status is mirrored to the linked issue as a
 			// "Status: <name>" GitHub label (OpenTrack → GitHub progress sync).
 			githubProgressLabels: json<string[]>('github_progress_labels'),
+			// Which GitHub facets sync for this project (all default on when linked).
+			githubSyncAssignees: bool('github_sync_assignees').default(true).notNull(),
+			githubSyncLabels: bool('github_sync_labels').default(true).notNull(),
+			githubSyncPriority: bool('github_sync_priority').default(true).notNull(),
+			githubSyncMilestones: bool('github_sync_milestones').default(true).notNull(),
 			// Discord integration: incoming-webhook URL (AES-256-GCM encrypted at rest)
 			// + the set of event keys that should be announced to the channel.
 			discordWebhookUrl: text('discord_webhook_url'),
@@ -265,6 +271,7 @@ export function defineSchema(kit: Kit) {
 				.references(() => projects.id, { onDelete: 'cascade' }),
 			boardId: text('board_id').references(() => boards.id, { onDelete: 'set null' }),
 			columnId: text('column_id').references(() => boardColumns.id, { onDelete: 'set null' }),
+			milestoneId: text('milestone_id').references(() => milestones.id, { onDelete: 'set null' }),
 			number: int('number').notNull(),
 			title: text('title').notNull(),
 			description: text('description'),
@@ -275,6 +282,11 @@ export function defineSchema(kit: Kit) {
 			dueDate: ts('due_date'),
 			githubIssueNumber: int('github_issue_number'),
 			githubNodeId: text('github_node_id'),
+			// Snapshot of the GitHub issue's assignees (login + avatar + numeric id),
+			// used to render GitHub handles and assignees with no linked OpenTrack user.
+			githubAssignees: json<Array<{ login: string; avatarUrl: string | null; githubUserId: number }>>(
+				'github_assignees'
+			),
 			githubPrNumber: int('github_pr_number'),
 			// Linked pull request state: 'open' | 'closed' | 'merged'.
 			githubPrState: text('github_pr_state'),
@@ -287,6 +299,7 @@ export function defineSchema(kit: Kit) {
 			uniqueIndex('tickets_project_number_uq').on(t.projectId, t.number),
 			index('tickets_board_idx').on(t.boardId),
 			index('tickets_column_idx').on(t.columnId),
+			index('tickets_milestone_idx').on(t.milestoneId),
 			index('tickets_gh_issue_idx').on(t.projectId, t.githubIssueNumber)
 		]
 	);
@@ -350,6 +363,36 @@ export function defineSchema(kit: Kit) {
 		(t) => [
 			uniqueIndex('ticket_relation_uq').on(t.sourceTicketId, t.targetTicketId, t.type),
 			index('ticket_relation_target_idx').on(t.targetTicketId)
+		]
+	);
+
+	// ── Milestones (bidirectional GitHub milestone sync) ─────────────────
+	const milestones = table(
+		'milestones',
+		{
+			id: pk(),
+			projectId: text('project_id')
+				.notNull()
+				.references(() => projects.id, { onDelete: 'cascade' }),
+			title: text('title').notNull(),
+			description: text('description'),
+			state: text('state').$type<MilestoneState>().default('open').notNull(),
+			dueDate: ts('due_date'),
+			// GitHub milestone identity: `number` is the per-repo handle we PATCH by;
+			// `id` is GitHub's global id. Both null for milestones created locally
+			// before their first push.
+			githubMilestoneNumber: int('github_milestone_number'),
+			githubMilestoneId: text('github_milestone_id'),
+			githubSyncedAt: ts('github_synced_at'),
+			position: text('position').notNull().default('a0'),
+			createdAt: createdAt(),
+			updatedAt: updatedAt()
+		},
+		(t) => [
+			index('milestones_project_idx').on(t.projectId),
+			uniqueIndex('milestones_gh_number_uq')
+				.on(t.projectId, t.githubMilestoneNumber)
+				.where(sql`${t.githubMilestoneNumber} is not null`)
 		]
 	);
 
@@ -773,6 +816,7 @@ export function defineSchema(kit: Kit) {
 		boardColumns,
 		tickets,
 		ticketAssignees,
+		milestones,
 		labels,
 		ticketLabels,
 		ticketRelations,

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { MessageSquare, ChevronUp, Link2, AlignLeft, Ban, GitPullRequest, GitMerge } from '@lucide/svelte';
+	import { MessageSquare, ChevronUp, Link2, AlignLeft, Ban, GitPullRequest, GitMerge, Milestone } from '@lucide/svelte';
 	import type { TicketCard } from '$lib/board';
 	import { PRIORITY_META } from '$lib/priority';
 
@@ -37,6 +37,19 @@
 	{/if}
 
 	<p class="text-sm leading-snug text-neutral-800 dark:text-neutral-100">{ticket.title}</p>
+
+	{#if ticket.milestone}
+		<div class="mt-1.5">
+			<span
+				class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-neutral-600 dark:text-neutral-300"
+				style="background:rgb(139 92 246 / 0.14)"
+				title={`Milestone: ${ticket.milestone.title}${ticket.milestone.state === 'closed' ? ' (closed)' : ''}`}
+			>
+				<Milestone size={10} />
+				<span class="max-w-[140px] truncate">{ticket.milestone.title}</span>
+			</span>
+		</div>
+	{/if}
 
 	<div class="mt-2 flex items-center gap-2 text-[11px] text-neutral-400">
 		{#if ticket.priority !== 'none'}
@@ -78,13 +91,14 @@
 		{/if}
 		{#if ticket.assignees.length}
 			<div class="flex -space-x-1.5">
-				{#each ticket.assignees.slice(0, 3) as a (a.userId)}
+				{#each ticket.assignees.slice(0, 3) as a (a.userId ?? a.githubLogin)}
+					{@const label = a.githubLogin ? `${a.displayName} (@${a.githubLogin})` : a.displayName}
 					{#if a.avatarUrl}
-						<img src={a.avatarUrl} alt={a.displayName} title={a.displayName} class="size-4 rounded-full ring-1 ring-white dark:ring-neutral-900" />
+						<img src={a.avatarUrl} alt={a.displayName} title={label} class="size-4 rounded-full ring-1 ring-white dark:ring-neutral-900" />
 					{:else}
 						<span
 							class="grid size-4 place-items-center rounded-full bg-neutral-300 text-[8px] font-semibold text-neutral-700 ring-1 ring-white dark:bg-neutral-600 dark:text-neutral-100 dark:ring-neutral-900"
-							title={a.displayName}
+							title={label}
 						>{a.displayName.slice(0, 1).toUpperCase()}</span>
 					{/if}
 				{/each}

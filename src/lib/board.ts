@@ -7,9 +7,18 @@ export interface CardLabel {
 	color: string;
 }
 export interface CardAssignee {
-	userId: string;
+	/** null for a GitHub assignee with no linked OpenTrack account. */
+	userId: string | null;
 	displayName: string;
 	avatarUrl: string | null;
+	/** The assignee's GitHub @handle, when a GitHub account is linked/known. */
+	githubLogin?: string | null;
+}
+/** Milestone summary carried on a card. */
+export interface CardMilestone {
+	id: string;
+	title: string;
+	state: string;
 }
 export interface TicketCard {
 	id: string;
@@ -25,6 +34,7 @@ export interface TicketCard {
 	/** Linked GitHub PR number + its state ('open' | 'closed' | 'merged'), if any. */
 	githubPrNumber: number | null;
 	githubPrState: string | null;
+	milestone: CardMilestone | null;
 	labels: CardLabel[];
 	assignees: CardAssignee[];
 	votes: number;

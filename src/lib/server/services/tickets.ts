@@ -8,6 +8,28 @@ import { rankAfter } from '$lib/server/util/rank';
 export type Ticket = typeof schema.tickets.$inferSelect;
 export type { CardAssignee, CardLabel, TicketCard } from '$lib/board';
 
+type GhAssigneeSnapshot = Array<{ login: string; avatarUrl: string | null; githubUserId: number }>;
+
+/**
+ * Merge OpenTrack assignees (with any linked GitHub @handle) and GitHub-only
+ * assignees carried in the ticket's snapshot. A snapshot login already covered
+ * by a linked OpenTrack assignee is skipped so no one is listed twice.
+ */
+function mergeAssignees(
+	openTrack: CardAssignee[],
+	snapshot: GhAssigneeSnapshot | null | undefined
+): CardAssignee[] {
+	const covered = new Set(
+		openTrack.map((a) => a.githubLogin?.toLowerCase()).filter((v): v is string => !!v)
+	);
+	const extra: CardAssignee[] = [];
+	for (const g of snapshot ?? []) {
+		if (covered.has(g.login.toLowerCase())) continue;
+		extra.push({ userId: null, displayName: g.login, avatarUrl: g.avatarUrl, githubLogin: g.login });
+	}
+	return [...openTrack, ...extra];
+}
+
 /** All tickets on a board with their labels, assignees, and interaction counts. */
 export async function listBoardTickets(boardId: string): Promise<TicketCard[]> {
 	const tickets = await db
@@ -34,10 +56,18 @@ export async function listBoardTickets(boardId: string): Promise<TicketCard[]> {
 				ticketId: schema.ticketAssignees.ticketId,
 				userId: schema.users.id,
 				displayName: schema.users.displayName,
-				avatarUrl: schema.users.avatarUrl
+				avatarUrl: schema.users.avatarUrl,
+				githubLogin: schema.oauthAccounts.providerUsername
 			})
 			.from(schema.ticketAssignees)
 			.innerJoin(schema.users, eq(schema.ticketAssignees.userId, schema.users.id))
+			.leftJoin(
+				schema.oauthAccounts,
+				and(
+					eq(schema.oauthAccounts.userId, schema.users.id),
+					eq(schema.oauthAccounts.provider, 'github')
+				)
+			)
 			.where(inArray(schema.ticketAssignees.ticketId, ids)),
 		db
 			.select({ subjectId: schema.votes.subjectId, c: count() })
@@ -73,8 +103,19 @@ export async function listBoardTickets(boardId: string): Promise<TicketCard[]> {
 	const assigneesByTicket = new Map<string, CardAssignee[]>();
 	for (const r of assigneeRows) {
 		const arr = assigneesByTicket.get(r.ticketId) ?? [];
-		arr.push({ userId: r.userId, displayName: r.displayName, avatarUrl: r.avatarUrl });
+		arr.push({ userId: r.userId, displayName: r.displayName, avatarUrl: r.avatarUrl, githubLogin: r.githubLogin });
 		assigneesByTicket.set(r.ticketId, arr);
+	}
+
+	// Milestone summaries for the cards that carry one.
+	const milestoneIds = [...new Set(tickets.map((t) => t.milestoneId).filter((v): v is string => !!v))];
+	const milestoneById = new Map<string, { id: string; title: string; state: string }>();
+	if (milestoneIds.length) {
+		const ms = await db
+			.select({ id: schema.milestones.id, title: schema.milestones.title, state: schema.milestones.state })
+			.from(schema.milestones)
+			.where(inArray(schema.milestones.id, milestoneIds));
+		for (const m of ms) milestoneById.set(m.id, m);
 	}
 	const votesByTicket = new Map(voteRows.map((r) => [r.subjectId, Number(r.c)]));
 	const commentsByTicket = new Map(commentRows.map((r) => [r.subjectId, Number(r.c)]));
@@ -107,10 +148,11 @@ export async function listBoardTickets(boardId: string): Promise<TicketCard[]> {
 		githubIssueNumber: t.githubIssueNumber,
 		githubPrNumber: t.githubPrNumber,
 		githubPrState: t.githubPrState,
+		milestone: t.milestoneId ? (milestoneById.get(t.milestoneId) ?? null) : null,
 		hasDescription: !!(t.description && t.description.trim()),
 		visibility: t.visibility,
 		labels: labelsByTicket.get(t.id) ?? [],
-		assignees: assigneesByTicket.get(t.id) ?? [],
+		assignees: mergeAssignees(assigneesByTicket.get(t.id) ?? [], t.githubAssignees as GhAssigneeSnapshot | null),
 		votes: votesByTicket.get(t.id) ?? 0,
 		comments: commentsByTicket.get(t.id) ?? 0,
 		relations: relCount.get(t.id) ?? 0,
@@ -283,16 +325,19 @@ export async function getTicketDetail(ticketId: string) {
 		.select({
 			ticket: schema.tickets,
 			authorName: schema.users.displayName,
-			githubRepo: schema.projects.githubRepo
+			githubRepo: schema.projects.githubRepo,
+			milestoneTitle: schema.milestones.title,
+			milestoneState: schema.milestones.state
 		})
 		.from(schema.tickets)
 		.leftJoin(schema.users, eq(schema.tickets.authorId, schema.users.id))
 		.leftJoin(schema.projects, eq(schema.tickets.projectId, schema.projects.id))
+		.leftJoin(schema.milestones, eq(schema.tickets.milestoneId, schema.milestones.id))
 		.where(eq(schema.tickets.id, ticketId))
 		.limit(1);
 	if (!row) return null;
 
-	const [labels, assignees, outRel, inRel, voteCount] = await Promise.all([
+	const [labels, assigneeRows, outRel, inRel, voteCount] = await Promise.all([
 		db
 			.select({ id: schema.labels.id, name: schema.labels.name, color: schema.labels.color })
 			.from(schema.ticketLabels)
@@ -302,10 +347,18 @@ export async function getTicketDetail(ticketId: string) {
 			.select({
 				userId: schema.users.id,
 				displayName: schema.users.displayName,
-				avatarUrl: schema.users.avatarUrl
+				avatarUrl: schema.users.avatarUrl,
+				githubLogin: schema.oauthAccounts.providerUsername
 			})
 			.from(schema.ticketAssignees)
 			.innerJoin(schema.users, eq(schema.ticketAssignees.userId, schema.users.id))
+			.leftJoin(
+				schema.oauthAccounts,
+				and(
+					eq(schema.oauthAccounts.userId, schema.users.id),
+					eq(schema.oauthAccounts.provider, 'github')
+				)
+			)
 			.where(eq(schema.ticketAssignees.ticketId, ticketId)),
 		// Outgoing: this ticket is the source; the other ticket is the target.
 		db
@@ -356,6 +409,8 @@ export async function getTicketDetail(ticketId: string) {
 		}))
 	];
 
+	const assignees = mergeAssignees(assigneeRows, row.ticket.githubAssignees as GhAssigneeSnapshot | null);
+
 	return {
 		id: row.ticket.id,
 		number: row.ticket.number,
@@ -364,6 +419,10 @@ export async function getTicketDetail(ticketId: string) {
 		priority: row.ticket.priority,
 		columnId: row.ticket.columnId,
 		dueDate: row.ticket.dueDate,
+		milestoneId: row.ticket.milestoneId,
+		milestone: row.ticket.milestoneId
+			? { id: row.ticket.milestoneId, title: row.milestoneTitle ?? 'Milestone', state: row.milestoneState ?? 'open' }
+			: null,
 		githubIssueNumber: row.ticket.githubIssueNumber,
 		githubPrNumber: row.ticket.githubPrNumber,
 		githubPrState: row.ticket.githubPrState,

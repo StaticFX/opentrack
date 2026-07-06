@@ -127,6 +127,13 @@
       "when": 1783326704217,
       "tag": "0017_custom_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1783332194415,
+      "tag": "0018_github_sync_expansion",
+      "breakpoints": true
     }
   ]
 }

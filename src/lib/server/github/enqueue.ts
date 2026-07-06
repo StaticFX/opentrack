@@ -23,3 +23,14 @@ export async function enqueueCommentPush(commentId: string, ticketId: string): P
 		.limit(1);
 	if (row?.repo && row?.inst) await enqueue('github:push-comment', { commentId });
 }
+
+/** Enqueue an outbound milestone push, only if its project is GitHub-linked. */
+export async function enqueueMilestonePush(milestoneId: string): Promise<void> {
+	const [row] = await db
+		.select({ repo: schema.projects.githubRepo, inst: schema.projects.githubInstallationId })
+		.from(schema.milestones)
+		.innerJoin(schema.projects, eq(schema.milestones.projectId, schema.projects.id))
+		.where(eq(schema.milestones.id, milestoneId))
+		.limit(1);
+	if (row?.repo && row?.inst) await enqueue('github:push-milestone', { milestoneId });
+}
