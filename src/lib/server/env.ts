@@ -34,6 +34,10 @@ export const env = {
 	get sqliteAuthToken() {
 		return opt('SQLITE_AUTH_TOKEN');
 	},
+	/** Directory for uploaded attachment bytes (under the persistent data volume). */
+	get uploadsDir() {
+		return str('UPLOADS_DIR', './data/uploads');
+	},
 	get pubsubDriver(): PubsubDriver {
 		return str('PUBSUB_DRIVER', 'memory') === 'postgres' ? 'postgres' : 'memory';
 	},

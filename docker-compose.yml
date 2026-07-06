@@ -24,8 +24,13 @@ services:
       GITHUB_APP_WEBHOOK_SECRET: ${GITHUB_APP_WEBHOOK_SECRET:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Uploaded attachments are written here — mount a volume so they persist.
+      UPLOADS_DIR: /app/data/uploads
     ports:
       - '${APP_PORT:-3000}:3000'
+    volumes:
+      # Persist uploaded attachments (and, on SQLite deploys, the DB) across rebuilds.
+      - app_data:/app/data
     # Traefik labels are added at deploy time (see homelab-deploy). Example:
     # labels:
     #   - traefik.enable=true
@@ -48,3 +53,4 @@ services:
 
 volumes:
   db_data:
+  app_data:

@@ -1,7 +1,9 @@
 import { error, json } from '@sveltejs/kit';
+import { desc, eq } from 'drizzle-orm';
 import type { Priority } from '$lib/constants';
 import { PRIORITIES } from '$lib/constants';
 import { requireTicketAccess, requireUser } from '$lib/server/access';
+import { db, schema } from '$lib/server/db';
 import { enqueueIssueCloseForTicket, enqueueTicketPush } from '$lib/server/github/enqueue';
 import { ACCESS } from '$lib/server/permissions';
 import { boardEvent } from '$lib/server/realtime/board';
@@ -28,12 +30,24 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const commentsWithReactions = comments.map((c) => ({ ...c, reactions: commentReactions.get(c.id) ?? [] }));
 	const checklist = await listChecklist(params.id);
 	const fields = await getTicketFields(params.id, access.project.id);
+	const attachmentRows = await db
+		.select({
+			id: schema.attachments.id,
+			filename: schema.attachments.filename,
+			mime: schema.attachments.mime,
+			size: schema.attachments.size
+		})
+		.from(schema.attachments)
+		.where(eq(schema.attachments.ticketId, params.id))
+		.orderBy(desc(schema.attachments.createdAt));
+	const attachments = attachmentRows.map((a) => ({ ...a, url: `/api/attachments/${a.id}` }));
 	return json({
 		ticket: detail,
 		comments: commentsWithReactions,
 		reactions: ticketReactions,
 		checklist,
 		fields,
+		attachments,
 		voted,
 		watching,
 		access: {

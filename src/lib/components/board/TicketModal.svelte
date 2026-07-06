@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronUp, Link2, Plus, Trash2, X, Check, Search, GitPullRequest, GitMerge, GitBranch, ExternalLink, Unlink, Bell, BellOff } from '@lucide/svelte';
+	import { ChevronUp, Link2, Plus, Trash2, X, Check, Search, GitPullRequest, GitMerge, GitBranch, ExternalLink, Unlink, Bell, BellOff, Paperclip } from '@lucide/svelte';
 	import { ciMeta } from '$lib/github-ci';
 	import { RELATION_TYPES, type Priority } from '$lib/constants';
 	import { PALETTE } from '$lib/colors';
@@ -35,6 +35,8 @@
 	let checklist = $state<Array<{ id: string; text: string; done: boolean }>>([]);
 	let checklistDraft = $state('');
 	let fields = $state<Array<{ id: string; name: string; type: string; options: string[] | null; value: string | null }>>([]);
+	let attachments = $state<Array<{ id: string; filename: string; mime: string; size: number; url: string }>>([]);
+	let uploading = $state(false);
 	const checklistDone = $derived(checklist.filter((i) => i.done).length);
 	let members = $state<Array<{ userId: string; displayName: string; avatarUrl: string | null }>>([]);
 	let allLabels = $state<Label[]>([]);
@@ -106,6 +108,7 @@
 			reactions = d.reactions ?? [];
 			checklist = d.checklist ?? [];
 			fields = d.fields ?? [];
+		attachments = d.attachments ?? [];
 			titleDraft = d.ticket.title;
 			descDraft = d.ticket.description ?? '';
 		}
@@ -125,6 +128,7 @@
 			reactions = d.reactions ?? [];
 			checklist = d.checklist ?? [];
 			fields = d.fields ?? [];
+		attachments = d.attachments ?? [];
 		}
 	}
 
@@ -230,6 +234,62 @@
 			detail.votes = r.count;
 		}
 		onchanged();
+	}
+
+	// ── Attachments ──────────────────────────────────────────────────────
+	function mdRef(a: { filename: string; mime: string; url: string }): string {
+		return a.mime.startsWith('image/') ? `![${a.filename}](${a.url})` : `[${a.filename}](${a.url})`;
+	}
+	async function uploadOne(file: File) {
+		const fd = new FormData();
+		fd.append('file', file);
+		const res = await fetch(`/api/tickets/${ticketId}/attachments`, { method: 'POST', body: fd });
+		if (!res.ok) return null;
+		return (await res.json()) as { id: string; filename: string; mime: string; url: string };
+	}
+	/** Upload files; optionally append their markdown into a draft ('desc'|'comment'). */
+	async function uploadFiles(files: File[], into: 'desc' | 'comment' | null = null) {
+		if (!files.length || !access.canEdit) return;
+		uploading = true;
+		for (const f of files) {
+			const a = await uploadOne(f);
+			if (!a) continue;
+			if (into === 'desc') {
+				descDraft = descDraft ? `${descDraft}\n\n${mdRef(a)}` : mdRef(a);
+				editingDesc = true;
+			} else if (into === 'comment') {
+				commentDraft = commentDraft ? `${commentDraft}\n${mdRef(a)}` : mdRef(a);
+			}
+		}
+		uploading = false;
+		await refresh();
+		onchanged();
+	}
+	function filesFrom(e: ClipboardEvent | DragEvent): File[] {
+		const dt = (e as ClipboardEvent).clipboardData ?? (e as DragEvent).dataTransfer;
+		return dt ? Array.from(dt.files) : [];
+	}
+	function onPaste(e: ClipboardEvent, into: 'desc' | 'comment') {
+		const files = filesFrom(e);
+		if (files.length) {
+			e.preventDefault();
+			void uploadFiles(files, into);
+		}
+	}
+	function onDropZone(e: DragEvent) {
+		e.preventDefault();
+		const files = filesFrom(e);
+		if (files.length) void uploadFiles(files, null);
+	}
+	async function removeAttachment(id: string) {
+		attachments = attachments.filter((a) => a.id !== id);
+		await fetch(`/api/attachments/${id}`, { method: 'DELETE' });
+		onchanged();
+	}
+	function fmtSize(n: number): string {
+		if (n < 1024) return `${n} B`;
+		if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+		return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 	}
 
 	async function addComment() {
@@ -405,7 +465,7 @@
 					<section>
 						<h3 class="mb-2 text-xs font-semibold tracking-wide text-neutral-400 uppercase">Description</h3>
 						{#if editingDesc && access.canEdit}
-							<Textarea bind:value={descDraft} rows={6} placeholder="Add a description… (markdown supported)" />
+							<Textarea bind:value={descDraft} rows={6} placeholder="Add a description… (markdown supported · paste or drop files)" onpaste={(e: ClipboardEvent) => onPaste(e, 'desc')} ondrop={(e: DragEvent) => { const f = filesFrom(e); if (f.length) { e.preventDefault(); void uploadFiles(f, 'desc'); } }} />
 							<div class="mt-2 flex gap-2">
 								<Button size="sm" variant="primary" onclick={saveDesc}>Save</Button>
 								<Button size="sm" variant="ghost" onclick={() => { editingDesc = false; descDraft = detail.description ?? ''; }}>Cancel</Button>
@@ -424,6 +484,55 @@
 							<ReactionBar subjectType="ticket" subjectId={ticketId} {reactions} />
 						</div>
 					</section>
+
+					<!-- Attachments -->
+					{#if attachments.length || access.canEdit}
+						<section class="border-t border-neutral-100 pt-5 dark:border-neutral-800">
+							<div class="mb-2 flex items-center justify-between">
+								<h3 class="text-xs font-semibold tracking-wide text-neutral-400 uppercase">Attachments</h3>
+								{#if access.canEdit}
+									<label class="cursor-pointer text-xs text-brand-600 hover:underline dark:text-brand-400">
+										{uploading ? 'Uploading…' : 'Add files'}
+										<input type="file" multiple class="hidden" onchange={(e) => { const inp = e.currentTarget; void uploadFiles(Array.from(inp.files ?? []), null).then(() => (inp.value = '')); }} />
+									</label>
+								{/if}
+							</div>
+							{#if attachments.length}
+								<div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+									{#each attachments as a (a.id)}
+										<div class="group relative overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
+											<a href={a.url} target="_blank" rel="noreferrer" class="block">
+												{#if a.mime.startsWith('image/')}
+													<img src={a.url} alt={a.filename} class="h-24 w-full object-cover" />
+												{:else}
+													<div class="flex h-24 items-center gap-2 p-2">
+														<Paperclip size={16} class="shrink-0 text-neutral-400" />
+														<span class="min-w-0 break-words text-xs text-neutral-600 dark:text-neutral-300">{a.filename}</span>
+													</div>
+												{/if}
+											</a>
+											<div class="flex items-center justify-between px-2 py-1 text-[10px] text-neutral-400">
+												<span class="min-w-0 truncate">{a.filename}</span>
+												<span class="shrink-0">{fmtSize(a.size)}</span>
+											</div>
+											{#if access.canEdit}
+												<button onclick={() => removeAttachment(a.id)} class="absolute top-1 right-1 hidden rounded bg-neutral-900/60 p-1 text-white group-hover:block" aria-label="Delete attachment"><Trash2 size={12} /></button>
+											{/if}
+										</div>
+									{/each}
+								</div>
+							{:else if access.canEdit}
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<div
+									ondrop={onDropZone}
+									ondragover={(e) => e.preventDefault()}
+									class="rounded-lg border border-dashed border-neutral-200 p-4 text-center text-xs text-neutral-400 dark:border-neutral-800"
+								>
+									Drop files here, paste into the description, or use “Add files”.
+								</div>
+							{/if}
+						</section>
+					{/if}
 
 					<!-- Checklist -->
 					<section class="border-t border-neutral-100 pt-5 dark:border-neutral-800">
@@ -495,7 +604,7 @@
 						</div>
 
 						<div class="mt-3">
-							<Textarea bind:value={commentDraft} rows={2} placeholder="Write a comment…" />
+							<Textarea bind:value={commentDraft} rows={2} placeholder="Write a comment… (paste or drop files)" onpaste={(e: ClipboardEvent) => onPaste(e, 'comment')} />
 							<div class="mt-2"><Button size="sm" variant="primary" onclick={addComment} disabled={!commentDraft.trim()}>Comment</Button></div>
 						</div>
 					</section>

@@ -803,7 +803,29 @@ export function defineSchema(kit: Kit) {
 		(t) => [uniqueIndex('oauth_providers_key_uq').on(t.key)]
 	);
 
+	// File attachments on a ticket (and optionally a specific comment). The bytes
+	// live on disk under the uploads dir; this row holds the metadata + key.
+	const attachments = table(
+		'attachments',
+		{
+			id: pk(),
+			projectId: text('project_id')
+				.notNull()
+				.references(() => projects.id, { onDelete: 'cascade' }),
+			ticketId: text('ticket_id').references(() => tickets.id, { onDelete: 'cascade' }),
+			commentId: text('comment_id').references(() => comments.id, { onDelete: 'cascade' }),
+			uploaderId: text('uploader_id').references(() => users.id, { onDelete: 'set null' }),
+			filename: text('filename').notNull(),
+			mime: text('mime').notNull(),
+			size: int('size').notNull(),
+			storageKey: text('storage_key').notNull(),
+			createdAt: createdAt()
+		},
+		(t) => [index('attachments_ticket_idx').on(t.ticketId)]
+	);
+
 	return {
+		attachments,
 		watchers,
 		notifications,
 		pushSubscriptions,
