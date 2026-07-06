@@ -32,7 +32,8 @@
     "smoke:analytics": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-analytics.ts",
     "smoke:profiles": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-profiles.ts",
     "smoke:apikeys": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-apikeys.ts",
-    "smoke:fields": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-fields.ts"
+    "smoke:fields": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-fields.ts",
+    "smoke:oauth": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-oauth.ts"
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.5.7",

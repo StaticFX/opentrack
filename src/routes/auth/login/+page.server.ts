@@ -16,7 +16,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.user) throw redirect(302, safeRedirect(url.searchParams.get('redirect')));
 	return {
 		providers: await enabledProviders(),
-		redirectTo: safeRedirect(url.searchParams.get('redirect'))
+		redirectTo: safeRedirect(url.searchParams.get('redirect')),
+		oauthError:
+			url.searchParams.get('error') === 'oauth'
+				? 'Sign-in with that provider failed or was cancelled. Please try again.'
+				: null
 	};
 };
 

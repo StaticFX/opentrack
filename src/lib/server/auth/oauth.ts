@@ -69,10 +69,21 @@ function githubAdapter(clientId: string, clientSecret: string): OAuthAdapter {
 			const user = await fetchJson('https://api.github.com/user', { headers });
 			let email = (user.email as string | null) ?? null;
 			if (!email) {
-				const emails = (await (
-					await fetch('https://api.github.com/user/emails', { headers })
-				).json()) as Array<{ email: string; primary: boolean; verified: boolean }>;
-				email = emails.find((e) => e.primary && e.verified)?.email ?? null;
+				// Email is optional: if the token can't read /user/emails (missing
+				// scope, rate-limited, or restricted), GitHub returns a non-array
+				// error object — don't let that crash the whole sign-in.
+				try {
+					const res = await fetch('https://api.github.com/user/emails', { headers });
+					const emails: unknown = res.ok ? await res.json() : null;
+					if (Array.isArray(emails)) {
+						email =
+							(emails as Array<{ email: string; primary: boolean; verified: boolean }>).find(
+								(e) => e?.primary && e?.verified
+							)?.email ?? null;
+					}
+				} catch {
+					/* leave email null */
+				}
 			}
 			return {
 				providerUserId: String(user.id),

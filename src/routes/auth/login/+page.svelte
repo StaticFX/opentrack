@@ -28,6 +28,10 @@
 		<p class="mt-1 text-sm text-neutral-500">Use a provider to comment, vote, and suggest.</p>
 	</div>
 
+	{#if data.oauthError}
+		<p class="rounded-md bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-950/40">{data.oauthError}</p>
+	{/if}
+
 	{#if data.providers.length > 0}
 		<div class="flex flex-col gap-3">
 			{#each data.providers as provider (provider.key)}

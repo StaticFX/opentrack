@@ -32,7 +32,11 @@ export const GET: RequestHandler = async ({ params, cookies, url, locals }) => {
 		profile = await adapter.fetchProfile(accessToken);
 	} catch (err) {
 		console.error(`[oauth:${adapter.name}] failed:`, err);
-		throw error(502, 'Failed while talking to the provider. Please try again.');
+		// Transient/expired-code and provider hiccups shouldn't dump a raw 502 —
+		// send the user back to sign-in with a friendly, retryable message.
+		const dest = link && locals.user ? safeRedirect(redirectTo) : '/auth/login';
+		const sep = dest.includes('?') ? '&' : '?';
+		throw redirect(302, `${dest}${sep}error=oauth`);
 	}
 
 	// Link mode: attach this identity to the already-logged-in user, no new session.
