@@ -14,6 +14,7 @@
 	import BoardViews from './BoardViews.svelte';
 	import Card from './Card.svelte';
 	import ColumnIcon from './ColumnIcon.svelte';
+	import CreateTicketModal from './CreateTicketModal.svelte';
 	import TicketModal from './TicketModal.svelte';
 
 	const CATEGORY_OPTIONS = COLUMN_CATEGORIES.map((c) => ({
@@ -67,6 +68,14 @@
 	});
 
 	let selectedTicket = $state<string | null>(null);
+	let showCreate = $state(false);
+	let createCol = $state<string | undefined>(undefined);
+
+	function openCreate(colId?: string) {
+		if (!canEdit) return;
+		createCol = colId;
+		showCreate = true;
+	}
 
 	// ── Bulk selection ───────────────────────────────────────────────────
 	let selectMode = $state(false);
@@ -248,6 +257,25 @@
 			'column.deleted'
 		].forEach((t) => es.addEventListener(t, handler));
 		return () => es.close();
+	});
+
+	// Open the create modal from the header button / ⌘K command, or the `c` hotkey.
+	onMount(() => {
+		const openEvt = () => openCreate();
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key !== 'c' || e.metaKey || e.ctrlKey || e.altKey) return;
+			if (selectedTicket || showCreate) return;
+			const el = e.target as HTMLElement | null;
+			if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+			e.preventDefault();
+			openCreate();
+		};
+		window.addEventListener('new-ticket', openEvt);
+		window.addEventListener('keydown', onKey);
+		return () => {
+			window.removeEventListener('new-ticket', openEvt);
+			window.removeEventListener('keydown', onKey);
+		};
 	});
 </script>
 
@@ -432,5 +460,17 @@
 		{currentUser}
 		onclose={() => (selectedTicket = null)}
 		onchanged={() => invalidate(`board:${boardId}`)}
+	/>
+{/if}
+
+{#if showCreate}
+	<CreateTicketModal
+		{boardId}
+		{projectId}
+		{columns}
+		{labels}
+		defaultColumnId={createCol}
+		onclose={() => (showCreate = false)}
+		oncreated={() => invalidate(`board:${boardId}`)}
 	/>
 {/if}

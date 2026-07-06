@@ -94,21 +94,9 @@
 			<span class="text-neutral-300 dark:text-neutral-700">/</span>
 			<span class="text-sm text-neutral-500">Overview</span>
 		</div>
-		<div class="flex items-center gap-1">
-			{#if firstBoard}
-				<Button variant="ghost" size="sm" href={`${base}/b/${firstBoard.id}`}><LayoutGrid size={15} /> Board</Button>
-			{/if}
-			<Button variant="ghost" size="sm" href={`${base}/activity`}><ActivityIcon size={15} /> Activity</Button>
-			<Button variant="ghost" size="sm" href={`${base}/milestones`}><Milestone size={15} /> Milestones</Button>
-			{#if data.canManageProject}
-				<Button variant="ghost" size="sm" href={`${base}/releases`}><Tag size={15} /> Releases</Button>
-			{/if}
-			<Button variant="ghost" size="sm" href={`/${wsSlug}/${projectSlug}/suggestions`}><Lightbulb size={15} /> Suggestions</Button>
-			<Button variant="ghost" size="sm" href={`/${wsSlug}/${projectSlug}`}><ExternalLink size={14} /> Public</Button>
-			{#if data.canManageProject}
-				<Button variant="ghost" size="icon" href={`${base}/settings`} aria-label="Project settings"><Settings size={16} /></Button>
-			{/if}
-		</div>
+		{#if firstBoard}
+			<Button variant="ghost" size="sm" href={`${base}/b/${firstBoard.id}`}><LayoutGrid size={15} /> Open board</Button>
+		{/if}
 	</header>
 
 	<!-- Body -->

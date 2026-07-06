@@ -37,6 +37,7 @@
     "smoke:github-sync": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-github-sync.ts",
     "smoke:github-pr": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-github-pr.ts",
     "smoke:github-close": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-github-close.ts",
+    "smoke:create-ticket": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-create-ticket.ts",
     "smoke:watch-notify": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-watch-notify.ts"
   },
   "devDependencies": {

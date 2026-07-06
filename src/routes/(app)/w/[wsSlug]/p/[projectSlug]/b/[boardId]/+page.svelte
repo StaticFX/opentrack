@@ -1,13 +1,9 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { Settings, Lock, Globe, Lightbulb, ExternalLink, Tag, Activity, LayoutDashboard, ChartColumn } from '@lucide/svelte';
+	import { Lock, Globe, Plus } from '@lucide/svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import KanbanBoard from '$lib/components/board/KanbanBoard.svelte';
 
 	let { data } = $props();
-
-	const wsSlug = $derived(page.params.wsSlug);
-	const projectSlug = $derived(page.params.projectSlug);
 </script>
 
 <svelte:head><title>{data.project.name} · OpenTrack</title></svelte:head>
@@ -25,33 +21,11 @@
 			<span class="text-neutral-300 dark:text-neutral-700">/</span>
 			<span class="text-sm text-neutral-500">{data.board.name}</span>
 		</div>
-		<div class="flex items-center gap-1">
-			<Button variant="ghost" size="sm" href={`/w/${wsSlug}/p/${projectSlug}`}>
-				<LayoutDashboard size={15} /> Overview
+		{#if data.canEditContent}
+			<Button variant="primary" size="sm" onclick={() => window.dispatchEvent(new CustomEvent('new-ticket'))}>
+				<Plus size={15} /> New ticket
 			</Button>
-			<Button variant="ghost" size="sm" href={`/w/${wsSlug}/p/${projectSlug}/activity`}>
-				<Activity size={15} /> Activity
-			</Button>
-			<Button variant="ghost" size="sm" href={`/w/${wsSlug}/p/${projectSlug}/analytics`}>
-				<ChartColumn size={15} /> Analytics
-			</Button>
-			{#if data.canManageProject}
-				<Button variant="ghost" size="sm" href={`/w/${wsSlug}/p/${projectSlug}/releases`}>
-					<Tag size={15} /> Releases
-				</Button>
-			{/if}
-			<Button variant="ghost" size="sm" href={`/${wsSlug}/${projectSlug}/suggestions`}>
-				<Lightbulb size={15} /> Suggestions
-			</Button>
-			<Button variant="ghost" size="sm" href={`/${wsSlug}/${projectSlug}`}>
-				<ExternalLink size={14} /> Public
-			</Button>
-			{#if data.canManageProject}
-				<Button variant="ghost" size="icon" href={`/w/${wsSlug}/p/${projectSlug}/settings`} aria-label="Project settings">
-					<Settings size={16} />
-				</Button>
-			{/if}
-		</div>
+		{/if}
 	</header>
 
 	<KanbanBoard

@@ -39,6 +39,8 @@
 	const currentWs = $derived(pd.workspace as WsRef | undefined);
 	const projects = $derived((pd.projects ?? []) as ProjRef[]);
 	const canCreateProject = $derived(Boolean(pd.canCreateProject));
+	// Present on a board route; enables the "New ticket" command.
+	const onBoard = $derived(Boolean(pd.board) && Boolean(pd.canEditContent));
 
 	function close() {
 		open = false;
@@ -67,6 +69,8 @@
 			{ id: 'go-account', label: 'Account', icon: UserRound, group: 'Go to', run: () => nav('/account') }
 		];
 		if (user?.isAdmin) items.push({ id: 'go-admin', label: 'Admin', icon: Shield, group: 'Go to', run: () => nav('/admin') });
+		if (onBoard)
+			items.push({ id: 'new-ticket', label: 'New ticket', icon: Ticket, group: 'Create', run: () => { close(); window.dispatchEvent(new CustomEvent('new-ticket')); } });
 		items.push({ id: 'new-ws', label: 'New workspace', icon: Plus, group: 'Create', run: () => nav('/w/new') });
 		if (canCreateProject && currentWs)
 			items.push({ id: 'new-proj', label: 'New project', sub: currentWs.name, icon: Plus, group: 'Create', run: () => nav(`/w/${currentWs.slug}/p/new`) });

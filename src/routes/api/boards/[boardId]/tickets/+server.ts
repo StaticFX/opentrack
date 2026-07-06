@@ -8,7 +8,7 @@ import { enqueueDiscordForSubject } from '$lib/server/discord/enqueue';
 import { logActivity } from '$lib/server/services/activity';
 import { boardEvent } from '$lib/server/realtime/board';
 import { watch } from '$lib/server/services/notifications';
-import { createTicket } from '$lib/server/services/tickets';
+import { createTicket, setAssignee, setLabel } from '$lib/server/services/tickets';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
@@ -30,6 +30,16 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		description: typeof body.description === 'string' ? body.description : undefined,
 		priority
 	});
+
+	// Optional labels + assignees supplied by the create modal.
+	const labelIds = Array.isArray(body.labels) ? body.labels.map(String) : [];
+	for (const id of labelIds) await setLabel(ticket.id, id, true);
+	const assigneeIds = Array.isArray(body.assignees) ? body.assignees.map(String) : [];
+	for (const id of assigneeIds) {
+		await setAssignee(ticket.id, id, true);
+		await watch('ticket', ticket.id, id, 'assignee');
+	}
+
 	await boardEvent(params.boardId, 'ticket.created', { ticketId: ticket.id }, user.id);
 	await enqueueTicketPush(ticket.id);
 	await logActivity({ projectId, subjectType: 'ticket', subjectId: ticket.id, actorId: user.id, type: 'ticket.created' });

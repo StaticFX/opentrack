@@ -11,8 +11,10 @@
 		UserRound,
 		Search
 	} from '@lucide/svelte';
+	import { ChevronLeft, ExternalLink } from '@lucide/svelte';
 	import { clickOutside } from '$lib/utils/clickOutside';
 	import { cn } from '$lib/utils/cn';
+	import { PROJECT_NAV, isProjectNavActive } from '$lib/projectNav';
 	import NotificationBell from './NotificationBell.svelte';
 
 	type WsRef = {
@@ -24,6 +26,8 @@
 		avatarUrl?: string | null;
 	};
 	type ProjectRef = { slug: string; name: string; color?: string | null };
+	type ProjectCtx = { id: string; slug: string; name: string; color?: string | null; icon?: string | null };
+	type BoardRef = { id: string; name: string };
 
 	const pd = $derived(page.data as Record<string, unknown>);
 	const user = $derived(pd.user as { displayName: string; avatarUrl: string | null; isAdmin: boolean });
@@ -32,6 +36,16 @@
 	const projects = $derived((pd.projects ?? []) as ProjectRef[]);
 	const canCreateProject = $derived(Boolean(pd.canCreateProject));
 	const canManageWorkspace = $derived(Boolean(pd.canManageWorkspace));
+	// Project context (present on any /w/[ws]/p/[proj]/… route) drives the
+	// contextual project navigation that replaces the flat project list.
+	const project = $derived(pd.project as ProjectCtx | undefined);
+	const boards = $derived((pd.boards ?? []) as BoardRef[]);
+	const canManageProject = $derived(Boolean(pd.canManageProject));
+	const projNav = $derived(
+		currentWs && project
+			? PROJECT_NAV.filter((i) => !i.manageOnly || canManageProject)
+			: []
+	);
 
 	let wsMenuOpen = $state(false);
 	let userMenuOpen = $state(false);
@@ -140,7 +154,76 @@
 
 	<!-- Nav -->
 	<nav class="flex-1 overflow-y-auto px-2 py-1">
-		{#if currentWs}
+		{#if project && currentWs}
+			{@const navBase = `/w/${currentWs.slug}/p/${project.slug}`}
+			<!-- Back to the workspace's project list -->
+			<a
+				href={`/w/${currentWs.slug}`}
+				class="mt-1 flex items-center gap-1.5 px-2 py-1 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+			>
+				<ChevronLeft size={13} /> {currentWs.name}
+			</a>
+			<!-- Current project badge -->
+			<div class="mb-1 flex items-center gap-2 px-2 py-1.5">
+				<span class="grid size-5 shrink-0 place-items-center rounded text-[11px] font-bold text-white" style={`background:${project.color ?? 'var(--color-brand-600)'}`}>
+					{#if project.icon}{project.icon}{:else}{project.name.slice(0, 1).toUpperCase()}{/if}
+				</span>
+				<span class="min-w-0 flex-1 truncate text-sm font-semibold">{project.name}</span>
+			</div>
+			<!-- Overview -->
+			{@const overviewItem = projNav.find((i) => i.key === 'overview')}
+			{#if overviewItem}
+				{@const OIcon = overviewItem.icon}
+				<a
+					href={navBase}
+					class={cn(
+						'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
+						page.url.pathname === navBase
+							? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
+							: 'text-neutral-600 hover:bg-neutral-200/50 dark:text-neutral-400 dark:hover:bg-neutral-800/60'
+					)}
+				>
+					<OIcon size={15} class="text-neutral-400" /> Overview
+				</a>
+			{/if}
+			<!-- Boards -->
+			<div class="px-2 pt-2 pb-1 text-[11px] font-medium tracking-wide text-neutral-400 uppercase">Boards</div>
+			{#each boards as b (b.id)}
+				{@const href = `${navBase}/b/${b.id}`}
+				<a
+					{href}
+					class={cn(
+						'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
+						page.url.pathname === href
+							? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
+							: 'text-neutral-600 hover:bg-neutral-200/50 dark:text-neutral-400 dark:hover:bg-neutral-800/60'
+					)}
+				>
+					<Hash size={14} class="shrink-0 text-neutral-400" />
+					<span class="truncate">{b.name}</span>
+				</a>
+			{/each}
+			<!-- Other project sections -->
+			<div class="mt-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
+				{#each projNav.filter((i) => i.key !== 'overview') as item (item.key)}
+					{@const href = item.href(currentWs.slug, project.slug)}
+					{@const Icon = item.icon}
+					<a
+						{href}
+						class={cn(
+							'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
+							!item.external && isProjectNavActive(item, page.url.pathname, currentWs.slug, project.slug)
+								? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
+								: 'text-neutral-600 hover:bg-neutral-200/50 dark:text-neutral-400 dark:hover:bg-neutral-800/60'
+						)}
+					>
+						<Icon size={15} class="text-neutral-400" />
+						<span class="flex-1 truncate">{item.label}</span>
+						{#if item.external}<ExternalLink size={12} class="text-neutral-400" />{/if}
+					</a>
+				{/each}
+			</div>
+		{:else if currentWs}
 			<div class="flex items-center justify-between px-2 pt-2 pb-1">
 				<span class="text-xs font-medium tracking-wide text-neutral-400 uppercase">Projects</span>
 				{#if canCreateProject}
