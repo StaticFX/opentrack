@@ -12,6 +12,7 @@
 		Hash,
 		Folder,
 		Ticket,
+		CircleUser,
 		CornerDownLeft
 	} from '@lucide/svelte';
 
@@ -65,6 +66,7 @@
 	const staticItems = $derived.by<Item[]>(() => {
 		const items: Item[] = [
 			{ id: 'go-dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'Go to', run: () => nav('/dashboard') },
+			{ id: 'go-my', label: 'My Work', icon: CircleUser, group: 'Go to', run: () => nav('/my') },
 			{ id: 'go-inbox', label: 'Inbox', icon: Bell, group: 'Go to', run: () => nav('/inbox') },
 			{ id: 'go-account', label: 'Account', icon: UserRound, group: 'Go to', run: () => nav('/account') }
 		];

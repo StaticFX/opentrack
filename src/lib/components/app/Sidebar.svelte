@@ -9,6 +9,7 @@
 		Shield,
 		Hash,
 		UserRound,
+		CircleUser,
 		Search
 	} from '@lucide/svelte';
 	import { ChevronLeft, ExternalLink } from '@lucide/svelte';
@@ -145,6 +146,21 @@
 			<span class="min-w-0 flex-1 truncate">Search…</span>
 			<kbd class="shrink-0 rounded border border-neutral-200 px-1 text-[10px] text-neutral-400 dark:border-neutral-700">⌘K</kbd>
 		</button>
+	</div>
+
+	<!-- My Work -->
+	<div class="px-2">
+		<a
+			href="/my"
+			class={cn(
+				'flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm',
+				page.url.pathname === '/my'
+					? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
+					: 'text-neutral-600 hover:bg-neutral-200/60 dark:text-neutral-400 dark:hover:bg-neutral-800'
+			)}
+		>
+			<CircleUser size={15} class="text-neutral-400" /> My Work
+		</a>
 	</div>
 
 	<!-- Notifications -->

@@ -26,7 +26,7 @@ export interface SearchResults {
  * own, plus direct project memberships. Keeps the command palette from leaking
  * private projects.
  */
-async function accessibleProjectIds(user: SessionUser): Promise<string[]> {
+export async function accessibleProjectIds(user: SessionUser): Promise<string[]> {
 	const [wsMember, wsOwned, projMember] = await Promise.all([
 		db
 			.select({ id: schema.workspaceMembers.workspaceId })
