@@ -301,6 +301,31 @@
 							</div>
 						</form>
 					</section>
+
+					<section class="mt-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+						<h3 class="text-sm font-semibold">Close on GitHub</h3>
+						<p class="mt-1 mb-3 text-sm text-neutral-500">
+							When a ticket enters a selected column, its linked GitHub issue is closed (and reopened when moved back out). Leave all unchecked to fall back to the column category (Done / Canceled). Deleting a ticket always closes its issue.
+						</p>
+						<form method="POST" action="?/saveCloseColumns" use:enhance={() => async ({ update }) => { await update({ reset: false }); }} class="flex flex-col gap-3">
+							<div class="space-y-1.5">
+								{#each data.columns as c (c.name)}
+									<label class="flex items-center gap-2 text-sm">
+										<input type="checkbox" name="closeColumn" value={c.name} checked={data.closeColumns.length ? data.closeColumns.includes(c.name) : (c.category === 'done' || c.category === 'canceled')} class="size-4 accent-brand-600" />
+										<span class="size-2.5 shrink-0 rounded-full" style={`background:${c.color}`}></span>
+										{c.name}
+										{#if !data.closeColumns.length && (c.category === 'done' || c.category === 'canceled')}<span class="text-xs text-neutral-400">(by category)</span>{/if}
+									</label>
+								{:else}
+									<p class="text-sm text-neutral-400">This project has no board columns.</p>
+								{/each}
+							</div>
+							<div class="flex items-center gap-3">
+								<Button variant="primary" type="submit">Save close columns</Button>
+								{#if f?.closeSaved}<span class="text-sm text-green-600">Saved</span>{/if}
+							</div>
+						</form>
+					</section>
 				{/if}
 			{:else if tab === 'discord'}
 				<h2 class="mb-4 text-lg font-semibold tracking-tight">Discord</h2>

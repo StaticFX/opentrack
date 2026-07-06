@@ -6,12 +6,14 @@ import { boardEvent } from '$lib/server/realtime/board';
 import { rankAfter } from '$lib/server/util/rank';
 import { installationOctokit } from './app';
 import { githubLoginsForUsers, resolveGithubUsers } from './identity';
+import type { OctokitLike } from './import';
 import {
 	branchMatchesIssue,
 	checkSuiteStatus,
 	type GhMilestoneRef,
 	issueToTicketFields,
 	parseRepo,
+	shouldCloseIssue,
 	ticketToIssue
 } from './map';
 
@@ -192,7 +194,9 @@ export async function pushTicket(ticketId: string): Promise<void> {
 		const pl = priorityLabelName(ticket.priority);
 		if (pl) labelNames.push(pl);
 	}
-	const payload = ticketToIssue(ticket, category, labelNames);
+	// Configurable close columns override the category-based open/closed decision.
+	const closed = shouldCloseIssue(project.githubCloseColumns as string[] | null, columnName, category);
+	const payload = ticketToIssue(ticket, category, labelNames, closed);
 
 	// Assignee sync: push the GitHub logins of assignees with a linked account.
 	let assignees: string[] | undefined;
@@ -250,6 +254,28 @@ export async function pushTicket(ticketId: string): Promise<void> {
 			.set({ githubIssueNumber: res.data.number, githubNodeId: res.data.node_id, githubSyncedAt: new Date() })
 			.where(eq(schema.tickets.id, ticketId));
 	}
+}
+
+/**
+ * Close a GitHub issue directly from captured coordinates — used when the local
+ * ticket has already been deleted, so `pushTicket` can no longer read its row.
+ */
+export async function closeIssue(
+	installationId: string,
+	repoFullName: string,
+	issueNumber: number,
+	stateReason: 'completed' | 'not_planned' = 'not_planned',
+	injected?: OctokitLike
+): Promise<void> {
+	const repo = parseRepo(repoFullName);
+	if (!repo) return;
+	const octokit = injected ?? (await installationOctokit(installationId));
+	await octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
+		...repo,
+		issue_number: issueNumber,
+		state: 'closed',
+		state_reason: stateReason
+	});
 }
 
 /** Push a local milestone to GitHub — create it or PATCH the existing one. */

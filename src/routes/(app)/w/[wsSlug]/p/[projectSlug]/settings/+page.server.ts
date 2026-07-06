@@ -30,17 +30,19 @@ async function requireManage(locals: App.Locals, wsSlug: string, projectSlug: st
 
 const VIS: Visibility[] = ['inherit', 'public', 'private'];
 
-/** Distinct board-column names (+ a color) across the project's boards. */
-async function projectColumns(projectId: string): Promise<Array<{ name: string; color: string }>> {
+/** Distinct board-column names (+ color + category) across the project's boards. */
+async function projectColumns(
+	projectId: string
+): Promise<Array<{ name: string; color: string; category: string }>> {
 	const rows = await db
-		.select({ name: schema.boardColumns.name, color: schema.boardColumns.color })
+		.select({ name: schema.boardColumns.name, color: schema.boardColumns.color, category: schema.boardColumns.category })
 		.from(schema.boardColumns)
 		.innerJoin(schema.boards, eq(schema.boardColumns.boardId, schema.boards.id))
 		.where(eq(schema.boards.projectId, projectId))
 		.orderBy(asc(schema.boardColumns.position));
 	const seen = new Set<string>();
-	const out: Array<{ name: string; color: string }> = [];
-	for (const r of rows) if (!seen.has(r.name)) { seen.add(r.name); out.push({ name: r.name, color: r.color }); }
+	const out: Array<{ name: string; color: string; category: string }> = [];
+	for (const r of rows) if (!seen.has(r.name)) { seen.add(r.name); out.push({ name: r.name, color: r.color, category: r.category }); }
 	return out;
 }
 
@@ -56,6 +58,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		linkedInstallation: ctx.project.githubInstallationId,
 		columns: await projectColumns(ctx.project.id),
 		progressLabels: (ctx.project.githubProgressLabels as string[] | null) ?? [],
+		closeColumns: (ctx.project.githubCloseColumns as string[] | null) ?? [],
 		githubSync: {
 			assignees: ctx.project.githubSyncAssignees,
 			labels: ctx.project.githubSyncLabels,
@@ -141,6 +144,15 @@ export const actions: Actions = {
 			}
 		}
 		return { progressSaved: true, created };
+	},
+
+	// Configure which board columns close the linked GitHub issue. Empty → fall
+	// back to the column category (done / canceled).
+	saveCloseColumns: async ({ request, locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
+		const selected = (await request.formData()).getAll('closeColumn').map(String);
+		await updateProject(ctx.project.id, { githubCloseColumns: selected.length ? selected : null });
+		return { closeSaved: true };
 	},
 
 	// Toggle which GitHub facets sync for this project (assignees / labels /

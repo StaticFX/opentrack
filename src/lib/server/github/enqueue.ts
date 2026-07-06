@@ -34,3 +34,32 @@ export async function enqueueMilestonePush(milestoneId: string): Promise<void> {
 		.limit(1);
 	if (row?.repo && row?.inst) await enqueue('github:push-milestone', { milestoneId });
 }
+
+/**
+ * Enqueue a close of a ticket's linked GitHub issue, capturing the repo +
+ * issue number NOW so the job survives the local ticket being deleted. No-op
+ * when the project isn't linked or the ticket has no issue. Call BEFORE delete.
+ */
+export async function enqueueIssueCloseForTicket(
+	ticketId: string,
+	stateReason: 'completed' | 'not_planned' = 'not_planned'
+): Promise<void> {
+	const [row] = await db
+		.select({
+			issueNumber: schema.tickets.githubIssueNumber,
+			repo: schema.projects.githubRepo,
+			inst: schema.projects.githubInstallationId
+		})
+		.from(schema.tickets)
+		.innerJoin(schema.projects, eq(schema.tickets.projectId, schema.projects.id))
+		.where(eq(schema.tickets.id, ticketId))
+		.limit(1);
+	if (row?.repo && row?.inst && row.issueNumber != null) {
+		await enqueue('github:close-issue', {
+			installationId: row.inst,
+			repoFullName: row.repo,
+			issueNumber: row.issueNumber,
+			stateReason
+		});
+	}
+}

@@ -186,6 +186,9 @@ export function defineSchema(kit: Kit) {
 			// Column names whose status is mirrored to the linked issue as a
 			// "Status: <name>" GitHub label (OpenTrack → GitHub progress sync).
 			githubProgressLabels: json<string[]>('github_progress_labels'),
+			// Column names that close the linked GitHub issue when a ticket enters
+			// them. Empty/null → fall back to the column's category (done/canceled).
+			githubCloseColumns: json<string[]>('github_close_columns'),
 			// Which GitHub facets sync for this project (all default on when linked).
 			githubSyncAssignees: bool('github_sync_assignees').default(true).notNull(),
 			githubSyncLabels: bool('github_sync_labels').default(true).notNull(),

@@ -2,7 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import type { Priority } from '$lib/constants';
 import { PRIORITIES } from '$lib/constants';
 import { requireTicketAccess, requireUser } from '$lib/server/access';
-import { enqueueTicketPush } from '$lib/server/github/enqueue';
+import { enqueueIssueCloseForTicket, enqueueTicketPush } from '$lib/server/github/enqueue';
 import { ACCESS } from '$lib/server/permissions';
 import { boardEvent } from '$lib/server/realtime/board';
 import { listChecklist } from '$lib/server/services/checklists';
@@ -82,6 +82,8 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 export const DELETE: RequestHandler = async ({ params, locals }) => {
 	const user = requireUser(locals.user);
 	const { boardId } = await requireTicketAccess(locals.user, params.id, ACCESS.MAINTAINER);
+	// Close the linked GitHub issue first — capture its coordinates before the row is gone.
+	await enqueueIssueCloseForTicket(params.id);
 	await deleteTicket(params.id);
 	if (boardId) await boardEvent(boardId, 'ticket.deleted', { ticketId: params.id }, user.id);
 	return json({ ok: true });

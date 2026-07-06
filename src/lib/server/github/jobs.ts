@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '$lib/server/db';
 import { registerHandler } from '$lib/server/jobs/queue';
 import { importRepo } from './import';
-import { applyWebhookEvent, pushComment, pushMilestone, pushTicket } from './sync';
+import { applyWebhookEvent, closeIssue, pushComment, pushMilestone, pushTicket } from './sync';
 
 export function registerGithubHandlers(): void {
 	// Inbound: apply a stored webhook event to local state (idempotent).
@@ -38,6 +38,18 @@ export function registerGithubHandlers(): void {
 	});
 	registerHandler('github:push-milestone', async (payload) => {
 		await pushMilestone(String(payload.milestoneId ?? ''));
+	});
+	// Close a linked issue for a ticket that has been deleted (self-contained payload).
+	registerHandler('github:close-issue', async (payload) => {
+		const issueNumber = Number(payload.issueNumber);
+		if (!Number.isInteger(issueNumber)) return;
+		const reason = payload.stateReason === 'completed' ? 'completed' : 'not_planned';
+		await closeIssue(
+			String(payload.installationId ?? ''),
+			String(payload.repoFullName ?? ''),
+			issueNumber,
+			reason
+		);
 	});
 
 	// Import: pull a repo's labels + issues into a freshly created project.

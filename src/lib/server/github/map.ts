@@ -24,12 +24,30 @@ export interface IssuePayload {
 	labels: string[];
 }
 
+/**
+ * Whether a ticket in `columnName` (of `category`) should close its linked
+ * GitHub issue. When the project configures explicit close columns, only those
+ * close it; otherwise fall back to the column's category (done / canceled).
+ */
+export function shouldCloseIssue(
+	closeColumns: string[] | null | undefined,
+	columnName: string | null | undefined,
+	category: ColumnCategory | string
+): boolean {
+	if (closeColumns && closeColumns.length > 0) {
+		return !!columnName && closeColumns.includes(columnName);
+	}
+	return categoryToState(category) === 'closed';
+}
+
 export function ticketToIssue(
 	ticket: { title: string; description: string | null },
 	category: ColumnCategory | string,
-	labels: string[]
+	labels: string[],
+	/** Override the open/closed decision (else derived from category). */
+	closedOverride?: boolean
 ): IssuePayload {
-	const state = categoryToState(category);
+	const state = (closedOverride ?? categoryToState(category) === 'closed') ? 'closed' : 'open';
 	const stateReason =
 		state === 'closed' ? (category === 'canceled' ? 'not_planned' : 'completed') : 'reopened';
 	return {

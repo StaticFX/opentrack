@@ -181,6 +181,7 @@ export interface UpdateProjectInput {
 	visibility?: Visibility;
 	allowPublicComments?: boolean;
 	githubProgressLabels?: string[] | null;
+	githubCloseColumns?: string[] | null;
 }
 
 export async function updateProject(projectId: string, patch: UpdateProjectInput): Promise<void> {
@@ -197,6 +198,9 @@ export async function updateProject(projectId: string, patch: UpdateProjectInput
 				: {}),
 			...(patch.githubProgressLabels !== undefined
 				? { githubProgressLabels: patch.githubProgressLabels }
+				: {}),
+			...(patch.githubCloseColumns !== undefined
+				? { githubCloseColumns: patch.githubCloseColumns }
 				: {}),
 			updatedAt: new Date()
 		})

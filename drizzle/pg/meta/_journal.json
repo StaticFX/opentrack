@@ -141,6 +141,13 @@
       "when": 1783337873908,
       "tag": "0019_goofy_ultragirl",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1783340320458,
+      "tag": "0020_awesome_hellion",
+      "breakpoints": true
     }
   ]
 }
