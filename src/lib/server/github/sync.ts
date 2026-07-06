@@ -6,7 +6,14 @@ import { boardEvent } from '$lib/server/realtime/board';
 import { rankAfter } from '$lib/server/util/rank';
 import { installationOctokit } from './app';
 import { githubLoginsForUsers, resolveGithubUsers } from './identity';
-import { type GhMilestoneRef, issueToTicketFields, parseRepo, ticketToIssue } from './map';
+import {
+	branchMatchesIssue,
+	checkSuiteStatus,
+	type GhMilestoneRef,
+	issueToTicketFields,
+	parseRepo,
+	ticketToIssue
+} from './map';
 
 type Project = typeof schema.projects.$inferSelect;
 
@@ -450,26 +457,114 @@ async function applyIssueComment(action: string, payload: any) {
 }
 
 async function applyPullRequest(_action: string, payload: any) {
-	// Link a PR to every ticket its title/body references via "#<issue>",
-	// tracking the PR's state (open / closed / merged) for display.
+	// Link a PR to a ticket via either a "#<issue>" ref in its title/body OR a
+	// branch name that contains the issue number (e.g. `123-fix`). Tracks the
+	// PR's state (open / closed / merged) + head branch/SHA for display and CI.
 	const repoFull = payload?.repository?.full_name;
 	const pr = payload?.pull_request;
-	if (!repoFull || !pr) return;
-	const text = `${pr.title ?? ''} ${pr.body ?? ''}`;
-	const issueNumbers = [...text.matchAll(/#(\d+)/g)].map((m) => Number(m[1]));
-	if (issueNumbers.length === 0) return;
+	if (!repoFull || !pr || typeof pr.number !== 'number') return;
+
+	const branch: string | null = pr.head?.ref ?? null;
+	const headSha: string | null = pr.head?.sha ?? null;
 	const prState = pr.merged ? 'merged' : pr.state === 'closed' ? 'closed' : 'open';
+
+	// Candidate issue numbers: "#<n>" refs ∪ numeric tokens in the branch. This is
+	// only a cheap SQL prefilter — per-ticket matching uses branchMatchesIssue below.
+	const text = `${pr.title ?? ''} ${pr.body ?? ''}`;
+	const refNumbers = [...text.matchAll(/#(\d+)/g)].map((m) => Number(m[1]));
+	const branchNumbers = branch
+		? [...new Set(branch.split(/\D+/).filter(Boolean).map(Number))]
+		: [];
+	const candidateNumbers = [...new Set([...refNumbers, ...branchNumbers])];
+	if (candidateNumbers.length === 0) return;
+
 	const projects = await findLinkedProjects(repoFull);
 	for (const project of projects) {
-		await db
-			.update(schema.tickets)
-			.set({ githubPrNumber: pr.number, githubPrState: prState })
+		const tickets = await db
+			.select({
+				id: schema.tickets.id,
+				issueNumber: schema.tickets.githubIssueNumber,
+				curPr: schema.tickets.githubPrNumber,
+				curSha: schema.tickets.githubPrHeadSha,
+				curSource: schema.tickets.githubPrLinkSource
+			})
+			.from(schema.tickets)
 			.where(
 				and(
 					eq(schema.tickets.projectId, project.id),
-					inArray(schema.tickets.githubIssueNumber, issueNumbers)
+					inArray(schema.tickets.githubIssueNumber, candidateNumbers)
 				)
 			);
+
+		for (const t of tickets) {
+			const n = t.issueNumber as number;
+			const viaRef = refNumbers.includes(n);
+			const viaBranch = branchMatchesIssue(branch, n);
+			if (!viaRef && !viaBranch) continue;
+
+			// A manually-linked PR is sticky: a different PR can't steal the slot.
+			if (t.curSource === 'manual' && t.curPr !== pr.number) continue;
+
+			const source =
+				t.curSource === 'manual' && t.curPr === pr.number ? 'manual' : viaRef ? 'ref' : 'branch';
+
+			const set: Record<string, unknown> = {
+				githubPrNumber: pr.number,
+				githubPrState: prState,
+				githubPrHeadRef: branch,
+				githubPrHeadSha: headSha,
+				githubPrLinkSource: source
+			};
+			// New head commit (first open or a `synchronize` push) → CI unknown
+			// until the next check_suite lands.
+			if (headSha != null && headSha !== t.curSha) {
+				set.githubCiStatus = 'pending';
+				set.githubCiUpdatedAt = new Date();
+			}
+			await db.update(schema.tickets).set(set).where(eq(schema.tickets.id, t.id));
+		}
+	}
+}
+
+async function applyCheckSuite(_action: string, payload: any) {
+	// Aggregate CI status for a PR's head commit → the ticket(s) linked to that PR.
+	const repoFull = payload?.repository?.full_name;
+	const suite = payload?.check_suite;
+	if (!repoFull || !suite) return;
+	const status = checkSuiteStatus(suite.status, suite.conclusion);
+	if (status == null) return;
+
+	const prNumbers: number[] = Array.isArray(suite.pull_requests)
+		? suite.pull_requests.map((p: any) => p?.number).filter((x: any): x is number => typeof x === 'number')
+		: [];
+	const headSha: string | null = suite.head_sha ?? null;
+	const projects = await findLinkedProjects(repoFull);
+	const now = new Date();
+
+	for (const project of projects) {
+		if (prNumbers.length > 0) {
+			// Primary: the suite names its PR(s) directly.
+			await db
+				.update(schema.tickets)
+				.set({ githubCiStatus: status, githubCiUpdatedAt: now })
+				.where(
+					and(
+						eq(schema.tickets.projectId, project.id),
+						inArray(schema.tickets.githubPrNumber, prNumbers)
+					)
+				);
+		} else if (headSha) {
+			// Fallback: fork PRs carry no pull_requests[]; match the stored head SHA.
+			await db
+				.update(schema.tickets)
+				.set({ githubCiStatus: status, githubCiUpdatedAt: now })
+				.where(
+					and(
+						eq(schema.tickets.projectId, project.id),
+						eq(schema.tickets.githubPrHeadSha, headSha)
+					)
+				);
+		}
 	}
 }
 
@@ -553,6 +648,8 @@ export async function applyWebhookEvent(event: string, action: string | null, pa
 			return applyIssueComment(act, payload);
 		case 'pull_request':
 			return applyPullRequest(act, payload);
+		case 'check_suite':
+			return applyCheckSuite(act, payload);
 		case 'milestone':
 			return applyMilestone(act, payload);
 		case 'release':

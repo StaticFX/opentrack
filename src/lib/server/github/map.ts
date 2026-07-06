@@ -41,6 +41,68 @@ export function ticketToIssue(
 	};
 }
 
+/** Aggregate CI status shown on a linked PR. */
+export type CiStatus = 'success' | 'failure' | 'pending' | 'neutral' | 'error';
+
+/**
+ * True if a PR branch name references the given issue number as a distinct
+ * numeric token. Splits on non-digits so `123-fix`, `feature/OT-123`, and
+ * `fix/123_bug` all match issue 123, but `1234-x` (→ token 1234) does not.
+ */
+export function branchMatchesIssue(
+	branch: string | null | undefined,
+	issueNumber: number | null | undefined
+): boolean {
+	if (!branch || !issueNumber) return false;
+	return branch
+		.split(/\D+/)
+		.filter((t) => t.length > 0)
+		.some((t) => Number(t) === issueNumber);
+}
+
+/**
+ * Reduce a set of GitHub check-runs to a single aggregate CI status.
+ * Precedence: any still running → 'pending'; any hard failure → 'failure';
+ * any needs-attention → 'error'; otherwise 'success'. Empty list → null.
+ */
+export function aggregateCheckStatus(
+	runs: Array<{ status?: string | null; conclusion?: string | null }>
+): CiStatus | null {
+	if (!runs || runs.length === 0) return null;
+	if (runs.some((r) => r.status !== 'completed')) return 'pending';
+	const concl = runs.map((r) => r.conclusion ?? '');
+	if (concl.some((c) => c === 'failure' || c === 'timed_out')) return 'failure';
+	if (concl.some((c) => c === 'action_required' || c === 'stale')) return 'error';
+	// success / neutral / skipped / cancelled treated as passing-or-ignorable.
+	return 'success';
+}
+
+/**
+ * Map a GitHub check_suite (status + conclusion) to our aggregate CI status.
+ * Incomplete suites are 'pending'; a completed suite maps by conclusion.
+ */
+export function checkSuiteStatus(
+	status: string | null | undefined,
+	conclusion: string | null | undefined
+): CiStatus | null {
+	if (status && status !== 'completed') return 'pending';
+	if (!conclusion) return status === 'completed' ? 'neutral' : 'pending';
+	switch (conclusion) {
+		case 'success':
+			return 'success';
+		case 'failure':
+		case 'timed_out':
+		case 'startup_failure':
+			return 'failure';
+		case 'action_required':
+		case 'stale':
+			return 'error';
+		default:
+			// neutral / skipped / cancelled
+			return 'neutral';
+	}
+}
+
 /** A GitHub issue assignee, normalized for storage/display. */
 export interface GhAssignee {
 	login: string;

@@ -34,6 +34,8 @@ export interface TicketCard {
 	/** Linked GitHub PR number + its state ('open' | 'closed' | 'merged'), if any. */
 	githubPrNumber: number | null;
 	githubPrState: string | null;
+	/** Aggregate CI status of the linked PR ('success' | 'failure' | 'pending' | …). */
+	githubCiStatus: string | null;
 	milestone: CardMilestone | null;
 	labels: CardLabel[];
 	assignees: CardAssignee[];

@@ -290,6 +290,15 @@ export function defineSchema(kit: Kit) {
 			githubPrNumber: int('github_pr_number'),
 			// Linked pull request state: 'open' | 'closed' | 'merged'.
 			githubPrState: text('github_pr_state'),
+			// PR head branch name (drives branch-name auto-match + display).
+			githubPrHeadRef: text('github_pr_head_ref'),
+			// PR head commit SHA (CI correlation fallback when check_suite carries no PRs).
+			githubPrHeadSha: text('github_pr_head_sha'),
+			// How the PR got linked: 'manual' (sticky, auto won't clobber) | 'branch' | 'ref'.
+			githubPrLinkSource: text('github_pr_link_source'),
+			// Aggregate CI status: 'success' | 'failure' | 'pending' | 'neutral' | 'error'.
+			githubCiStatus: text('github_ci_status'),
+			githubCiUpdatedAt: ts('github_ci_updated_at'),
 			githubSyncedAt: ts('github_synced_at'),
 			closedAt: ts('closed_at'),
 			createdAt: createdAt(),

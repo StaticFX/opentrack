@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { MessageSquare, ChevronUp, Link2, AlignLeft, Ban, GitPullRequest, GitMerge, Milestone } from '@lucide/svelte';
+	import { ciMeta } from '$lib/github-ci';
 	import type { TicketCard } from '$lib/board';
 	import { PRIORITY_META } from '$lib/priority';
 
@@ -67,11 +68,13 @@
 		{/if}
 		{#if ticket.githubPrNumber}
 			{@const merged = ticket.githubPrState === 'merged'}
+			{@const ci = ciMeta(ticket.githubCiStatus)}
 			<span
 				class="flex items-center gap-0.5 {merged ? 'text-violet-500' : ticket.githubPrState === 'closed' ? 'text-red-400' : 'text-green-500'}"
-				title={`Pull request #${ticket.githubPrNumber}${ticket.githubPrState ? ' — ' + ticket.githubPrState : ''}`}
+				title={`Pull request #${ticket.githubPrNumber}${ticket.githubPrState ? ' — ' + ticket.githubPrState : ''}${ci ? ' · ' + ci.label : ''}`}
 			>
 				{#if merged}<GitMerge size={11} />{:else}<GitPullRequest size={11} />{/if} {ticket.githubPrNumber}
+				{#if ci}<span class={`h-1.5 w-1.5 rounded-full ${ci.dotClass}`}></span>{/if}
 			</span>
 		{/if}
 		{#if ticket.hasDescription}

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { ChevronUp, Link2, Plus, Trash2, X, Check, Search, GitPullRequest, GitMerge, ExternalLink, Bell, BellOff } from '@lucide/svelte';
+	import { ChevronUp, Link2, Plus, Trash2, X, Check, Search, GitPullRequest, GitMerge, GitBranch, ExternalLink, Unlink, Bell, BellOff } from '@lucide/svelte';
+	import { ciMeta } from '$lib/github-ci';
 	import { RELATION_TYPES, type Priority } from '$lib/constants';
 	import { PALETTE } from '$lib/colors';
 	import { PRIORITY_META } from '$lib/priority';
@@ -54,6 +55,12 @@
 	let relResults = $state<Array<{ id: string; number: number; title: string; closedAt: string | null }>>([]);
 	let relSearching = $state(false);
 	let relTimer: ReturnType<typeof setTimeout> | undefined;
+	let prMenu = $state(false);
+	let prQuery = $state('');
+	let prResults = $state<Array<{ number: number; title: string; draft: boolean; headRef: string; state: string; url: string }>>([]);
+	let prSearching = $state(false);
+	let prTimer: ReturnType<typeof setTimeout> | undefined;
+	let prLinking = $state(false);
 
 	const filteredLabels = $derived(
 		allLabels.filter((l) => l.name.toLowerCase().includes(labelQuery.trim().toLowerCase()))
@@ -299,6 +306,32 @@
 		onchanged();
 	}
 
+	function searchPRs() {
+		clearTimeout(prTimer);
+		const q = prQuery.trim();
+		prTimer = setTimeout(async () => {
+			prSearching = true;
+			const res = await fetch(`/api/tickets/${ticketId}/github/pulls?q=${encodeURIComponent(q)}`);
+			prResults = res.ok ? (await res.json()).pulls : [];
+			prSearching = false;
+		}, 200);
+	}
+	async function linkPR(number: number) {
+		prMenu = false;
+		prQuery = '';
+		prResults = [];
+		prLinking = true;
+		await fetch(`/api/tickets/${ticketId}/github/link`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ number }) });
+		await refresh();
+		prLinking = false;
+		onchanged();
+	}
+	async function unlinkPR() {
+		await fetch(`/api/tickets/${ticketId}/github/link`, { method: 'DELETE' });
+		await refresh();
+		onchanged();
+	}
+
 	async function del() {
 		await fetch(`/api/tickets/${ticketId}`, { method: 'DELETE' });
 		onchanged();
@@ -336,6 +369,10 @@
 							title={`Pull request #${detail.githubPrNumber}${detail.githubPrState ? ' — ' + detail.githubPrState : ''}`}
 						>
 							<PrIcon size={11} /> PR #{detail.githubPrNumber}
+							{#if ciMeta(detail.githubCiStatus)}
+								{@const ci = ciMeta(detail.githubCiStatus)}
+								<span class={`ml-0.5 inline-block h-2 w-2 rounded-full ${ci?.dotClass}`} title={ci?.label}></span>
+							{/if}
 						</a>
 					{/if}
 					{#if detail.closedAt}<span class="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">Closed</span>{/if}
@@ -646,30 +683,99 @@
 						{/if}
 					</div>
 
-					{#if detail.githubRepo && detail.githubIssueNumber}
+					{#if detail.githubRepo}
 						<div>
 							<p class="mb-1.5 text-xs font-medium text-neutral-400">GitHub</p>
-							<a
-								href={`https://github.com/${detail.githubRepo}/issues/${detail.githubIssueNumber}`}
-								target="_blank"
-								rel="noreferrer"
-								class="flex items-center gap-1.5 rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800"
-							>
-								<Link2 size={14} class="text-neutral-400" /> Issue #{detail.githubIssueNumber}
-								<ExternalLink size={12} class="ml-auto text-neutral-400" />
-							</a>
-							{#if detail.githubPrNumber}
+							{#if detail.githubIssueNumber}
 								<a
-									href={`https://github.com/${detail.githubRepo}/pull/${detail.githubPrNumber}`}
+									href={`https://github.com/${detail.githubRepo}/issues/${detail.githubIssueNumber}`}
 									target="_blank"
 									rel="noreferrer"
-									class="mt-1.5 flex items-center gap-1.5 rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800"
+									class="flex items-center gap-1.5 rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800"
 								>
-									{#if detail.githubPrState === 'merged'}<GitMerge size={14} class="text-violet-500" />{:else}<GitPullRequest size={14} class={detail.githubPrState === 'closed' ? 'text-red-400' : 'text-green-500'} />{/if}
-									PR #{detail.githubPrNumber}
-									{#if detail.githubPrState}<span class="text-xs text-neutral-400">{detail.githubPrState}</span>{/if}
+									<Link2 size={14} class="text-neutral-400" /> Issue #{detail.githubIssueNumber}
 									<ExternalLink size={12} class="ml-auto text-neutral-400" />
 								</a>
+							{/if}
+							{#if detail.githubPrNumber}
+								{@const ci = ciMeta(detail.githubCiStatus)}
+								<div class="mt-1.5 rounded-md border border-neutral-200 dark:border-neutral-800">
+									<a
+										href={`https://github.com/${detail.githubRepo}/pull/${detail.githubPrNumber}`}
+										target="_blank"
+										rel="noreferrer"
+										class="flex items-center gap-1.5 px-2.5 py-1.5 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800"
+									>
+										{#if detail.githubPrState === 'merged'}<GitMerge size={14} class="text-violet-500" />{:else}<GitPullRequest size={14} class={detail.githubPrState === 'closed' ? 'text-red-400' : 'text-green-500'} />{/if}
+										PR #{detail.githubPrNumber}
+										{#if detail.githubPrState}<span class="text-xs text-neutral-400">{detail.githubPrState}</span>{/if}
+										<ExternalLink size={12} class="ml-auto text-neutral-400" />
+									</a>
+									{#if detail.githubPrHeadRef || ci}
+										<div class="flex items-center gap-2 border-t border-neutral-100 px-2.5 py-1.5 dark:border-neutral-800/70">
+											{#if detail.githubPrHeadRef}
+												<span class="flex min-w-0 items-center gap-1 text-xs text-neutral-500" title={detail.githubPrHeadRef}>
+													<GitBranch size={12} class="shrink-0 text-neutral-400" />
+													<span class="truncate font-mono">{detail.githubPrHeadRef}</span>
+												</span>
+											{/if}
+											{#if ci}
+												<span class={`ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${ci.pillClass}`}>{ci.label}</span>
+											{/if}
+										</div>
+									{/if}
+									{#if access.canEdit && detail.githubPrLinkSource === 'manual'}
+										<button
+											onclick={unlinkPR}
+											class="flex w-full items-center gap-1.5 border-t border-neutral-100 px-2.5 py-1.5 text-xs text-neutral-500 hover:bg-neutral-50 hover:text-red-600 dark:border-neutral-800/70 dark:hover:bg-neutral-800"
+										>
+											<Unlink size={12} /> Unlink PR
+										</button>
+									{/if}
+								</div>
+							{:else if access.canEdit}
+								<div class="relative mt-1.5" use:clickOutside={() => (prMenu = false)}>
+									<button
+										onclick={() => { prMenu = !prMenu; if (prMenu && prResults.length === 0) searchPRs(); }}
+										class="flex w-full items-center gap-1.5 rounded-md border border-dashed border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-500 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+										disabled={prLinking}
+									>
+										<GitPullRequest size={14} class="text-neutral-400" /> {prLinking ? 'Linking…' : 'Link a pull request'}
+									</button>
+									{#if prMenu}
+										<div class="absolute z-10 mt-1 w-full rounded-md border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+											<div class="flex items-center gap-1.5 border-b border-neutral-100 px-1.5 pb-1.5 dark:border-neutral-800">
+												<Search size={13} class="text-neutral-400" />
+												<input
+													bind:value={prQuery}
+													oninput={searchPRs}
+													placeholder="Search open PRs…"
+													class="w-full bg-transparent text-sm outline-none placeholder:text-neutral-400"
+												/>
+											</div>
+											<div class="max-h-52 overflow-y-auto pt-1">
+												{#if prSearching}
+													<p class="px-2 py-1.5 text-xs text-neutral-400">Searching…</p>
+												{:else if prResults.length === 0}
+													<p class="px-2 py-1.5 text-xs text-neutral-400">No open pull requests found.</p>
+												{:else}
+													{#each prResults as pr (pr.number)}
+														<button
+															onclick={() => linkPR(pr.number)}
+															class="flex w-full items-start gap-1.5 rounded px-2 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+														>
+															<GitPullRequest size={13} class="mt-0.5 shrink-0 text-green-500" />
+															<span class="min-w-0">
+																<span class="block truncate">{pr.title}</span>
+																<span class="block truncate text-xs text-neutral-400">#{pr.number}{pr.headRef ? ' · ' + pr.headRef : ''}{pr.draft ? ' · draft' : ''}</span>
+															</span>
+														</button>
+													{/each}
+												{/if}
+											</div>
+										</div>
+									{/if}
+								</div>
 							{/if}
 						</div>
 					{/if}
