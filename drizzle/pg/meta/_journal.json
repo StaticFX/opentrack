@@ -162,6 +162,13 @@
       "when": 1783368230931,
       "tag": "0022_typical_shinko_yamashiro",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1783369700101,
+      "tag": "0023_odd_hex",
+      "breakpoints": true
     }
   ]
 }

@@ -31,11 +31,16 @@ function mergeAssignees(
 }
 
 /** All tickets on a board with their labels, assignees, and interaction counts. */
-export async function listBoardTickets(boardId: string): Promise<TicketCard[]> {
+export async function listBoardTickets(boardId: string, includeArchived = false): Promise<TicketCard[]> {
 	const tickets = await db
 		.select()
 		.from(schema.tickets)
-		.where(eq(schema.tickets.boardId, boardId))
+		.where(
+			and(
+				eq(schema.tickets.boardId, boardId),
+				includeArchived ? undefined : isNull(schema.tickets.archivedAt)
+			)
+		)
 		.orderBy(asc(schema.tickets.position));
 	if (tickets.length === 0) return [];
 	const ids = tickets.map((t) => t.id);
@@ -157,7 +162,8 @@ export async function listBoardTickets(boardId: string): Promise<TicketCard[]> {
 		votes: votesByTicket.get(t.id) ?? 0,
 		comments: commentsByTicket.get(t.id) ?? 0,
 		relations: relCount.get(t.id) ?? 0,
-		blocked: blocked.has(t.id)
+		blocked: blocked.has(t.id),
+		archived: !!t.archivedAt
 	}));
 }
 
@@ -257,6 +263,14 @@ export async function updateTicket(ticketId: string, patch: UpdateTicketInput): 
 
 export async function deleteTicket(ticketId: string): Promise<void> {
 	await db.delete(schema.tickets).where(eq(schema.tickets.id, ticketId));
+}
+
+/** Archive (hide from the board) or restore a ticket. */
+export async function setArchived(ticketId: string, archived: boolean): Promise<void> {
+	await db
+		.update(schema.tickets)
+		.set({ archivedAt: archived ? new Date() : null, updatedAt: new Date() })
+		.where(eq(schema.tickets.id, ticketId));
 }
 
 // ── Assignees / labels / relations ─────────────────────────────────────────
@@ -433,6 +447,7 @@ export async function getTicketDetail(ticketId: string) {
 		githubRepo: row.githubRepo,
 		createdAt: row.ticket.createdAt,
 		closedAt: row.ticket.closedAt,
+		archived: !!row.ticket.archivedAt,
 		authorName: row.authorName,
 		labels,
 		assignees,

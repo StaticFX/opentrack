@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { invalidate } from '$app/navigation';
+	import { invalidate, goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { dndzone } from 'svelte-dnd-action';
-	import { Plus, Settings2, Trash2, ArrowLeft, ArrowRight, Search, X, CheckSquare } from '@lucide/svelte';
+	import { Plus, Settings2, Trash2, ArrowLeft, ArrowRight, Search, X, CheckSquare, Archive } from '@lucide/svelte';
 	import { COLUMN_CATEGORIES, PRIORITIES, type ColumnCategory } from '$lib/constants';
 	import { COLUMN_ICON_KEYS } from '$lib/columnIcons';
 	import { PALETTE } from '$lib/colors';
@@ -44,10 +45,18 @@
 		labels: Array<{ id: string; name: string; color: string }>;
 		canEdit: boolean;
 		canManage: boolean;
+		showArchived: boolean;
 		currentUser: { id: string; displayName: string; avatarUrl: string | null };
 	};
-	let { boardId, projectId, columns, tickets, labels, canEdit, canManage, currentUser }: Props =
+	let { boardId, projectId, columns, tickets, labels, canEdit, canManage, showArchived, currentUser }: Props =
 		$props();
+
+	function toggleArchived() {
+		const u = new URL(page.url);
+		if (showArchived) u.searchParams.delete('archived');
+		else u.searchParams.set('archived', '1');
+		goto(`${u.pathname}${u.search}`, { noScroll: true });
+	}
 
 	type Col = ColumnDef & { items: TicketCard[] };
 
@@ -297,6 +306,13 @@
 			<button onclick={clearFilters} class="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"><X size={13} /> Clear</button>
 		{/if}
 		<div class="ml-auto flex items-center gap-2">
+			<button
+				onclick={toggleArchived}
+				class={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-sm ${showArchived ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'}`}
+				title={showArchived ? 'Hide archived tickets' : 'Show archived tickets'}
+			>
+				<Archive size={14} /> {showArchived ? 'Archived' : 'Archive'}
+			</button>
 			{#if canEdit}
 				<button
 					onclick={() => (selectMode ? exitSelect() : enterSelect())}
@@ -320,7 +336,7 @@
 		{#each cols as col, i (col.id)}
 			{@const items = display(col)}
 			{@const over = col.wipLimit != null && items.length > col.wipLimit}
-			<section class="flex h-full min-h-0 w-72 flex-col rounded-xl bg-neutral-50 dark:bg-neutral-900/40">
+			<section class="group/col flex h-full min-h-0 w-72 flex-col rounded-xl bg-neutral-50 dark:bg-neutral-900/40">
 				<div class="flex items-center justify-between px-3 py-2.5">
 					<div class="flex min-w-0 items-center gap-2">
 						<ColumnIcon icon={col.icon} color={col.color} />
@@ -411,12 +427,20 @@
 					onfinalize={(e) => finalize(col, e)}
 				>
 					{#each items as item (item.id)}
-						<div class="shrink-0">
+						<div class="shrink-0 {item.archived ? 'opacity-60' : ''}">
 							<div class={selectMode && selectedIds.includes(item.id) ? 'rounded-xl ring-2 ring-brand-500 ring-offset-1 dark:ring-offset-neutral-900' : ''}>
 								<Card ticket={item} onopen={cardClick} />
 							</div>
 						</div>
 					{/each}
+					{#if canEdit && !selectMode}
+						<button
+							onclick={() => openCreate(col.id)}
+							class="mt-0.5 hidden shrink-0 items-center justify-center gap-1.5 rounded-lg border border-dashed border-neutral-300 py-2 text-xs text-neutral-400 hover:border-brand-400 hover:text-brand-600 group-hover/col:flex dark:border-neutral-700 dark:hover:border-brand-500 dark:hover:text-brand-400"
+						>
+							<Plus size={14} /> New ticket
+						</button>
+					{/if}
 				</div>
 			</section>
 		{/each}

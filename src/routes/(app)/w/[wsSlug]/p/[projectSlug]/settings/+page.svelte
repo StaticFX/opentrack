@@ -256,6 +256,23 @@
 								<code class="block overflow-x-auto rounded-lg bg-neutral-50 px-2.5 py-2 font-mono text-[11px] whitespace-pre text-neutral-600 dark:bg-neutral-800/60 dark:text-neutral-400">{snippet}</code>
 							</div>
 						{/each}
+
+						<div class="mt-2 border-t border-neutral-100 pt-3 dark:border-neutral-800">
+							<p class="mb-2 text-xs text-neutral-500">GitHub READMEs can’t embed iframes — use the SVG image instead (updates automatically):</p>
+							{#each [{ label: 'Roadmap', img: 'roadmap.svg', link: 'roadmap' }, { label: 'Changelog', img: 'changelog.svg', link: 'releases' }] as em (em.img)}
+								{@const md = `[![${data.project.name} ${em.label}](${data.origin}/embed/${data.workspace.slug}/${data.project.slug}/${em.img})](${data.origin}/${data.workspace.slug}/${data.project.slug}/${em.link})`}
+								<div class="mb-3">
+									<div class="mb-1 flex items-center justify-between">
+										<span class="text-xs font-medium text-neutral-500">{em.label} · Markdown (SVG)</span>
+										<div class="flex items-center gap-2">
+											<a href={`${data.origin}/embed/${data.workspace.slug}/${data.project.slug}/${em.img}`} target="_blank" rel="noreferrer" class="text-xs text-brand-600 hover:underline">Preview</a>
+											<button type="button" onclick={() => copy(md)} class="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"><Copy size={12} /> Copy</button>
+										</div>
+									</div>
+									<code class="block overflow-x-auto rounded-lg bg-neutral-50 px-2.5 py-2 font-mono text-[11px] whitespace-pre text-neutral-600 dark:bg-neutral-800/60 dark:text-neutral-400">{md}</code>
+								</div>
+							{/each}
+						</div>
 					</section>
 				{/if}
 			{:else if tab === 'members'}

@@ -304,6 +304,8 @@ export function defineSchema(kit: Kit) {
 			githubCiUpdatedAt: ts('github_ci_updated_at'),
 			githubSyncedAt: ts('github_synced_at'),
 			closedAt: ts('closed_at'),
+			// Archived tickets are hidden from the board unless "show archived" is on.
+			archivedAt: ts('archived_at'),
 			createdAt: createdAt(),
 			updatedAt: updatedAt()
 		},

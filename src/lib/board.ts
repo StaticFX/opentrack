@@ -45,4 +45,6 @@ export interface TicketCard {
 	relations: number;
 	/** True when something blocks this ticket (incoming `blocks` / outgoing `blocked_by`). */
 	blocked: boolean;
+	/** Archived tickets are hidden from the board unless "show archived" is on. */
+	archived: boolean;
 }

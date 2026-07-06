@@ -36,6 +36,7 @@
 		labels={data.labels}
 		canEdit={data.canEditContent}
 		canManage={data.canManageProject}
+		showArchived={data.showArchived}
 		currentUser={{ id: data.user.id, displayName: data.user.displayName, avatarUrl: data.user.avatarUrl }}
 	/>
 </div>

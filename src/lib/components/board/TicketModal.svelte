@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronUp, Link2, Plus, Trash2, X, Check, Search, GitPullRequest, GitMerge, GitBranch, ExternalLink, Unlink, Bell, BellOff, Paperclip } from '@lucide/svelte';
+	import { ChevronUp, Link2, Plus, Trash2, X, Check, Search, GitPullRequest, GitMerge, GitBranch, ExternalLink, Unlink, Bell, BellOff, Paperclip, Archive } from '@lucide/svelte';
 	import { ciMeta } from '$lib/github-ci';
 	import { RELATION_TYPES, type Priority } from '$lib/constants';
 	import { PALETTE } from '$lib/colors';
@@ -390,6 +390,14 @@
 		await fetch(`/api/tickets/${ticketId}/github/link`, { method: 'DELETE' });
 		await refresh();
 		onchanged();
+	}
+
+	async function toggleArchive() {
+		const archived = !detail.archived;
+		detail.archived = archived;
+		await fetch(`/api/tickets/${ticketId}/archive`, { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ archived }) });
+		onchanged();
+		if (archived) onclose();
 	}
 
 	async function del() {
@@ -891,6 +899,11 @@
 
 					<div class="border-t border-neutral-100 pt-3 text-xs text-neutral-400 dark:border-neutral-800">
 						{#if detail.authorName}Opened by {detail.authorName}{/if}
+						{#if access.canEdit && (detail.closedAt || detail.archived)}
+							<button onclick={toggleArchive} class="mt-2 flex items-center gap-1.5 text-neutral-500 hover:text-neutral-800 hover:underline dark:hover:text-neutral-200">
+								<Archive size={13} /> {detail.archived ? 'Restore from archive' : 'Archive ticket'}
+							</button>
+						{/if}
 						{#if access.canManage}
 							<button onclick={del} class="mt-2 flex items-center gap-1.5 text-red-600 hover:underline"><Trash2 size={13} /> Delete ticket</button>
 						{/if}
