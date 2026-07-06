@@ -56,9 +56,22 @@ async function fetchJson(url: string, init: RequestInit): Promise<Record<string,
 // ── GitHub ───────────────────────────────────────────────────────────────
 function githubAdapter(clientId: string, clientSecret: string): OAuthAdapter {
 	const client = new GitHub(clientId, clientSecret, redirectURI('github'));
+	// GitHub *App* client IDs start with "Iv". Apps authorize users off their
+	// configured permissions and reject the OAuth-App `scope` param — sending it
+	// makes the authorize page 404. OAuth Apps (id "Ov…"/legacy hex) need scopes.
+	const isGithubApp = /^Iv/i.test(clientId);
 	return {
 		name: 'github',
-		createAuthorizationURL: (state) => client.createAuthorizationURL(state, ['read:user', 'user:email']),
+		createAuthorizationURL: (state) => {
+			if (isGithubApp) {
+				const u = new URL('https://github.com/login/oauth/authorize');
+				u.searchParams.set('client_id', clientId);
+				u.searchParams.set('redirect_uri', redirectURI('github'));
+				u.searchParams.set('state', state);
+				return u;
+			}
+			return client.createAuthorizationURL(state, ['read:user', 'user:email']);
+		},
 		validateCode: async (code) => (await client.validateAuthorizationCode(code)).accessToken(),
 		async fetchProfile(accessToken) {
 			const headers = {

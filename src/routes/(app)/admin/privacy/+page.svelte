@@ -79,8 +79,8 @@
 					</div>
 
 					{#if githubAppIdWarning(p.provider, clientIds[p.provider] ?? '')}
-						<p class="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
-							This looks like a GitHub <strong>App</strong> Client ID (<code>Iv…</code>). OAuth <em>login</em> needs a GitHub <strong>OAuth App</strong> (its ID starts with <code>Ov…</code>) — create one via “Create app” above with the callback URL shown. Alternatively, register that callback URL on your existing GitHub App. Otherwise “Sign in with GitHub” will 404.
+						<p class="mt-2 rounded-lg bg-blue-50 p-2.5 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+							Using a GitHub <strong>App</strong> Client ID (<code>Iv…</code>) for login works. On the App’s <em>Identifying and authorizing users</em> settings, register the <strong>Callback URL</strong> shown above — and to capture emails, grant the App’s <strong>Account → Email addresses (read)</strong> permission (without it, users are created with no email). A plain OAuth App (<code>Ov…</code>) works too.
 						</p>
 					{/if}
 					<div class="mt-3 flex items-center gap-3">
