@@ -182,6 +182,9 @@
 			<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="importIssues" checked class="size-4 accent-brand-600" /> Import issues</label>
 			<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="importPrs" checked class="size-4 accent-brand-600" /> Import pull requests &amp; link them</label>
 			<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="importReleases" checked class="size-4 accent-brand-600" /> Import releases</label>
+			<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="importMilestones" checked class="size-4 accent-brand-600" /> Import milestones</label>
+			<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="syncAssignees" checked class="size-4 accent-brand-600" /> Sync assignees to linked accounts</label>
+			<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="syncPriority" checked class="size-4 accent-brand-600" /> Map <code class="rounded bg-neutral-100 px-1 text-[11px] dark:bg-neutral-800">priority: …</code> labels to priority</label>
 		</div>
 
 		<div>

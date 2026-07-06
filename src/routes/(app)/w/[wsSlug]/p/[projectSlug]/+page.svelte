@@ -7,6 +7,7 @@
 		Lightbulb,
 		ExternalLink,
 		Tag,
+		Milestone,
 		Activity as ActivityIcon,
 		LayoutGrid,
 		Plus,
@@ -98,6 +99,7 @@
 				<Button variant="ghost" size="sm" href={`${base}/b/${firstBoard.id}`}><LayoutGrid size={15} /> Board</Button>
 			{/if}
 			<Button variant="ghost" size="sm" href={`${base}/activity`}><ActivityIcon size={15} /> Activity</Button>
+			<Button variant="ghost" size="sm" href={`${base}/milestones`}><Milestone size={15} /> Milestones</Button>
 			{#if data.canManageProject}
 				<Button variant="ghost" size="sm" href={`${base}/releases`}><Tag size={15} /> Releases</Button>
 			{/if}

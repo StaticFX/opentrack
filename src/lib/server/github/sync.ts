@@ -1,10 +1,12 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { CLOSED_CATEGORIES } from '$lib/constants';
+import { priorityLabelName } from '$lib/github-labels';
 import { db, schema } from '$lib/server/db';
 import { boardEvent } from '$lib/server/realtime/board';
 import { rankAfter } from '$lib/server/util/rank';
 import { installationOctokit } from './app';
-import { issueToTicketFields, parseRepo, ticketToIssue } from './map';
+import { githubLoginsForUsers, resolveGithubUsers } from './identity';
+import { type GhMilestoneRef, issueToTicketFields, parseRepo, ticketToIssue } from './map';
 
 type Project = typeof schema.projects.$inferSelect;
 
@@ -42,6 +44,109 @@ async function findLinkedProjects(repoFullName: string): Promise<Project[]> {
 	return db.select().from(schema.projects).where(eq(schema.projects.githubRepo, repoFullName));
 }
 
+// ── Reconciliation helpers (GitHub is the source of truth) ──────────────────
+
+/** Make a ticket's labels exactly `names`, creating any missing project labels. */
+async function reconcileTicketLabels(projectId: string, ticketId: string, names: string[]): Promise<void> {
+	const wanted = [...new Set(names)];
+	const existing = await db
+		.select({ id: schema.labels.id, name: schema.labels.name })
+		.from(schema.labels)
+		.where(eq(schema.labels.projectId, projectId));
+	const idByName = new Map(existing.map((l) => [l.name, l.id]));
+	for (const name of wanted) {
+		if (idByName.has(name)) continue;
+		const [row] = await db
+			.insert(schema.labels)
+			.values({ projectId, name })
+			.onConflictDoNothing()
+			.returning({ id: schema.labels.id });
+		if (row) idByName.set(name, row.id);
+		else {
+			// Raced with a concurrent insert — read it back.
+			const [again] = await db
+				.select({ id: schema.labels.id })
+				.from(schema.labels)
+				.where(and(eq(schema.labels.projectId, projectId), eq(schema.labels.name, name)))
+				.limit(1);
+			if (again) idByName.set(name, again.id);
+		}
+	}
+	const wantedIds = new Set(wanted.map((n) => idByName.get(n)).filter((v): v is string => !!v));
+	const current = await db
+		.select({ labelId: schema.ticketLabels.labelId })
+		.from(schema.ticketLabels)
+		.where(eq(schema.ticketLabels.ticketId, ticketId));
+	const currentIds = new Set(current.map((c) => c.labelId));
+	for (const id of wantedIds) {
+		if (!currentIds.has(id)) {
+			await db.insert(schema.ticketLabels).values({ ticketId, labelId: id }).onConflictDoNothing();
+		}
+	}
+	const toRemove = [...currentIds].filter((id) => !wantedIds.has(id));
+	if (toRemove.length) {
+		await db
+			.delete(schema.ticketLabels)
+			.where(and(eq(schema.ticketLabels.ticketId, ticketId), inArray(schema.ticketLabels.labelId, toRemove)));
+	}
+}
+
+/** Make a ticket's OpenTrack assignees exactly `userIds`. */
+async function reconcileTicketAssignees(ticketId: string, userIds: string[]): Promise<void> {
+	const wanted = new Set(userIds);
+	const current = await db
+		.select({ userId: schema.ticketAssignees.userId })
+		.from(schema.ticketAssignees)
+		.where(eq(schema.ticketAssignees.ticketId, ticketId));
+	const currentIds = new Set(current.map((c) => c.userId));
+	for (const id of wanted) {
+		if (!currentIds.has(id)) {
+			await db.insert(schema.ticketAssignees).values({ ticketId, userId: id }).onConflictDoNothing();
+		}
+	}
+	const toRemove = [...currentIds].filter((id) => !wanted.has(id));
+	if (toRemove.length) {
+		await db
+			.delete(schema.ticketAssignees)
+			.where(and(eq(schema.ticketAssignees.ticketId, ticketId), inArray(schema.ticketAssignees.userId, toRemove)));
+	}
+}
+
+/** Upsert a local milestone from an inbound GitHub milestone ref; returns its id. */
+export async function upsertMilestoneFromRef(projectId: string, ref: GhMilestoneRef): Promise<string> {
+	const [existing] = await db
+		.select({ id: schema.milestones.id })
+		.from(schema.milestones)
+		.where(
+			and(
+				eq(schema.milestones.projectId, projectId),
+				eq(schema.milestones.githubMilestoneNumber, ref.number)
+			)
+		)
+		.limit(1);
+	const values = {
+		title: ref.title,
+		description: ref.description,
+		state: ref.state,
+		dueDate: ref.dueOn,
+		githubMilestoneId: ref.githubMilestoneId,
+		githubMilestoneNumber: ref.number,
+		githubSyncedAt: new Date()
+	};
+	if (existing) {
+		await db
+			.update(schema.milestones)
+			.set({ ...values, updatedAt: new Date() })
+			.where(eq(schema.milestones.id, existing.id));
+		return existing.id;
+	}
+	const [row] = await db
+		.insert(schema.milestones)
+		.values({ projectId, ...values })
+		.returning({ id: schema.milestones.id });
+	return row.id;
+}
+
 // ── Outbound: local → GitHub ────────────────────────────────────────────────
 export async function pushTicket(ticketId: string): Promise<void> {
 	const [row] = await db
@@ -75,7 +180,39 @@ export async function pushTicket(ticketId: string): Promise<void> {
 	// Progress sync: mirror the board column as a "Status: <name>" issue label.
 	const progress = (project.githubProgressLabels as string[] | null) ?? [];
 	if (columnName && progress.includes(columnName)) labelNames.push(`Status: ${columnName}`);
+	// Priority sync: mirror the ticket priority as a "priority: <level>" label.
+	if (project.githubSyncPriority) {
+		const pl = priorityLabelName(ticket.priority);
+		if (pl) labelNames.push(pl);
+	}
 	const payload = ticketToIssue(ticket, category, labelNames);
+
+	// Assignee sync: push the GitHub logins of assignees with a linked account.
+	let assignees: string[] | undefined;
+	if (project.githubSyncAssignees) {
+		const rows = await db
+			.select({ userId: schema.ticketAssignees.userId })
+			.from(schema.ticketAssignees)
+			.where(eq(schema.ticketAssignees.ticketId, ticketId));
+		const loginMap = await githubLoginsForUsers(rows.map((r) => r.userId));
+		assignees = [...loginMap.values()];
+	}
+
+	// Milestone sync: send the linked milestone's GitHub number (null clears it).
+	let milestone: number | null | undefined;
+	if (project.githubSyncMilestones) {
+		if (ticket.milestoneId) {
+			const [m] = await db
+				.select({ number: schema.milestones.githubMilestoneNumber })
+				.from(schema.milestones)
+				.where(eq(schema.milestones.id, ticket.milestoneId))
+				.limit(1);
+			milestone = m?.number ?? undefined; // unpushed milestone → leave issue untouched
+		} else {
+			milestone = null; // explicitly cleared
+		}
+	}
+
 	const octokit = await installationOctokit(project.githubInstallationId);
 
 	if (ticket.githubIssueNumber) {
@@ -87,7 +224,9 @@ export async function pushTicket(ticketId: string): Promise<void> {
 			state: payload.state,
 			// state_reason is only valid alongside a state change; 'reopened' applies when opening.
 			...(payload.stateReason ? { state_reason: payload.stateReason } : {}),
-			labels: payload.labels
+			labels: payload.labels,
+			...(assignees !== undefined ? { assignees } : {}),
+			...(milestone !== undefined ? { milestone } : {})
 		});
 		await db.update(schema.tickets).set({ githubSyncedAt: new Date() }).where(eq(schema.tickets.id, ticketId));
 	} else {
@@ -95,12 +234,58 @@ export async function pushTicket(ticketId: string): Promise<void> {
 			...repo,
 			title: payload.title,
 			body: payload.body,
-			labels: payload.labels
+			labels: payload.labels,
+			...(assignees !== undefined ? { assignees } : {}),
+			...(milestone != null ? { milestone } : {})
 		});
 		await db
 			.update(schema.tickets)
 			.set({ githubIssueNumber: res.data.number, githubNodeId: res.data.node_id, githubSyncedAt: new Date() })
 			.where(eq(schema.tickets.id, ticketId));
+	}
+}
+
+/** Push a local milestone to GitHub — create it or PATCH the existing one. */
+export async function pushMilestone(milestoneId: string): Promise<void> {
+	const [row] = await db
+		.select({ milestone: schema.milestones, project: schema.projects })
+		.from(schema.milestones)
+		.innerJoin(schema.projects, eq(schema.milestones.projectId, schema.projects.id))
+		.where(eq(schema.milestones.id, milestoneId))
+		.limit(1);
+	if (!row) return;
+	const { milestone, project } = row;
+	const repo = parseRepo(project.githubRepo);
+	if (!repo || !project.githubInstallationId || !project.githubSyncMilestones) return;
+
+	const octokit = await installationOctokit(project.githubInstallationId);
+	const body = {
+		title: milestone.title,
+		state: milestone.state,
+		description: milestone.description ?? '',
+		...(milestone.dueDate ? { due_on: milestone.dueDate.toISOString() } : {})
+	};
+
+	if (milestone.githubMilestoneNumber) {
+		await octokit.request('PATCH /repos/{owner}/{repo}/milestones/{milestone_number}', {
+			...repo,
+			milestone_number: milestone.githubMilestoneNumber,
+			...body
+		});
+		await db
+			.update(schema.milestones)
+			.set({ githubSyncedAt: new Date() })
+			.where(eq(schema.milestones.id, milestoneId));
+	} else {
+		const res = await octokit.request('POST /repos/{owner}/{repo}/milestones', { ...repo, ...body });
+		await db
+			.update(schema.milestones)
+			.set({
+				githubMilestoneNumber: (res.data as { number: number }).number,
+				githubMilestoneId: String((res.data as { id: number }).id),
+				githubSyncedAt: new Date()
+			})
+			.where(eq(schema.milestones.id, milestoneId));
 	}
 }
 
@@ -140,6 +325,14 @@ async function upsertIssueTicket(project: Project, issue: Parameters<typeof issu
 		.where(and(eq(schema.tickets.projectId, project.id), eq(schema.tickets.githubIssueNumber, fields.githubIssueNumber)))
 		.limit(1);
 
+	// Resolve the linked milestone (creating a local mirror on demand).
+	let milestoneId: string | null = null;
+	if (project.githubSyncMilestones && fields.milestone) {
+		milestoneId = await upsertMilestoneFromRef(project.id, fields.milestone);
+	}
+	const snapshot = project.githubSyncAssignees ? fields.assignees : undefined;
+
+	let ticketId: string;
 	if (existing) {
 		const wasClosed = !!existing.closedAt;
 		let columnId = existing.columnId;
@@ -152,11 +345,15 @@ async function upsertIssueTicket(project: Project, issue: Parameters<typeof issu
 				description: fields.description,
 				githubNodeId: fields.githubNodeId,
 				columnId,
+				...(project.githubSyncPriority ? { priority: fields.priority } : {}),
+				...(project.githubSyncMilestones ? { milestoneId } : {}),
+				...(snapshot !== undefined ? { githubAssignees: snapshot } : {}),
 				closedAt: fields.closed ? (existing.closedAt ?? new Date()) : null,
 				githubSyncedAt: new Date(),
 				updatedAt: new Date()
 			})
 			.where(eq(schema.tickets.id, existing.id));
+		ticketId = existing.id;
 	} else {
 		const col = fields.closed ? pickClosedColumn(cols) : pickOpenColumn(cols);
 		if (!col) return;
@@ -170,19 +367,36 @@ async function upsertIssueTicket(project: Project, issue: Parameters<typeof issu
 			.where(and(eq(schema.tickets.boardId, board.id), eq(schema.tickets.columnId, col.id)))
 			.orderBy(desc(schema.tickets.position))
 			.limit(1);
-		await db.insert(schema.tickets).values({
-			projectId: project.id,
-			boardId: board.id,
-			columnId: col.id,
-			number: Number(max) + 1,
-			title: fields.title,
-			description: fields.description,
-			position: rankAfter(last?.position ?? null),
-			githubIssueNumber: fields.githubIssueNumber,
-			githubNodeId: fields.githubNodeId,
-			closedAt: fields.closed ? new Date() : null,
-			githubSyncedAt: new Date()
-		});
+		const [row] = await db
+			.insert(schema.tickets)
+			.values({
+				projectId: project.id,
+				boardId: board.id,
+				columnId: col.id,
+				milestoneId: project.githubSyncMilestones ? milestoneId : null,
+				number: Number(max) + 1,
+				title: fields.title,
+				description: fields.description,
+				priority: project.githubSyncPriority ? fields.priority : 'none',
+				position: rankAfter(last?.position ?? null),
+				githubIssueNumber: fields.githubIssueNumber,
+				githubNodeId: fields.githubNodeId,
+				githubAssignees: snapshot ?? null,
+				closedAt: fields.closed ? new Date() : null,
+				githubSyncedAt: new Date()
+			})
+			.returning({ id: schema.tickets.id });
+		ticketId = row.id;
+	}
+
+	// Labels: reconcile the ticket's labels to the issue's (non-priority) labels.
+	if (project.githubSyncLabels) {
+		await reconcileTicketLabels(project.id, ticketId, fields.labels);
+	}
+	// Assignees: resolve GitHub logins → linked OpenTrack users and reconcile.
+	if (project.githubSyncAssignees) {
+		const resolved = await resolveGithubUsers(fields.assignees.map((a) => a.login));
+		await reconcileTicketAssignees(ticketId, [...resolved.values()].map((u) => u.userId));
 	}
 	await boardEvent(board.id, 'ticket.synced', { issue: fields.githubIssueNumber });
 }
@@ -297,6 +511,38 @@ async function applyRelease(action: string, payload: any) {
 	}
 }
 
+async function applyMilestone(action: string, payload: any) {
+	const repoFull = payload?.repository?.full_name;
+	const m = payload?.milestone;
+	if (!repoFull || !m || typeof m.number !== 'number') return;
+	const projects = await findLinkedProjects(repoFull);
+
+	for (const project of projects) {
+		if (!project.githubSyncMilestones) continue;
+		if (action === 'deleted') {
+			// FK on tickets.milestoneId is ON DELETE SET NULL, so tickets detach.
+			await db
+				.delete(schema.milestones)
+				.where(
+					and(
+						eq(schema.milestones.projectId, project.id),
+						eq(schema.milestones.githubMilestoneNumber, m.number)
+					)
+				);
+			continue;
+		}
+		const ref: GhMilestoneRef = {
+			number: m.number,
+			githubMilestoneId: m.id != null ? String(m.id) : null,
+			title: m.title ?? 'Untitled',
+			description: m.description ?? null,
+			state: m.state === 'closed' ? 'closed' : 'open',
+			dueOn: m.due_on ? new Date(m.due_on) : null
+		};
+		await upsertMilestoneFromRef(project.id, ref);
+	}
+}
+
 /** Apply a stored webhook event to local state. */
 export async function applyWebhookEvent(event: string, action: string | null, payload: any): Promise<void> {
 	const act = action ?? '';
@@ -307,6 +553,8 @@ export async function applyWebhookEvent(event: string, action: string | null, pa
 			return applyIssueComment(act, payload);
 		case 'pull_request':
 			return applyPullRequest(act, payload);
+		case 'milestone':
+			return applyMilestone(act, payload);
 		case 'release':
 			return applyRelease(act, payload);
 		case 'installation':

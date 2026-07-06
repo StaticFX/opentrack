@@ -31,6 +31,7 @@ export const {
 	boardColumns,
 	tickets,
 	ticketAssignees,
+	milestones,
 	labels,
 	ticketLabels,
 	ticketRelations,

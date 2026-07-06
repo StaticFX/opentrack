@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import { requireTicketAccess, requireUser } from '$lib/server/access';
+import { enqueueTicketPush } from '$lib/server/github/enqueue';
 import { ACCESS } from '$lib/server/permissions';
 import { boardEvent } from '$lib/server/realtime/board';
 import { notifyUsers, watch } from '$lib/server/services/notifications';
@@ -16,6 +17,8 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	const add = body.add !== false;
 	await setAssignee(params.id, userId, add);
 	if (boardId) await boardEvent(boardId, 'ticket.updated', { ticketId: params.id }, user.id);
+	// Mirror the assignment to the linked GitHub issue (no-op if unlinked).
+	await enqueueTicketPush(params.id);
 
 	// A newly-assigned user starts watching and is notified (unless self-assigning).
 	if (add) {

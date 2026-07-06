@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { db, schema } from '$lib/server/db';
 import { registerHandler } from '$lib/server/jobs/queue';
 import { importRepo } from './import';
-import { applyWebhookEvent, pushComment, pushTicket } from './sync';
+import { applyWebhookEvent, pushComment, pushMilestone, pushTicket } from './sync';
 
 export function registerGithubHandlers(): void {
 	// Inbound: apply a stored webhook event to local state (idempotent).
@@ -35,6 +35,9 @@ export function registerGithubHandlers(): void {
 	});
 	registerHandler('github:push-comment', async (payload) => {
 		await pushComment(String(payload.commentId ?? ''));
+	});
+	registerHandler('github:push-milestone', async (payload) => {
+		await pushMilestone(String(payload.milestoneId ?? ''));
 	});
 
 	// Import: pull a repo's labels + issues into a freshly created project.

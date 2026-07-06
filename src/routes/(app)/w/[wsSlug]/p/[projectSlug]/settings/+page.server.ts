@@ -56,6 +56,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		linkedInstallation: ctx.project.githubInstallationId,
 		columns: await projectColumns(ctx.project.id),
 		progressLabels: (ctx.project.githubProgressLabels as string[] | null) ?? [],
+		githubSync: {
+			assignees: ctx.project.githubSyncAssignees,
+			labels: ctx.project.githubSyncLabels,
+			priority: ctx.project.githubSyncPriority,
+			milestones: ctx.project.githubSyncMilestones
+		},
 		origin: env.origin,
 		isPublic: ctx.visibility === 'public',
 		fields: await listFields(ctx.project.id),
@@ -135,6 +141,23 @@ export const actions: Actions = {
 			}
 		}
 		return { progressSaved: true, created };
+	},
+
+	// Toggle which GitHub facets sync for this project (assignees / labels /
+	// priority / milestones). Unchecked checkboxes are simply absent.
+	saveGithubSync: async ({ request, locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
+		const form = await request.formData();
+		await db
+			.update(schema.projects)
+			.set({
+				githubSyncAssignees: form.get('syncAssignees') === 'on',
+				githubSyncLabels: form.get('syncLabels') === 'on',
+				githubSyncPriority: form.get('syncPriority') === 'on',
+				githubSyncMilestones: form.get('syncMilestones') === 'on'
+			})
+			.where(eq(schema.projects.id, ctx.project.id));
+		return { githubSyncSaved: true };
 	},
 
 	// Save the Discord webhook + which events announce to it. A blank URL field

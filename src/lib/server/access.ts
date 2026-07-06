@@ -78,6 +78,22 @@ export async function requireLabelAccess(
 	return { access, projectId: row.projectId };
 }
 
+/** Guard an operation on a milestone, resolving its project first. */
+export async function requireMilestoneAccess(
+	user: SessionUser | null,
+	milestoneId: string,
+	min: AccessLevel = ACCESS.NONE
+): Promise<{ access: ProjectAccess; projectId: string }> {
+	const [row] = await db
+		.select({ projectId: schema.milestones.projectId })
+		.from(schema.milestones)
+		.where(eq(schema.milestones.id, milestoneId))
+		.limit(1);
+	if (!row) throw error(404, 'Milestone not found');
+	const access = await requireProjectAccess(user, row.projectId, min);
+	return { access, projectId: row.projectId };
+}
+
 /** Guard an operation on a suggestion, resolving its project first. */
 export async function requireSuggestionAccess(
 	user: SessionUser | null,

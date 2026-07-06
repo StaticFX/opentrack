@@ -55,6 +55,10 @@ export type SuggestionDecision = (typeof SUGGESTION_DECISIONS)[number];
 export const RELEASE_STATUSES = ['draft', 'published'] as const;
 export type ReleaseStatus = (typeof RELEASE_STATUSES)[number];
 
+/** Milestone lifecycle — mirrors GitHub milestone `state`. */
+export const MILESTONE_STATES = ['open', 'closed'] as const;
+export type MilestoneState = (typeof MILESTONE_STATES)[number];
+
 export const RELEASE_LINK_TYPES = ['download', 'changelog', 'github', 'external'] as const;
 export type ReleaseLinkType = (typeof RELEASE_LINK_TYPES)[number];
 
