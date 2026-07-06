@@ -155,6 +155,13 @@
       "when": 1783367524162,
       "tag": "0021_tense_hellcat",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1783368230931,
+      "tag": "0022_typical_shinko_yamashiro",
+      "breakpoints": true
     }
   ]
 }

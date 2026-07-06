@@ -824,8 +824,29 @@ export function defineSchema(kit: Kit) {
 		(t) => [index('attachments_ticket_idx').on(t.ticketId)]
 	);
 
+	// Automation rules: a trigger (+ optional conditions) → ordered actions,
+	// evaluated by the workflow engine. Config blobs are validated in code.
+	const workflowRules = table(
+		'workflow_rules',
+		{
+			id: pk(),
+			projectId: text('project_id')
+				.notNull()
+				.references(() => projects.id, { onDelete: 'cascade' }),
+			name: text('name').notNull(),
+			enabled: bool('enabled').default(true).notNull(),
+			trigger: json<{ type: string; config: Record<string, unknown> }>('trigger'),
+			conditions: json<Array<{ type: string; value: string }>>('conditions'),
+			actions: json<Array<{ type: string; config: Record<string, unknown> }>>('actions'),
+			createdAt: createdAt(),
+			updatedAt: updatedAt()
+		},
+		(t) => [index('workflow_rules_project_idx').on(t.projectId)]
+	);
+
 	return {
 		attachments,
+		workflowRules,
 		watchers,
 		notifications,
 		pushSubscriptions,

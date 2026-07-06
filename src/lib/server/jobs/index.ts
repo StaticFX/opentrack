@@ -1,12 +1,17 @@
 import { registerDiscordHandlers } from '$lib/server/discord/jobs';
 import { registerGithubHandlers } from '$lib/server/github/jobs';
-import { registerMaintenanceHandlers } from './maintenance';
+import { ensureWorkflowScheduled, registerWorkflowHandlers } from '$lib/server/workflow/jobs';
+import { ensureScheduledJobs as ensureMaintenanceScheduled, registerMaintenanceHandlers } from './maintenance';
 import { registerNotifyHandlers } from './notify';
 import { registerHandler } from './queue';
 
-export { ensureScheduledJobs } from './maintenance';
-
 export * from './queue';
+
+/** Ensure all recurring/cron jobs are queued (idempotent, called on startup). */
+export async function ensureScheduledJobs(): Promise<void> {
+	await ensureMaintenanceScheduled();
+	await ensureWorkflowScheduled();
+}
 
 /**
  * Register all job handlers. Called once from the worker entry and from the
@@ -20,4 +25,5 @@ export function registerAllHandlers(): void {
 	registerNotifyHandlers();
 	registerDiscordHandlers();
 	registerMaintenanceHandlers();
+	registerWorkflowHandlers();
 }

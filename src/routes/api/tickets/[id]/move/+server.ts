@@ -10,6 +10,7 @@ import { enqueueDiscordForSubject } from '$lib/server/discord/enqueue';
 import { logActivity } from '$lib/server/services/activity';
 import { notifyWatchers } from '$lib/server/services/notifications';
 import { moveTicket } from '$lib/server/services/tickets';
+import { enqueueWorkflowEvent } from '$lib/server/services/workflow';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
@@ -31,6 +32,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		.where(eq(schema.boardColumns.id, columnId))
 		.limit(1);
 	if (col) {
+		await enqueueWorkflowEvent(projectId, 'ticket.moved', params.id, { columnName: col.name });
 		const closed = CLOSED_CATEGORIES.includes(col.category as never);
 		await logActivity({
 			projectId,

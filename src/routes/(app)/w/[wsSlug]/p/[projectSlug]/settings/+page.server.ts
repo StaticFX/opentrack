@@ -7,6 +7,7 @@ import { generateInviteCode } from '$lib/server/auth/invite';
 import { db, schema } from '$lib/server/db';
 import { getProjectDiscord, setProjectDiscord } from '$lib/server/discord/config';
 import { listFields } from '$lib/server/services/custom-fields';
+import { listRules } from '$lib/server/services/workflow';
 import { githubConfigured } from '$lib/server/github/app';
 import { createStatusLabels } from '$lib/server/github/import';
 import { listWorkspaceRepos } from '$lib/server/github/installations';
@@ -59,6 +60,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		columns: await projectColumns(ctx.project.id),
 		progressLabels: (ctx.project.githubProgressLabels as string[] | null) ?? [],
 		closeColumns: (ctx.project.githubCloseColumns as string[] | null) ?? [],
+		labels: await db
+			.select({ id: schema.labels.id, name: schema.labels.name, color: schema.labels.color })
+			.from(schema.labels)
+			.where(eq(schema.labels.projectId, ctx.project.id))
+			.orderBy(asc(schema.labels.name)),
+		rules: await listRules(ctx.project.id),
 		githubSync: {
 			assignees: ctx.project.githubSyncAssignees,
 			labels: ctx.project.githubSyncLabels,

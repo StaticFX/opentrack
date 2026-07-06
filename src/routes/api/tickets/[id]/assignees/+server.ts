@@ -5,11 +5,12 @@ import { ACCESS } from '$lib/server/permissions';
 import { boardEvent } from '$lib/server/realtime/board';
 import { notifyUsers, watch } from '$lib/server/services/notifications';
 import { setAssignee } from '$lib/server/services/tickets';
+import { enqueueWorkflowEvent } from '$lib/server/services/workflow';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
 	const user = requireUser(locals.user);
-	const { boardId } = await requireTicketAccess(locals.user, params.id, ACCESS.COLLABORATOR);
+	const { boardId, projectId } = await requireTicketAccess(locals.user, params.id, ACCESS.COLLABORATOR);
 	const body = await request.json();
 	const userId = String(body.userId ?? '');
 	if (!userId) throw error(400, 'userId is required');
@@ -22,6 +23,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
 	// A newly-assigned user starts watching and is notified (unless self-assigning).
 	if (add) {
+		await enqueueWorkflowEvent(projectId, 'ticket.assigned', params.id);
 		await watch('ticket', params.id, userId, 'assignee');
 		if (userId !== user.id) {
 			await notifyUsers([userId], {

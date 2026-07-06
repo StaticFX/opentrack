@@ -9,6 +9,7 @@ import { logActivity } from '$lib/server/services/activity';
 import { boardEvent } from '$lib/server/realtime/board';
 import { watch } from '$lib/server/services/notifications';
 import { createTicket, setAssignee, setLabel } from '$lib/server/services/tickets';
+import { enqueueWorkflowEvent } from '$lib/server/services/workflow';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
@@ -48,5 +49,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		actor: user.displayName,
 		description: typeof body.description === 'string' ? body.description : undefined
 	});
+	await enqueueWorkflowEvent(projectId, 'ticket.created', ticket.id);
 	return json({ id: ticket.id, number: ticket.number });
 };

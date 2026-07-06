@@ -29,6 +29,9 @@ export interface DbHandle {
 export function createDb(): DbHandle {
 	if (env.databaseDriver === 'sqlite') {
 		const client = createClient({ url: env.sqliteUrl, authToken: env.sqliteAuthToken });
+		// SQLite is single-writer: make concurrent writers (the request path + the
+		// polling job worker) wait for the lock instead of failing with SQLITE_BUSY.
+		void client.execute('PRAGMA busy_timeout = 5000').catch(() => {});
 		const db = drizzleLibsql(client, { schema: sqliteSchema.schema });
 		return {
 			db: db as unknown as Database,

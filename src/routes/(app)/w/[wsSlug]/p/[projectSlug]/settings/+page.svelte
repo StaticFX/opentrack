@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Copy, Trash2, Check, GitBranch, Settings, Users, TriangleAlert, ArrowLeft, MessageSquare, Send, SlidersHorizontal, Plus } from '@lucide/svelte';
+	import { Copy, Trash2, Check, GitBranch, Settings, Users, TriangleAlert, ArrowLeft, MessageSquare, Send, SlidersHorizontal, Plus, Zap, ArrowRight } from '@lucide/svelte';
 	import { PALETTE } from '$lib/colors';
+	import { PRIORITIES } from '$lib/constants';
+	import { PRIORITY_META } from '$lib/priority';
 	import { DISCORD_EVENTS } from '$lib/discord';
 	import { CUSTOM_FIELD_TYPES, FIELD_TYPE_LABELS } from '$lib/customFields';
+	import { WORKFLOW_TRIGGERS, WORKFLOW_ACTIONS, WORKFLOW_CONDITIONS } from '$lib/workflow';
 	import { cn } from '$lib/utils/cn';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
@@ -33,8 +36,86 @@
 		{ id: 'github', label: 'GitHub', icon: GitBranch },
 		{ id: 'discord', label: 'Discord', icon: MessageSquare },
 		{ id: 'fields', label: 'Fields', icon: SlidersHorizontal },
+		{ id: 'automation', label: 'Automation', icon: Zap },
 		{ id: 'danger', label: 'Danger', icon: TriangleAlert }
 	] as const;
+
+	// ── Automation rules (client-managed via the API) ────────────────────────
+	type Cond = { type: string; value: string };
+	type Act = { type: string; config: Record<string, unknown> };
+	let rules = $state(data.rules);
+	const columnNames = $derived([...new Set(data.columns.map((c) => c.name))]);
+	const priorityOpts = PRIORITIES.map((p) => ({ value: p, label: PRIORITY_META[p].label }));
+	const labelOpts = $derived(data.labels.map((l) => ({ value: l.id, label: l.name })));
+	const memberOpts = $derived(data.members.map((m: any) => ({ value: m.userId, label: m.displayName })));
+	const columnOpts = $derived(columnNames.map((n) => ({ value: n, label: n })));
+
+	// New-rule builder state.
+	let rName = $state('');
+	let rTrigger = $state('ticket.created');
+	let rTriggerColumn = $state('');
+	let rTriggerLabel = $state('');
+	let rTriggerDays = $state(14);
+	let rConds = $state<Cond[]>([]);
+	let rActs = $state<Act[]>([{ type: 'add_label', config: {} }]);
+	let ruleErr = $state('');
+	const triggerDef = $derived(WORKFLOW_TRIGGERS.find((t) => t.type === rTrigger));
+
+	const labelName = (id: string) => data.labels.find((l) => l.id === id)?.name ?? id;
+	const memberName = (id: string) => (data.members as any[]).find((m) => m.userId === id)?.displayName ?? id;
+	const trigLabel = (t?: string) => WORKFLOW_TRIGGERS.find((x) => x.type === t)?.label ?? t ?? '';
+	const actLabel = (a: string) => WORKFLOW_ACTIONS.find((x) => x.type === a)?.label ?? a;
+
+	function summariseAction(a: Act): string {
+		const c = a.config ?? {};
+		if (a.type === 'add_label') return `Add label “${labelName(String(c.labelId ?? ''))}”`;
+		if (a.type === 'assign') return `Assign ${memberName(String(c.userId ?? ''))}`;
+		if (a.type === 'set_priority') return `Set priority ${c.priority}`;
+		if (a.type === 'move_to_column') return `Move to “${c.columnName}”`;
+		if (a.type === 'post_comment') return `Comment`;
+		if (a.type === 'notify_watchers') return `Notify watchers`;
+		if (a.type === 'close') return `Close ticket`;
+		return a.type;
+	}
+
+	function addAction() {
+		rActs = [...rActs, { type: 'add_label', config: {} }];
+	}
+	function addCond() {
+		rConds = [...rConds, { type: 'priority', value: '' }];
+	}
+	function buildTriggerConfig(): Record<string, unknown> {
+		if (rTrigger === 'ticket.moved') return { columnName: rTriggerColumn };
+		if (rTrigger === 'ticket.labeled') return { labelId: rTriggerLabel };
+		if (rTrigger === 'ticket.stale') return { days: rTriggerDays };
+		return {};
+	}
+	async function createRule() {
+		ruleErr = '';
+		if (!rName.trim()) { ruleErr = 'Name is required'; return; }
+		if (!rActs.length) { ruleErr = 'Add at least one action'; return; }
+		const body = {
+			name: rName.trim(),
+			trigger: { type: rTrigger, config: buildTriggerConfig() },
+			conditions: rConds.filter((c) => c.value),
+			actions: rActs
+		};
+		const res = await fetch(`/api/projects/${data.project.id}/workflow-rules`, {
+			method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
+		});
+		if (!res.ok) { ruleErr = (await res.json().catch(() => ({}))).message ?? 'Could not save'; return; }
+		rules = [...rules, (await res.json()).rule];
+		rName = ''; rConds = []; rActs = [{ type: 'add_label', config: {} }];
+	}
+	async function toggleRule(r: any) {
+		r.enabled = !r.enabled;
+		rules = rules;
+		await fetch(`/api/workflow-rules/${r.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: r.enabled }) });
+	}
+	async function deleteRule(id: string) {
+		rules = rules.filter((r) => r.id !== id);
+		await fetch(`/api/workflow-rules/${id}`, { method: 'DELETE' });
+	}
 
 	// ── Custom fields (client-managed via the API) ───────────────────────────
 	let localFields = $state(data.fields);
@@ -411,6 +492,98 @@
 					{#if fType === 'select'}
 						<div class="mt-2"><Field label="Options (comma-separated)"><Input bind:value={fOptions} placeholder="Low, Medium, High" /></Field></div>
 					{/if}
+				</section>
+			{:else if tab === 'automation'}
+				<h2 class="mb-1 text-lg font-semibold tracking-tight">Automation</h2>
+				<p class="mb-4 text-sm text-neutral-500">When a trigger fires, run actions automatically. Runs in the background.</p>
+
+				{#if rules.length}
+					<section class="mb-6 divide-y divide-neutral-100 rounded-xl border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
+						{#each rules as r (r.id)}
+							<div class="flex items-start gap-3 p-4">
+								<button type="button" onclick={() => toggleRule(r)} class={`mt-0.5 h-5 w-9 shrink-0 rounded-full p-0.5 transition ${r.enabled ? 'bg-brand-500' : 'bg-neutral-300 dark:bg-neutral-700'}`} aria-label="Toggle rule">
+									<span class={`block size-4 rounded-full bg-white transition ${r.enabled ? 'translate-x-4' : ''}`}></span>
+								</button>
+								<div class="min-w-0 flex-1">
+									<p class="text-sm font-medium {r.enabled ? '' : 'text-neutral-400'}">{r.name}</p>
+									<p class="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-neutral-500">
+										<span class="rounded bg-neutral-100 px-1.5 py-0.5 dark:bg-neutral-800">{trigLabel(r.trigger?.type)}{#if r.trigger?.config?.columnName} → {r.trigger.config.columnName}{/if}{#if r.trigger?.config?.labelId} → {labelName(String(r.trigger.config.labelId))}{/if}{#if r.trigger?.config?.days} ({r.trigger.config.days}d){/if}</span>
+										<ArrowRight size={12} class="text-neutral-300" />
+										{#each r.actions ?? [] as a (a.type + JSON.stringify(a.config))}<span class="rounded bg-brand-50 px-1.5 py-0.5 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200">{summariseAction(a)}</span>{/each}
+									</p>
+								</div>
+								<button type="button" onclick={() => deleteRule(r.id)} class="rounded-md p-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40" aria-label="Delete rule"><Trash2 size={14} /></button>
+							</div>
+						{/each}
+					</section>
+				{/if}
+
+				<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+					<h3 class="mb-3 text-sm font-semibold">New rule</h3>
+					<div class="mb-3"><Field label="Name"><Input bind:value={rName} placeholder="e.g. Auto-assign reviews" /></Field></div>
+
+					<div class="mb-3 rounded-lg bg-neutral-50 p-3 dark:bg-neutral-800/40">
+						<p class="mb-1.5 text-xs font-medium text-neutral-400">WHEN</p>
+						<div class="flex flex-wrap items-center gap-2">
+							<Select bind:value={rTrigger} options={WORKFLOW_TRIGGERS.map((t) => ({ value: t.type, label: t.label }))} class="w-56" />
+							{#if triggerDef?.config === 'column'}
+								<Select bind:value={rTriggerColumn} options={columnOpts} placeholder="column" class="w-40" />
+							{:else if triggerDef?.config === 'label'}
+								<Select bind:value={rTriggerLabel} options={labelOpts} placeholder="label" class="w-40" />
+							{:else if triggerDef?.config === 'days'}
+								<Input type="number" value={String(rTriggerDays)} oninput={(e) => (rTriggerDays = Number((e.currentTarget as HTMLInputElement).value) || 0)} class="w-20" /> <span class="text-sm text-neutral-500">days</span>
+							{/if}
+						</div>
+					</div>
+
+					<div class="mb-3 rounded-lg bg-neutral-50 p-3 dark:bg-neutral-800/40">
+						<div class="mb-1.5 flex items-center justify-between">
+							<p class="text-xs font-medium text-neutral-400">IF (optional)</p>
+							<button type="button" onclick={addCond} class="text-xs text-brand-600 hover:underline dark:text-brand-400">+ condition</button>
+						</div>
+						{#each rConds as c, i (i)}
+							<div class="mb-1.5 flex items-center gap-2">
+								<Select value={c.type} onchange={(v) => { rConds[i] = { type: v, value: '' }; }} options={WORKFLOW_CONDITIONS.map((x) => ({ value: x.type, label: x.label }))} class="w-40" />
+								{#if c.type === 'priority'}
+									<Select value={c.value} onchange={(v) => { rConds[i].value = v; }} options={priorityOpts} placeholder="priority" class="w-32" />
+								{:else}
+									<Select value={c.value} onchange={(v) => { rConds[i].value = v; }} options={labelOpts} placeholder="label" class="w-40" />
+								{/if}
+								<button type="button" onclick={() => (rConds = rConds.filter((_, j) => j !== i))} class="text-neutral-400 hover:text-red-600" aria-label="Remove"><Trash2 size={13} /></button>
+							</div>
+						{:else}
+							<p class="text-xs text-neutral-400">Always runs (no conditions).</p>
+						{/each}
+					</div>
+
+					<div class="mb-3 rounded-lg bg-neutral-50 p-3 dark:bg-neutral-800/40">
+						<div class="mb-1.5 flex items-center justify-between">
+							<p class="text-xs font-medium text-neutral-400">THEN</p>
+							<button type="button" onclick={addAction} class="text-xs text-brand-600 hover:underline dark:text-brand-400">+ action</button>
+						</div>
+						{#each rActs as a, i (i)}
+							<div class="mb-1.5 flex items-center gap-2">
+								<Select value={a.type} onchange={(v) => { rActs[i] = { type: v, config: {} }; }} options={WORKFLOW_ACTIONS.map((x) => ({ value: x.type, label: x.label }))} class="w-44" />
+								{#if a.type === 'add_label'}
+									<Select value={String(a.config.labelId ?? '')} onchange={(v) => { rActs[i].config = { labelId: v }; }} options={labelOpts} placeholder="label" class="w-40" />
+								{:else if a.type === 'assign'}
+									<Select value={String(a.config.userId ?? '')} onchange={(v) => { rActs[i].config = { userId: v }; }} options={memberOpts} placeholder="user" class="w-40" />
+								{:else if a.type === 'set_priority'}
+									<Select value={String(a.config.priority ?? '')} onchange={(v) => { rActs[i].config = { priority: v }; }} options={priorityOpts} placeholder="priority" class="w-32" />
+								{:else if a.type === 'move_to_column'}
+									<Select value={String(a.config.columnName ?? '')} onchange={(v) => { rActs[i].config = { columnName: v }; }} options={columnOpts} placeholder="column" class="w-40" />
+								{:else if a.type === 'post_comment'}
+									<Input value={String(a.config.body ?? '')} oninput={(e) => { rActs[i].config = { body: (e.currentTarget as HTMLInputElement).value }; }} placeholder="Comment text" class="flex-1" />
+								{/if}
+								<button type="button" onclick={() => (rActs = rActs.filter((_, j) => j !== i))} class="text-neutral-400 hover:text-red-600" aria-label="Remove"><Trash2 size={13} /></button>
+							</div>
+						{/each}
+					</div>
+
+					<div class="flex items-center gap-3">
+						<Button variant="primary" onclick={createRule}><Plus size={15} /> Add rule</Button>
+						{#if ruleErr}<span class="text-sm text-red-600">{ruleErr}</span>{/if}
+					</div>
 				</section>
 			{:else if tab === 'danger'}
 				<h2 class="mb-4 text-lg font-semibold tracking-tight">Danger zone</h2>
