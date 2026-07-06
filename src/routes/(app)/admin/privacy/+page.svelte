@@ -12,6 +12,14 @@
 
 	const providerLabel: Record<string, string> = { github: 'GitHub', discord: 'Discord', modrinth: 'Modrinth' };
 
+	// Track client IDs live so we can flag the common GitHub App-vs-OAuth-App mixup.
+	let clientIds = $state<Record<string, string>>(
+		Object.fromEntries(data.oauth.map((p) => [p.provider, p.clientId]))
+	);
+	// GitHub App client IDs start with "Iv"; OAuth App IDs start with "Ov" (or are 20-hex).
+	const githubAppIdWarning = (provider: string, id: string) =>
+		provider === 'github' && /^Iv/i.test(id.trim());
+
 	function copy(text: string) {
 		navigator.clipboard?.writeText(text);
 	}
@@ -66,9 +74,15 @@
 					</div>
 
 					<div class="flex flex-col gap-3 sm:flex-row">
-						<div class="flex-1"><Field label="Client ID"><Input name="clientId" value={p.clientId} placeholder="client id" /></Field></div>
+						<div class="flex-1"><Field label="Client ID"><Input name="clientId" bind:value={clientIds[p.provider]} placeholder="client id" /></Field></div>
 						<div class="flex-1"><Field label="Client secret"><Input name="clientSecret" type="password" placeholder={p.hasSecret ? '•••••• (leave blank to keep)' : 'client secret'} /></Field></div>
 					</div>
+
+					{#if githubAppIdWarning(p.provider, clientIds[p.provider] ?? '')}
+						<p class="mt-2 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+							This looks like a GitHub <strong>App</strong> Client ID (<code>Iv…</code>). OAuth <em>login</em> needs a GitHub <strong>OAuth App</strong> (its ID starts with <code>Ov…</code>) — create one via “Create app” above with the callback URL shown. Alternatively, register that callback URL on your existing GitHub App. Otherwise “Sign in with GitHub” will 404.
+						</p>
+					{/if}
 					<div class="mt-3 flex items-center gap-3">
 						<Button size="sm" variant="primary" type="submit">Save</Button>
 						{#if f?.savedOAuth === p.provider}<span class="text-sm text-green-600">Saved</span>{/if}
