@@ -10,7 +10,6 @@
 	import { PRIORITY_META } from '$lib/priority';
 	import { rankAfter, rankBefore, rankBetween, rankForDrop } from '$lib/rank';
 	import type { TicketCard } from '$lib/board';
-	import { clickOutside } from '$lib/utils/clickOutside';
 	import Select from '$lib/components/ui/Select.svelte';
 	import BoardViews from './BoardViews.svelte';
 	import Card from './Card.svelte';
@@ -356,54 +355,10 @@
 					<div class="flex items-center gap-0.5">
 						{#if canEdit}
 							<button onclick={() => (composerCol = composerCol === col.id ? null : col.id)} class="rounded p-0.5 text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800" aria-label="Add ticket"><Plus size={15} /></button>
+							<button onclick={() => archiveColumnTickets(col)} class="rounded p-0.5 text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800" aria-label="Archive all tickets" title="Archive all tickets"><Archive size={14} /></button>
 						{/if}
 						{#if canManage}
-							<div class="relative">
-								<button onclick={() => (menuCol = menuCol === col.id ? null : col.id)} class="rounded p-0.5 text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800" aria-label="Column settings"><Settings2 size={14} /></button>
-								{#if menuCol === col.id}
-									<div use:clickOutside={() => (menuCol = null)} class="absolute right-0 z-20 mt-1 w-60 rounded-lg border border-neutral-200 bg-white p-3 shadow-xl dark:border-neutral-800 dark:bg-neutral-900">
-										<input
-											value={col.name}
-											onchange={(e) => patchColumn(col.id, { name: (e.currentTarget as HTMLInputElement).value })}
-											class="mb-2 w-full rounded border border-neutral-200 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-										/>
-										<p class="mb-1 text-[11px] text-neutral-400">Color</p>
-										<div class="mb-2 flex flex-wrap gap-1">
-											{#each PALETTE as c (c)}
-												<button onclick={() => patchColumn(col.id, { color: c })} class="size-5 rounded-full" class:ring-2={col.color === c} style={`background:${c};--tw-ring-color:${c}`} aria-label={c}></button>
-											{/each}
-										</div>
-										<p class="mb-1 text-[11px] text-neutral-400">Icon</p>
-										<div class="mb-2 flex flex-wrap gap-1">
-											{#each COLUMN_ICON_KEYS as key (key)}
-												<button onclick={() => patchColumn(col.id, { icon: key })} class="grid size-6 place-items-center rounded hover:bg-neutral-100 dark:hover:bg-neutral-800" class:bg-neutral-200={col.icon === key} aria-label={key}>
-													<ColumnIcon icon={key} color={col.color} size={14} />
-												</button>
-											{/each}
-										</div>
-										<p class="mb-1 text-[11px] text-neutral-400">Type (GitHub state)</p>
-										<Select
-											value={col.category}
-											options={CATEGORY_OPTIONS}
-											size="sm"
-											class="mb-2"
-											onchange={(v) => patchColumn(col.id, { category: v as ColumnCategory })}
-										/>
-										<div class="mb-2 flex items-center gap-2">
-											<span class="text-[11px] text-neutral-400">WIP limit</span>
-											<input type="number" min="0" value={col.wipLimit ?? ''} onchange={(e) => { const v = (e.currentTarget as HTMLInputElement).value; patchColumn(col.id, { wipLimit: v === '' ? null : Number(v) }); }} class="w-16 rounded border border-neutral-200 px-1 py-0.5 text-xs dark:border-neutral-700 dark:bg-neutral-900" />
-										</div>
-										<button onclick={() => archiveColumnTickets(col)} class="mb-2 flex w-full items-center gap-1.5 rounded border border-neutral-200 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"><Archive size={13} /> Archive all tickets</button>
-										<div class="flex items-center justify-between border-t border-neutral-100 pt-2 dark:border-neutral-800">
-											<div class="flex gap-1">
-												<button onclick={() => moveColumn(i, -1)} disabled={i === 0} class="rounded p-1 text-neutral-400 hover:bg-neutral-100 disabled:opacity-30 dark:hover:bg-neutral-800" aria-label="Move left"><ArrowLeft size={14} /></button>
-												<button onclick={() => moveColumn(i, 1)} disabled={i === cols.length - 1} class="rounded p-1 text-neutral-400 hover:bg-neutral-100 disabled:opacity-30 dark:hover:bg-neutral-800" aria-label="Move right"><ArrowRight size={14} /></button>
-											</div>
-											<button onclick={() => deleteColumn(col.id)} class="flex items-center gap-1 text-xs text-red-600 hover:underline"><Trash2 size={13} /> Delete</button>
-										</div>
-									</div>
-								{/if}
-							</div>
+							<button onclick={() => (menuCol = col.id)} class="rounded p-0.5 text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800" aria-label="Column settings"><Settings2 size={14} /></button>
 						{/if}
 					</div>
 				</div>
@@ -506,4 +461,55 @@
 		onclose={() => (showCreate = false)}
 		oncreated={() => invalidate(`board:${boardId}`)}
 	/>
+{/if}
+
+{#if menuCol}
+	{@const editing = cols.find((c) => c.id === menuCol)}
+	{@const idx = cols.findIndex((c) => c.id === menuCol)}
+	{#if editing}
+		<div class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh]">
+			<button aria-label="Close" class="absolute inset-0 bg-neutral-950/40 backdrop-blur-[2px]" onclick={() => (menuCol = null)}></button>
+			<div class="relative z-10 w-full max-w-md overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-900">
+				<div class="flex items-center justify-between border-b border-neutral-100 px-5 py-3 dark:border-neutral-800">
+					<h2 class="flex items-center gap-2 text-sm font-semibold"><ColumnIcon icon={editing.icon} color={editing.color} /> Column settings</h2>
+					<button onclick={() => (menuCol = null)} class="rounded p-1 text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close"><X size={16} /></button>
+				</div>
+				<div class="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
+					<label class="block">
+						<span class="mb-1 block text-xs font-medium text-neutral-400">Name</span>
+						<input value={editing.name} onchange={(e) => patchColumn(editing.id, { name: (e.currentTarget as HTMLInputElement).value })} class="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm focus-visible:border-brand-500 focus-visible:outline-none dark:border-neutral-700 dark:bg-neutral-900" />
+					</label>
+					<div>
+						<span class="mb-1.5 block text-xs font-medium text-neutral-400">Color</span>
+						<div class="flex flex-wrap gap-1.5">
+							{#each PALETTE as c (c)}<button onclick={() => patchColumn(editing.id, { color: c })} class="size-6 rounded-full" class:ring-2={editing.color === c} style={`background:${c};--tw-ring-color:${c}`} aria-label={c}></button>{/each}
+						</div>
+					</div>
+					<div>
+						<span class="mb-1.5 block text-xs font-medium text-neutral-400">Icon</span>
+						<div class="flex flex-wrap gap-1.5">
+							{#each COLUMN_ICON_KEYS as key (key)}<button onclick={() => patchColumn(editing.id, { icon: key })} class="grid size-8 place-items-center rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800" class:bg-neutral-200={editing.icon === key} aria-label={key}><ColumnIcon icon={key} color={editing.color} size={16} /></button>{/each}
+						</div>
+					</div>
+					<div class="grid grid-cols-2 gap-3">
+						<label class="block">
+							<span class="mb-1 block text-xs font-medium text-neutral-400">Type (GitHub state)</span>
+							<Select value={editing.category} options={CATEGORY_OPTIONS} size="sm" onchange={(v) => patchColumn(editing.id, { category: v as ColumnCategory })} />
+						</label>
+						<label class="block">
+							<span class="mb-1 block text-xs font-medium text-neutral-400">Ticket limit</span>
+							<input type="number" min="0" value={editing.wipLimit ?? ''} onchange={(e) => { const v = (e.currentTarget as HTMLInputElement).value; patchColumn(editing.id, { wipLimit: v === '' ? null : Number(v) }); }} placeholder="No limit" class="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm focus-visible:border-brand-500 focus-visible:outline-none dark:border-neutral-700 dark:bg-neutral-900" />
+						</label>
+					</div>
+				</div>
+				<div class="flex items-center justify-between border-t border-neutral-100 px-5 py-3 dark:border-neutral-800">
+					<div class="flex gap-1">
+						<button onclick={() => moveColumn(idx, -1)} disabled={idx === 0} class="rounded-md border border-neutral-200 p-1.5 text-neutral-500 hover:bg-neutral-100 disabled:opacity-30 dark:border-neutral-700 dark:hover:bg-neutral-800" aria-label="Move left"><ArrowLeft size={15} /></button>
+						<button onclick={() => moveColumn(idx, 1)} disabled={idx === cols.length - 1} class="rounded-md border border-neutral-200 p-1.5 text-neutral-500 hover:bg-neutral-100 disabled:opacity-30 dark:border-neutral-700 dark:hover:bg-neutral-800" aria-label="Move right"><ArrowRight size={15} /></button>
+					</div>
+					<button onclick={() => deleteColumn(editing.id)} class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"><Trash2 size={14} /> Delete column</button>
+				</div>
+			</div>
+		</div>
+	{/if}
 {/if}

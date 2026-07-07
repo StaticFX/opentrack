@@ -72,7 +72,7 @@
 	{#if open}
 		<div
 			use:clickOutside={() => (open = false)}
-			class="absolute left-0 top-full z-30 mt-1 w-64 rounded-lg border border-neutral-200 bg-white p-1 shadow-xl dark:border-neutral-800 dark:bg-neutral-900"
+			class="absolute right-0 top-full z-30 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-lg border border-neutral-200 bg-white p-1 shadow-xl dark:border-neutral-800 dark:bg-neutral-900"
 		>
 			{#each views as v (v.id)}
 				<div
