@@ -27,6 +27,11 @@ async function main() {
 	assert(rm.includes('fill="#ffffff"'), 'light roadmap has a white background');
 	const rmDark = roadmapSvg('Dark', [], 'dark');
 	assert(rmDark.includes('fill="#171717"') && rmDark.includes('#818cf8'), 'dark roadmap uses dark bg + brighter accent');
+	const rmIcon = roadmapSvg('Icons', [
+		{ key: 'shipped', title: 'Shipped', count: 1, items: [{ number: 9, title: 'Ship it', votes: 5, comments: 0, labels: [] }], icon: 'circle-check-big', color: '#22c55e' }
+	]);
+	assert(rmIcon.includes('<g transform'), 'lane renders its column icon as an inline lucide drawing');
+	assert(rmIcon.includes('▲ 5'), 'item card shows votes');
 	const cl = changelogSvg('Proj', [{ version: 'v1.0', name: 'First', releasedAt: new Date('2026-01-02T00:00:00Z') }]);
 	assert(cl.startsWith('<svg') && cl.includes('v1.0') && cl.includes('2026-01-02'), 'changelog SVG has version + date');
 	assert(changelogSvg('Empty', []).includes('No releases yet'), 'empty changelog handled');

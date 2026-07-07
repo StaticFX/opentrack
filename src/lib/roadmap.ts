@@ -4,6 +4,8 @@
 export interface RoadmapColumn {
 	id: string;
 	category: string;
+	icon?: string | null;
+	color?: string;
 }
 export interface RoadmapTicketIn {
 	number: number;
@@ -26,6 +28,9 @@ export interface RoadmapLane {
 	title: string;
 	count: number;
 	items: RoadmapCard[];
+	/** Icon + color of the first board column feeding this lane (for embeds). */
+	icon?: string | null;
+	color?: string;
 }
 
 /** Board-column categories that map onto each public roadmap lane. */
@@ -55,6 +60,8 @@ export function buildRoadmapLanes(
 
 	return LANES.map((lane) => {
 		const cats = lane.categories as readonly string[];
+		// The first board column in this lane's category(ies) supplies its icon+color.
+		const repCol = columns.find((c) => cats.includes(c.category));
 		let items = visible.filter(
 			(t) => t.columnId != null && cats.includes(catOf.get(t.columnId) ?? '')
 		);
@@ -65,6 +72,13 @@ export function buildRoadmapLanes(
 			// Surface what the community wants most.
 			items = [...items].sort((a, b) => b.votes - a.votes || b.number - a.number);
 		}
-		return { key: lane.key, title: lane.title, count: items.length, items: items.map(card) };
+		return {
+			key: lane.key,
+			title: lane.title,
+			count: items.length,
+			items: items.map(card),
+			icon: repCol?.icon ?? null,
+			color: repCol?.color
+		};
 	});
 }
