@@ -199,6 +199,8 @@ export function defineSchema(kit: Kit) {
 			discordWebhookUrl: text('discord_webhook_url'),
 			discordEvents: json<string[]>('discord_events'),
 			allowPublicComments: bool('allow_public_comments').default(false).notNull(),
+			// Whether the public roadmap tab/route is exposed for this project.
+			roadmapEnabled: bool('roadmap_enabled').default(true).notNull(),
 			githubSyncedAt: ts('github_synced_at'),
 			position: text('position').notNull().default('a0'),
 			createdAt: createdAt(),
@@ -256,6 +258,9 @@ export function defineSchema(kit: Kit) {
 			color: text('color').notNull().default('#6b7280'),
 			icon: text('icon'),
 			category: text('category').notNull().default('todo'),
+			// Explicit public-roadmap lane override; null → derived from category.
+			// One of 'planned' | 'in_progress' | 'shipped' | 'hidden'.
+			roadmapLane: text('roadmap_lane'),
 			wipLimit: int('wip_limit'),
 			isDefault: bool('is_default').default(false).notNull(),
 			position: text('position').notNull().default('a0'),

@@ -8,6 +8,8 @@ import { db, schema } from '$lib/server/db';
 import { getProjectDiscord, setProjectDiscord } from '$lib/server/discord/config';
 import { listFields } from '$lib/server/services/custom-fields';
 import { listRules } from '$lib/server/services/workflow';
+import { getBoardColumns, listBoards, setColumnRoadmapLanes } from '$lib/server/services/boards';
+import { laneForColumn } from '$lib/roadmap';
 import { githubConfigured } from '$lib/server/github/app';
 import { createStatusLabels } from '$lib/server/github/import';
 import { listWorkspaceRepos } from '$lib/server/github/installations';
@@ -47,6 +49,23 @@ async function projectColumns(
 	return out;
 }
 
+/** Roadmap-config view: the first board's columns + each one's current + default lane. */
+async function roadmapConfig(projectId: string) {
+	const [board] = await listBoards(projectId);
+	if (!board) return { boardId: null as string | null, columns: [] };
+	const cols = await getBoardColumns(board.id);
+	return {
+		boardId: board.id,
+		columns: cols.map((c) => ({
+			id: c.id,
+			name: c.name,
+			color: c.color,
+			lane: c.roadmapLane, // explicit override or null
+			defaultLane: laneForColumn({ id: c.id, category: c.category, roadmapLane: null })
+		}))
+	};
+}
+
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
 	const ghEnabled = await githubConfigured();
@@ -74,6 +93,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		},
 		origin: env.origin,
 		isPublic: ctx.visibility === 'public',
+		roadmapEnabled: ctx.project.roadmapEnabled,
+		roadmap: await roadmapConfig(ctx.project.id),
 		fields: await listFields(ctx.project.id),
 		discord: await (async () => {
 			const d = await getProjectDiscord(ctx.project.id);
@@ -151,6 +172,27 @@ export const actions: Actions = {
 			}
 		}
 		return { progressSaved: true, created };
+	},
+
+	// Public roadmap: toggle visibility + per-column lane overrides.
+	saveRoadmap: async ({ request, locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
+		const form = await request.formData();
+		const roadmapEnabled = form.get('roadmapEnabled') === 'on';
+		await updateProject(ctx.project.id, { roadmapEnabled });
+
+		const [board] = await listBoards(ctx.project.id);
+		if (board) {
+			const valid = new Set(['planned', 'in_progress', 'shipped', 'hidden']);
+			const cols = await getBoardColumns(board.id);
+			const lanes: Record<string, string | null> = {};
+			for (const c of cols) {
+				const v = String(form.get(`lane_${c.id}`) ?? ''); // '' → default (null)
+				lanes[c.id] = valid.has(v) ? v : null;
+			}
+			await setColumnRoadmapLanes(board.id, lanes);
+		}
+		return { roadmapSaved: true };
 	},
 
 	// Configure which board columns close the linked GitHub issue. Empty → fall

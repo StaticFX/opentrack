@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { closeDb, db, schema } from '$lib/server/db';
 import type { SessionUser } from '$lib/server/auth/session';
 import { buildRoadmapLanes } from '$lib/roadmap';
-import { getBoardColumns, listBoards } from '$lib/server/services/boards';
+import { getBoardColumns, listBoards, setColumnRoadmapLanes } from '$lib/server/services/boards';
 import { createProject } from '$lib/server/services/projects';
 import { createTicket, moveTicket } from '$lib/server/services/tickets';
 import { toggleVote } from '$lib/server/services/votes';
@@ -71,6 +71,22 @@ async function main() {
 	console.log('[6] non-public project yields empty lanes');
 	const privateLanes = buildRoadmapLanes(columns, tickets, false);
 	assert(privateLanes.every((l) => l.count === 0), 'nothing shown when project is not public');
+
+	console.log('[7] per-column lane overrides');
+	// Move the backlog column ONTO the Planned lane, and hide the Todo column.
+	await setColumnRoadmapLanes(board.id, { [backlog.id]: 'planned', [todo.id]: 'hidden' });
+	const cfgCols = await getBoardColumns(board.id);
+	const oLanes = buildRoadmapLanes(cfgCols, tickets, true);
+	const oByKey = Object.fromEntries(oLanes.map((l) => [l.key, l]));
+	const oNums = oLanes.flatMap((l) => l.items.map((t) => t.number));
+	assert(oByKey.planned.items.some((t) => t.number === tBacklog.number), 'backlog ticket → Planned via override');
+	assert(!oNums.includes(tPlan1.number) && !oNums.includes(tPlan2.number), 'hidden Todo column drops its tickets');
+	assert(oByKey.in_progress.items.some((t) => t.number === tProg.number), 'unoverridden lanes still derive from category');
+	// Reset overrides (null → back to category defaults).
+	await setColumnRoadmapLanes(board.id, { [backlog.id]: null, [todo.id]: null });
+	const rLanes = buildRoadmapLanes(await getBoardColumns(board.id), tickets, true);
+	const rByKey = Object.fromEntries(rLanes.map((l) => [l.key, l]));
+	assert(rByKey.planned.items.some((t) => t.number === tPlan1.number), 'clearing override restores category default');
 
 	// cleanup
 	await db.delete(schema.workspaces).where(eq(schema.workspaces.id, ws.id));

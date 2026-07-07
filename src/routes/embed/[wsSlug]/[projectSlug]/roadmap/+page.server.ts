@@ -8,8 +8,8 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const ctx = await getBySlugs(locals.user, params.wsSlug, params.projectSlug);
-	// Embeds are for public projects only.
-	if (!ctx || ctx.visibility !== 'public') throw error(404, 'Not found');
+	// Embeds are for public projects only, and only when the roadmap is enabled.
+	if (!ctx || ctx.visibility !== 'public' || !ctx.project.roadmapEnabled) throw error(404, 'Not found');
 
 	const boards = await listBoards(ctx.project.id);
 	const board = boards[0];

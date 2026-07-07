@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Copy, Trash2, Check, GitBranch, Settings, Users, TriangleAlert, ArrowLeft, MessageSquare, Send, SlidersHorizontal, Plus, Zap, ArrowRight } from '@lucide/svelte';
+	import { Copy, Trash2, Check, GitBranch, Settings, Users, TriangleAlert, ArrowLeft, MessageSquare, Send, SlidersHorizontal, Plus, Zap, ArrowRight, Map } from '@lucide/svelte';
 	import { PALETTE } from '$lib/colors';
 	import { PRIORITIES } from '$lib/constants';
 	import { PRIORITY_META } from '$lib/priority';
@@ -32,6 +32,7 @@
 
 	const tabs = [
 		{ id: 'general', label: 'General', icon: Settings },
+		{ id: 'roadmap', label: 'Roadmap', icon: Map },
 		{ id: 'members', label: 'Collaborators', icon: Users },
 		{ id: 'github', label: 'GitHub', icon: GitBranch },
 		{ id: 'discord', label: 'Discord', icon: MessageSquare },
@@ -39,6 +40,15 @@
 		{ id: 'automation', label: 'Automation', icon: Zap },
 		{ id: 'danger', label: 'Danger', icon: TriangleAlert }
 	] as const;
+
+	// ── Roadmap lane options ─────────────────────────────────────────────────
+	const ROADMAP_LANES = [
+		{ value: 'planned', label: 'Planned' },
+		{ value: 'in_progress', label: 'In Progress' },
+		{ value: 'shipped', label: 'Shipped' },
+		{ value: 'hidden', label: 'Hidden' }
+	] as const;
+	const laneLabel = (v: string) => ROADMAP_LANES.find((l) => l.value === v)?.label ?? v;
 
 	// ── Automation rules (client-managed via the API) ────────────────────────
 	type Cond = { type: string; value: string };
@@ -242,8 +252,8 @@
 				{#if data.isPublic}
 					<section class="mt-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
 						<h3 class="text-sm font-semibold">Embed</h3>
-						<p class="mt-1 mb-3 text-sm text-neutral-500">Drop your roadmap or changelog into any website with an iframe.</p>
-						{#each [{ label: 'Roadmap', path: 'roadmap', h: 340 }, { label: 'Changelog', path: 'changelog', h: 320 }] as em (em.path)}
+						<p class="mt-1 mb-3 text-sm text-neutral-500">Drop your roadmap or releases into any website with an iframe.</p>
+						{#each [{ label: 'Roadmap', path: 'roadmap', h: 340 }, { label: 'Releases', path: 'changelog', h: 320 }] as em (em.path)}
 							{@const snippet = `<iframe src="${data.origin}/embed/${data.workspace.slug}/${data.project.slug}/${em.path}" width="100%" height="${em.h}" style="border:1px solid #e5e7eb;border-radius:12px" title="${data.project.name} ${em.label}"></iframe>`}
 							<div class="mb-3">
 								<div class="mb-1 flex items-center justify-between">
@@ -259,7 +269,7 @@
 
 						<div class="mt-2 border-t border-neutral-100 pt-3 dark:border-neutral-800">
 							<p class="mb-2 text-xs text-neutral-500">GitHub READMEs can’t embed iframes — use the SVG image instead. This <code class="rounded bg-neutral-100 px-1 text-[11px] dark:bg-neutral-800">&lt;picture&gt;</code> auto-switches with the reader’s light/dark theme:</p>
-							{#each [{ label: 'Roadmap', img: 'roadmap.svg', link: 'roadmap' }, { label: 'Changelog', img: 'changelog.svg', link: 'releases' }] as em (em.img)}
+							{#each [{ label: 'Roadmap', img: 'roadmap.svg', link: 'roadmap' }, { label: 'Releases', img: 'changelog.svg', link: 'releases' }] as em (em.img)}
 								{@const base = `${data.origin}/embed/${data.workspace.slug}/${data.project.slug}/${em.img}`}
 								{@const md = `<a href="${data.origin}/${data.workspace.slug}/${data.project.slug}/${em.link}">\n  <picture>\n    <source media="(prefers-color-scheme: dark)" srcset="${base}?theme=dark">\n    <img alt="${data.project.name} ${em.label}" src="${base}">\n  </picture>\n</a>`}
 								<div class="mb-3">
@@ -277,6 +287,60 @@
 						</div>
 					</section>
 				{/if}
+			{:else if tab === 'roadmap'}
+				<h2 class="mb-1 text-lg font-semibold tracking-tight">Roadmap</h2>
+				<p class="mb-4 text-sm text-neutral-500">
+					Control the public roadmap. Each board column maps to a lane; choose <em>Hidden</em> to keep a column off the roadmap.
+				</p>
+				<form
+					method="POST"
+					action="?/saveRoadmap"
+					use:enhance={() => async ({ update }) => { await update({ reset: false }); }}
+					class="flex flex-col gap-5 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800"
+				>
+					<label class="flex items-start gap-3">
+						<input type="checkbox" name="roadmapEnabled" checked={data.roadmapEnabled} class="mt-0.5 size-4 rounded border-neutral-300 dark:border-neutral-600" />
+						<span>
+							<span class="text-sm font-medium text-neutral-800 dark:text-neutral-200">Show roadmap on the public page</span>
+							<span class="block text-xs text-neutral-500">When off, the Roadmap tab and its public URL are hidden.</span>
+						</span>
+					</label>
+
+					{#if data.roadmap.columns.length}
+						<div class="rounded-lg border border-neutral-200 dark:border-neutral-800">
+							<div class="flex items-center justify-between border-b border-neutral-100 px-4 py-2 text-xs font-medium tracking-wide text-neutral-400 uppercase dark:border-neutral-800">
+								<span>Column</span><span>Lane</span>
+							</div>
+							{#each data.roadmap.columns as c (c.id)}
+								<div class="flex items-center justify-between gap-3 border-b border-neutral-100 px-4 py-2.5 last:border-b-0 dark:border-neutral-800">
+									<span class="flex min-w-0 items-center gap-2">
+										<span class="size-2.5 shrink-0 rounded-full" style={`background:${c.color}`}></span>
+										<span class="truncate text-sm">{c.name}</span>
+									</span>
+									<select
+										name={`lane_${c.id}`}
+										class="shrink-0 rounded-md border border-neutral-200 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+									>
+										<option value="" selected={!c.lane}>Default ({laneLabel(c.defaultLane)})</option>
+										{#each ROADMAP_LANES as l (l.value)}
+											<option value={l.value} selected={c.lane === l.value}>{l.label}</option>
+										{/each}
+									</select>
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<p class="text-sm text-neutral-400">No board columns to configure yet.</p>
+					{/if}
+
+					<div class="flex items-center gap-3">
+						<Button type="submit" size="sm">Save roadmap</Button>
+						{#if f?.roadmapSaved}<span class="text-sm text-green-600">Saved</span>{/if}
+						{#if data.isPublic}
+							<a href={`/${data.workspace.slug}/${data.project.slug}/roadmap`} target="_blank" rel="noreferrer" class="ml-auto text-xs font-medium text-neutral-500 hover:text-neutral-700">View public roadmap →</a>
+						{/if}
+					</div>
+				</form>
 			{:else if tab === 'members'}
 				<h2 class="mb-4 text-lg font-semibold tracking-tight">Collaborators</h2>
 				<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">

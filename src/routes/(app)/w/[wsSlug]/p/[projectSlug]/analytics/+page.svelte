@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { PRIORITY_META } from '$lib/priority';
+	import ProjectPageHeader from '$lib/components/app/ProjectPageHeader.svelte';
 
 	let { data } = $props();
 	const a = $derived(data.analytics);
@@ -19,10 +20,18 @@
 
 <svelte:head><title>Analytics — {data.project.name}</title></svelte:head>
 
-<div class="mx-auto max-w-4xl px-6 py-8">
-	<h1 class="mb-1 text-xl font-semibold tracking-tight">Analytics</h1>
-	<p class="mb-6 text-sm text-neutral-500">{data.project.name}</p>
-
+<div class="flex h-screen flex-col">
+	<ProjectPageHeader section="Analytics" />
+	<div class="min-h-0 flex-1 overflow-y-auto">
+		{#if a.totals.total === 0}
+			<div class="mx-auto max-w-4xl px-8 py-8">
+				<div class="rounded-xl border border-dashed border-neutral-300 py-20 text-center dark:border-neutral-700">
+					<p class="text-sm text-neutral-400">No ticket data yet.</p>
+					<p class="mt-1 text-xs text-neutral-400">Analytics appear once tickets are created and moved.</p>
+				</div>
+			</div>
+		{:else}
+		<div class="mx-auto max-w-4xl px-8 py-8">
 	<!-- Stat cards -->
 	<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
 		{#each stats as s (s.label)}
@@ -96,5 +105,8 @@
 				<p class="text-sm text-neutral-400">No labels used yet.</p>
 			{/if}
 		</section>
+	</div>
+		</div>
+		{/if}
 	</div>
 </div>

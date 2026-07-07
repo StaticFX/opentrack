@@ -2,8 +2,6 @@
 	import { page } from '$app/state';
 	import {
 		Settings,
-		Lock,
-		Globe,
 		Lightbulb,
 		ExternalLink,
 		Tag,
@@ -20,6 +18,7 @@
 		Link2
 	} from '@lucide/svelte';
 	import Button from '$lib/components/ui/Button.svelte';
+	import ProjectPageHeader from '$lib/components/app/ProjectPageHeader.svelte';
 
 	let { data } = $props();
 
@@ -34,7 +33,7 @@
 		{ label: 'Boards', value: data.stats.boards, icon: LayoutGrid },
 		{ label: 'Suggestions', value: data.stats.suggestions, icon: Lightbulb },
 		{ label: 'Releases', value: data.stats.releases, icon: Tag },
-		{ label: 'Members', value: data.stats.members, icon: Users }
+		{ label: 'Collaborators', value: data.stats.members, icon: Users }
 	]);
 
 	// ── Activity formatting (shared shape with the Activity page) ──
@@ -82,22 +81,7 @@
 
 <div class="flex h-screen flex-col">
 	<!-- Header -->
-	<header class="flex items-center justify-between border-b border-neutral-200 px-5 py-2.5 dark:border-neutral-800">
-		<div class="flex items-center gap-2">
-			<span class="size-3 rounded-full" style={`background:${data.project.color ?? '#9ca3af'}`}></span>
-			<h1 class="text-sm font-semibold">{data.project.name}</h1>
-			{#if data.project.visibility === 'private'}
-				<Lock size={13} class="text-neutral-400" />
-			{:else if data.project.visibility === 'public'}
-				<Globe size={13} class="text-neutral-400" />
-			{/if}
-			<span class="text-neutral-300 dark:text-neutral-700">/</span>
-			<span class="text-sm text-neutral-500">Overview</span>
-		</div>
-		{#if firstBoard}
-			<Button variant="ghost" size="sm" href={`${base}/b/${firstBoard.id}`}><LayoutGrid size={15} /> Open board</Button>
-		{/if}
-	</header>
+	<ProjectPageHeader section="Overview" />
 
 	<!-- Body -->
 	<div class="min-h-0 flex-1 overflow-y-auto">
@@ -144,12 +128,12 @@
 			<div class="grid gap-8 lg:grid-cols-[1fr_18rem]">
 				<!-- Boards + activity -->
 				<div class="min-w-0 space-y-8">
-					<!-- Boards -->
-					<section>
-						<div class="mb-2 flex items-center justify-between">
-							<h3 class="text-sm font-semibold">Boards</h3>
-						</div>
-						{#if data.boards.length}
+					<!-- Boards: only surfaced with 2+ (the sidebar + Open board cover a single board). -->
+					{#if data.boards.length > 1}
+						<section>
+							<div class="mb-2 flex items-center justify-between">
+								<h3 class="text-sm font-semibold">Boards</h3>
+							</div>
 							<ul class="divide-y divide-neutral-100 rounded-xl border border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
 								{#each data.boards as b (b.id)}
 									<li>
@@ -161,10 +145,8 @@
 									</li>
 								{/each}
 							</ul>
-						{:else}
-							<div class="rounded-xl border border-dashed border-neutral-300 py-10 text-center text-sm text-neutral-400 dark:border-neutral-700">No boards yet.</div>
-						{/if}
-					</section>
+						</section>
+					{/if}
 
 					<!-- Recent activity -->
 					<section>
@@ -205,7 +187,7 @@
 				<!-- Sidebar: members + quick links -->
 				<aside class="space-y-6">
 					<section>
-						<h3 class="mb-2 text-sm font-semibold">Members</h3>
+						<h3 class="mb-2 text-sm font-semibold">Collaborators</h3>
 						{#if data.members.length}
 							<ul class="space-y-2">
 								{#each data.members as m (m.userId)}
@@ -223,19 +205,17 @@
 								{/each}
 							</ul>
 						{:else}
-							<p class="text-sm text-neutral-400">No members yet.</p>
+							<p class="text-sm text-neutral-400">No collaborators yet.</p>
 						{/if}
 						{#if data.canManageProject}
-							<a href={`${base}/settings`} class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-700"><Plus size={13} /> Manage members</a>
+							<a href={`${base}/settings`} class="mt-3 inline-flex items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-700"><Plus size={13} /> Manage collaborators</a>
 						{/if}
 					</section>
 
 					<section>
-						<h3 class="mb-2 text-sm font-semibold">Quick links</h3>
+						<h3 class="mb-2 text-sm font-semibold">Public page</h3>
 						<div class="flex flex-col gap-1 text-sm">
-							<a href={`/${wsSlug}/${projectSlug}/suggestions`} class="flex items-center gap-2 rounded-md px-2 py-1.5 text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"><Lightbulb size={14} class="text-neutral-400" /> Suggestions</a>
-							<a href={`${base}/activity`} class="flex items-center gap-2 rounded-md px-2 py-1.5 text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"><ActivityIcon size={14} class="text-neutral-400" /> Activity</a>
-							<a href={`/${wsSlug}/${projectSlug}`} class="flex items-center gap-2 rounded-md px-2 py-1.5 text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"><ExternalLink size={14} class="text-neutral-400" /> Public page</a>
+							<a href={`/${wsSlug}/${projectSlug}`} target="_blank" rel="noreferrer" class="flex items-center gap-2 rounded-md px-2 py-1.5 text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"><ExternalLink size={14} class="text-neutral-400" /> View public page</a>
 						</div>
 					</section>
 				</aside>

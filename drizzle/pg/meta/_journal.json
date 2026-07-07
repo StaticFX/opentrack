@@ -169,6 +169,13 @@
       "when": 1783369700101,
       "tag": "0023_odd_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1783418037556,
+      "tag": "0024_roadmap_config",
+      "breakpoints": true
     }
   ]
 }

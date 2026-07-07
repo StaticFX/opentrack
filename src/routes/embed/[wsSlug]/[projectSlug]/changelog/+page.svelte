@@ -2,11 +2,11 @@
 	let { data } = $props();
 </script>
 
-<svelte:head><title>{data.project.name} — Changelog</title></svelte:head>
+<svelte:head><title>{data.project.name} — Releases</title></svelte:head>
 
 <div class="embed">
 	<div class="hd">
-		<span>{data.project.name} · Changelog</span>
+		<span>{data.project.name} · Releases</span>
 		<a href={data.href} target="_blank" rel="noreferrer">Open ↗</a>
 	</div>
 	{#each data.releases as r (r.version)}

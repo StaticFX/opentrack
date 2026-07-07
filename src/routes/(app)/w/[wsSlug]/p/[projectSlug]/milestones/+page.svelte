@@ -1,13 +1,12 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
-	import { Milestone, ArrowLeft, Plus, Trash2, Check, RotateCcw, Pencil, GitBranch } from '@lucide/svelte';
+	import { Milestone, Plus, Trash2, Check, RotateCcw, Pencil, GitBranch } from '@lucide/svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 	import Textarea from '$lib/components/ui/Textarea.svelte';
+	import ProjectPageHeader from '$lib/components/app/ProjectPageHeader.svelte';
 
 	let { data } = $props();
-	const base = $derived(`/w/${page.params.wsSlug}/p/${page.params.projectSlug}`);
 	const jsonHeaders = { 'content-type': 'application/json' };
 
 	let showForm = $state(false);
@@ -83,19 +82,19 @@
 
 <svelte:head><title>Milestones — {data.project.name}</title></svelte:head>
 
-<div class="mx-auto max-w-3xl px-8 py-8">
-	<a href={`${base}`} class="mb-4 inline-flex items-center gap-1 text-sm text-neutral-400 hover:text-neutral-600"><ArrowLeft size={14} /> Board</a>
-	<header class="mb-6 flex items-center justify-between">
-		<div>
-			<h1 class="text-xl font-semibold tracking-tight">Milestones</h1>
-			{#if data.githubRepo}
-				<p class="mt-0.5 flex items-center gap-1 text-xs text-neutral-400"><GitBranch size={12} /> Synced with {data.githubRepo}</p>
+<div class="flex h-screen flex-col">
+	<ProjectPageHeader section="Milestones">
+		{#snippet action()}
+			{#if data.canManage && !showForm}
+				<Button variant="primary" size="sm" onclick={() => (showForm = true)}><Plus size={15} /> New milestone</Button>
 			{/if}
-		</div>
-		{#if data.canManage && !showForm}
-			<Button variant="primary" onclick={() => (showForm = true)}><Plus size={15} /> New milestone</Button>
-		{/if}
-	</header>
+		{/snippet}
+	</ProjectPageHeader>
+	<div class="min-h-0 flex-1 overflow-y-auto">
+		<div class="mx-auto max-w-3xl px-8 py-8">
+	{#if data.githubRepo}
+		<p class="mb-4 flex items-center gap-1 text-xs text-neutral-400"><GitBranch size={12} /> Synced with {data.githubRepo}</p>
+	{/if}
 
 	{#if showForm}
 		<div class="mb-6 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
@@ -184,4 +183,6 @@
 			No milestones yet.{#if data.canManage} Create one to group tickets and sync with GitHub.{/if}
 		</div>
 	{/if}
+		</div>
+	</div>
 </div>

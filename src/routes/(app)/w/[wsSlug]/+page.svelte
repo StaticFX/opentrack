@@ -22,7 +22,7 @@
 
 	const stats = $derived([
 		{ label: 'Projects', value: data.stats.projects, icon: FolderKanban },
-		{ label: 'Members', value: data.stats.members, icon: Users },
+		{ label: 'Collaborators', value: data.stats.members, icon: Users },
 		{ label: 'Open tickets', value: data.stats.openTickets, icon: CircleDot }
 	]);
 
@@ -192,7 +192,7 @@
 		<!-- Members aside -->
 		<aside class="space-y-6">
 			<section>
-				<h2 class="mb-3 text-sm font-semibold">Members</h2>
+				<h2 class="mb-3 text-sm font-semibold">Collaborators</h2>
 				{#if data.members.length}
 					<ul class="space-y-2">
 						{#each data.members as m (m.userId)}

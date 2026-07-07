@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { ArrowLeft, Plus, ArrowRight, CircleCheck, MessageSquare, Lightbulb, Tag, Activity as ActivityIcon } from '@lucide/svelte';
+	import { Plus, ArrowRight, CircleCheck, MessageSquare, Lightbulb, Tag, Activity as ActivityIcon } from '@lucide/svelte';
+	import ProjectPageHeader from '$lib/components/app/ProjectPageHeader.svelte';
 
 	let { data } = $props();
-	const base = $derived(`/w/${page.params.wsSlug}/p/${page.params.projectSlug}`);
 
 	function subject(a: any) {
 		if (a.subjectType === 'ticket' && a.ticketNumber != null) return `#${a.ticketNumber} ${a.ticketTitle ?? ''}`;
@@ -43,28 +42,30 @@
 
 <svelte:head><title>Activity — {data.project.name}</title></svelte:head>
 
-<div class="mx-auto max-w-2xl px-8 py-8">
-	<a href={base} class="mb-4 inline-flex items-center gap-1 text-sm text-neutral-400 hover:text-neutral-600"><ArrowLeft size={14} /> Board</a>
-	<h1 class="mb-6 text-xl font-semibold tracking-tight">Activity</h1>
-
-	{#if data.activity.length}
-		<ul class="space-y-1">
-			{#each data.activity as a (a.id)}
-				{@const Icon = icon(a.type)}
-				<li class="flex items-start gap-3 rounded-lg px-2 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
-					<div class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-neutral-100 text-neutral-500 dark:bg-neutral-800">
-						<Icon size={13} />
-					</div>
-					<p class="flex-1 text-sm">
-						<span class="font-medium">{a.actorName ?? 'Someone'}</span>
-						<span class="text-neutral-500">{verb(a)}</span>
-						<span>{subject(a)}</span>
-						<span class="ml-1 text-xs text-neutral-400">· {ago(a.createdAt)}</span>
-					</p>
-				</li>
-			{/each}
-		</ul>
-	{:else}
-		<div class="rounded-xl border border-dashed border-neutral-300 py-16 text-center text-sm text-neutral-400 dark:border-neutral-700">No activity yet.</div>
-	{/if}
+<div class="flex h-screen flex-col">
+	<ProjectPageHeader section="Activity" />
+	<div class="min-h-0 flex-1 overflow-y-auto">
+		<div class="mx-auto max-w-2xl px-8 py-8">
+			{#if data.activity.length}
+				<ul class="space-y-1">
+					{#each data.activity as a (a.id)}
+						{@const Icon = icon(a.type)}
+						<li class="flex items-start gap-3 rounded-lg px-2 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
+							<div class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-neutral-100 text-neutral-500 dark:bg-neutral-800">
+								<Icon size={13} />
+							</div>
+							<p class="flex-1 text-sm">
+								<span class="font-medium">{a.actorName ?? 'Someone'}</span>
+								<span class="text-neutral-500">{verb(a)}</span>
+								<span>{subject(a)}</span>
+								<span class="ml-1 text-xs text-neutral-400">· {ago(a.createdAt)}</span>
+							</p>
+						</li>
+					{/each}
+				</ul>
+			{:else}
+				<div class="rounded-xl border border-dashed border-neutral-300 py-16 text-center text-sm text-neutral-400 dark:border-neutral-700">No activity yet.</div>
+			{/if}
+		</div>
+	</div>
 </div>

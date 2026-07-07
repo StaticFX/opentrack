@@ -62,3 +62,27 @@ export async function getBoardColumns(boardId: string): Promise<BoardColumn[]> {
 		.where(eq(schema.boardColumns.boardId, boardId))
 		.orderBy(asc(schema.boardColumns.position));
 }
+
+/**
+ * Set the public-roadmap lane override for a board's columns. `lanes` maps a
+ * column id to a lane key (`planned`/`in_progress`/`shipped`/`hidden`) or null
+ * to fall back to the column's category default. Only columns on `boardId` are
+ * touched; ids not present in the map are left unchanged.
+ */
+export async function setColumnRoadmapLanes(
+	boardId: string,
+	lanes: Record<string, string | null>
+): Promise<void> {
+	const cols = await db
+		.select({ id: schema.boardColumns.id })
+		.from(schema.boardColumns)
+		.where(eq(schema.boardColumns.boardId, boardId));
+	const onBoard = new Set(cols.map((c) => c.id));
+	for (const [id, lane] of Object.entries(lanes)) {
+		if (!onBoard.has(id)) continue;
+		await db
+			.update(schema.boardColumns)
+			.set({ roadmapLane: lane })
+			.where(eq(schema.boardColumns.id, id));
+	}
+}

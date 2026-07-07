@@ -8,9 +8,13 @@
 	const base = $derived(`/${data.workspace.slug}/${data.project.slug}`);
 	const tabs = $derived([
 		{ href: base, label: 'Board', icon: LayoutGrid, match: (p: string) => p === base },
-		{ href: `${base}/roadmap`, label: 'Roadmap', icon: Map, match: (p: string) => p.startsWith(`${base}/roadmap`) },
+		...(data.project.roadmapEnabled
+			? [{ href: `${base}/roadmap`, label: 'Roadmap', icon: Map, match: (p: string) => p.startsWith(`${base}/roadmap`) }]
+			: []),
 		{ href: `${base}/suggestions`, label: 'Suggestions', icon: Lightbulb, match: (p: string) => p.startsWith(`${base}/suggestions`) },
-		{ href: `${base}/releases`, label: 'Releases', icon: Tag, match: (p: string) => p.startsWith(`${base}/releases`) }
+		...(data.hasReleases
+			? [{ href: `${base}/releases`, label: 'Releases', icon: Tag, match: (p: string) => p.startsWith(`${base}/releases`) }]
+			: [])
 	]);
 </script>
 

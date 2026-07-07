@@ -202,8 +202,10 @@
 					<OIcon size={15} class="text-neutral-400" /> Overview
 				</a>
 			{/if}
-			<!-- Boards -->
-			<div class="px-2 pt-2 pb-1 text-[11px] font-medium tracking-wide text-neutral-400 uppercase">Boards</div>
+			<!-- Boards: only show the section header once there's more than one. -->
+			{#if boards.length > 1}
+				<div class="px-2 pt-2 pb-1 text-[11px] font-medium tracking-wide text-neutral-400 uppercase">Boards</div>
+			{/if}
 			{#each boards as b (b.id)}
 				{@const href = `${navBase}/b/${b.id}`}
 				<a

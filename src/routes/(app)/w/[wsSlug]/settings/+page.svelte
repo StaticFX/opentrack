@@ -153,7 +153,7 @@
 
 	<!-- Members -->
 	<section class="mt-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
-		<h2 class="mb-4 text-sm font-semibold">Members</h2>
+		<h2 class="mb-4 text-sm font-semibold">Collaborators</h2>
 		<ul class="divide-y divide-neutral-100 dark:divide-neutral-800">
 			{#each data.members as m (m.userId)}
 				<li class="flex items-center gap-3 py-2.5">

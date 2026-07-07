@@ -180,6 +180,7 @@ export interface UpdateProjectInput {
 	icon?: string | null;
 	visibility?: Visibility;
 	allowPublicComments?: boolean;
+	roadmapEnabled?: boolean;
 	githubProgressLabels?: string[] | null;
 	githubCloseColumns?: string[] | null;
 }
@@ -196,6 +197,7 @@ export async function updateProject(projectId: string, patch: UpdateProjectInput
 			...(patch.allowPublicComments !== undefined
 				? { allowPublicComments: patch.allowPublicComments }
 				: {}),
+			...(patch.roadmapEnabled !== undefined ? { roadmapEnabled: patch.roadmapEnabled } : {}),
 			...(patch.githubProgressLabels !== undefined
 				? { githubProgressLabels: patch.githubProgressLabels }
 				: {}),

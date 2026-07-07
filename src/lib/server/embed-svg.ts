@@ -124,7 +124,7 @@ export function changelogSvg(
 
 	let out = `<circle cx="27" cy="26" r="6" fill="${p.accent}"/>`;
 	out += `<text x="41" y="31" font-size="17" font-weight="700" fill="${p.fg}">${esc(clip(projectName, 28))}</text>`;
-	out += `<text x="20" y="56" font-size="12" fill="${p.muted}">Changelog</text>`;
+	out += `<text x="20" y="56" font-size="12" fill="${p.muted}">Releases</text>`;
 	out += `<line x1="20" y1="68" x2="${W - 20}" y2="68" stroke="${p.border}"/>`;
 
 	shown.forEach((r, i) => {
