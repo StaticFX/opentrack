@@ -23,6 +23,10 @@ async function main() {
 	assert(rm.startsWith('<svg') && rm.includes('</svg>'), 'roadmap SVG well-formed');
 	assert(rm.includes('Acme &amp; Co &lt;test&gt;'), 'roadmap XML-escapes the project name');
 	assert(rm.includes('Powered by OpenTrack'), 'roadmap has footer');
+	assert(rm.includes('#6366f1'), 'light roadmap uses the brand indigo accent');
+	assert(rm.includes('fill="#ffffff"'), 'light roadmap has a white background');
+	const rmDark = roadmapSvg('Dark', [], 'dark');
+	assert(rmDark.includes('fill="#171717"') && rmDark.includes('#818cf8'), 'dark roadmap uses dark bg + brighter accent');
 	const cl = changelogSvg('Proj', [{ version: 'v1.0', name: 'First', releasedAt: new Date('2026-01-02T00:00:00Z') }]);
 	assert(cl.startsWith('<svg') && cl.includes('v1.0') && cl.includes('2026-01-02'), 'changelog SVG has version + date');
 	assert(changelogSvg('Empty', []).includes('No releases yet'), 'empty changelog handled');

@@ -258,14 +258,16 @@
 						{/each}
 
 						<div class="mt-2 border-t border-neutral-100 pt-3 dark:border-neutral-800">
-							<p class="mb-2 text-xs text-neutral-500">GitHub READMEs can’t embed iframes — use the SVG image instead (updates automatically):</p>
+							<p class="mb-2 text-xs text-neutral-500">GitHub READMEs can’t embed iframes — use the SVG image instead. This <code class="rounded bg-neutral-100 px-1 text-[11px] dark:bg-neutral-800">&lt;picture&gt;</code> auto-switches with the reader’s light/dark theme:</p>
 							{#each [{ label: 'Roadmap', img: 'roadmap.svg', link: 'roadmap' }, { label: 'Changelog', img: 'changelog.svg', link: 'releases' }] as em (em.img)}
-								{@const md = `[![${data.project.name} ${em.label}](${data.origin}/embed/${data.workspace.slug}/${data.project.slug}/${em.img})](${data.origin}/${data.workspace.slug}/${data.project.slug}/${em.link})`}
+								{@const base = `${data.origin}/embed/${data.workspace.slug}/${data.project.slug}/${em.img}`}
+								{@const md = `<a href="${data.origin}/${data.workspace.slug}/${data.project.slug}/${em.link}">\n  <picture>\n    <source media="(prefers-color-scheme: dark)" srcset="${base}?theme=dark">\n    <img alt="${data.project.name} ${em.label}" src="${base}">\n  </picture>\n</a>`}
 								<div class="mb-3">
 									<div class="mb-1 flex items-center justify-between">
-										<span class="text-xs font-medium text-neutral-500">{em.label} · Markdown (SVG)</span>
+										<span class="text-xs font-medium text-neutral-500">{em.label} · Markdown / HTML (auto dark mode)</span>
 										<div class="flex items-center gap-2">
-											<a href={`${data.origin}/embed/${data.workspace.slug}/${data.project.slug}/${em.img}`} target="_blank" rel="noreferrer" class="text-xs text-brand-600 hover:underline">Preview</a>
+											<a href={base} target="_blank" rel="noreferrer" class="text-xs text-brand-600 hover:underline">Light</a>
+											<a href={`${base}?theme=dark`} target="_blank" rel="noreferrer" class="text-xs text-brand-600 hover:underline">Dark</a>
 											<button type="button" onclick={() => copy(md)} class="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"><Copy size={12} /> Copy</button>
 										</div>
 									</div>
