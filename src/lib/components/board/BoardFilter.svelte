@@ -45,17 +45,24 @@
 	</button>
 
 	{#if open}
+		<!-- Mobile: dim backdrop behind the bottom sheet. Desktop: no backdrop. -->
+		<div class="fixed inset-0 z-30 bg-neutral-950/40 sm:hidden"></div>
 		<div
 			use:clickOutside={() => (open = false)}
-			class="absolute right-0 top-full z-30 mt-1 flex max-h-[70vh] w-72 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-xl dark:border-neutral-800 dark:bg-neutral-900"
+			class="absolute left-0 top-full z-40 mt-1 flex max-h-[70vh] w-72 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-xl max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:mt-0 max-sm:max-h-[75vh] max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:border-0 max-sm:border-t max-sm:shadow-2xl dark:border-neutral-800 dark:bg-neutral-900"
 		>
+			<!-- Grab-handle affordance (mobile sheet only). -->
+			<div class="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-neutral-300 sm:hidden dark:bg-neutral-700"></div>
 			<div class="flex items-center justify-between border-b border-neutral-100 px-3 py-2 dark:border-neutral-800">
 				<span class="text-xs font-semibold text-neutral-500">Filters</span>
-				{#if count}
-					<button onclick={onclear} class="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"><X size={12} /> Clear all</button>
-				{/if}
+				<div class="flex items-center gap-1">
+					{#if count}
+						<button onclick={onclear} class="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"><X size={12} /> Clear all</button>
+					{/if}
+					<button onclick={() => (open = false)} class="rounded p-1 text-neutral-400 hover:bg-neutral-100 sm:hidden dark:hover:bg-neutral-800" aria-label="Close"><X size={16} /></button>
+				</div>
 			</div>
-			<div class="min-h-0 flex-1 overflow-y-auto p-1">
+			<div class="min-h-0 flex-1 overflow-y-auto p-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
 				{#each visible as section (section.id)}
 					{@const sel = selected(section)}
 					<div class="px-2 pt-2 pb-1 text-[11px] font-medium tracking-wide text-neutral-400 uppercase">{section.label}</div>
