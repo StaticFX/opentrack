@@ -4,6 +4,7 @@ import { AtSign, Bell, CheckCircle2, Clock, Lightbulb, MessageSquare, Pencil, Us
 export interface NotificationItem {
 	id: string;
 	type: string;
+	subjectType: string;
 	title: string;
 	body: string | null;
 	url: string;
@@ -11,6 +12,22 @@ export interface NotificationItem {
 	createdAt: string;
 	actorName: string | null;
 	actorAvatar: string | null;
+}
+
+/**
+ * The link to follow from an in-app notification. Stored `url`s are PUBLIC deep
+ * links (resolved when the notification is created, so push/anon recipients can
+ * open them). Inside the app, route ticket notifications to the internal ticket
+ * view instead — `/w/{ws}/p/{proj}/t/{n}` redirects members onto the board with
+ * the ticket open, and falls back to the public page for non-members. Other
+ * subjects (suggestions/releases) keep their public link. Idempotent.
+ */
+export function notificationHref(n: { subjectType?: string; url: string }): string {
+	if (n.subjectType === 'ticket') {
+		const m = n.url.match(/^\/([^/]+)\/([^/]+)\/t\/(\d+)$/);
+		if (m) return `/w/${m[1]}/p/${m[2]}/t/${m[3]}`;
+	}
+	return n.url;
 }
 
 export function notificationIcon(type: string): typeof Bell {

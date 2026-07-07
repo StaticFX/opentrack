@@ -3,7 +3,7 @@
 	import { Bell, Check } from '@lucide/svelte';
 	import { clickOutside } from '$lib/utils/clickOutside';
 	import { ago } from '$lib/time';
-	import { notificationIcon, notificationTint, type NotificationItem } from '$lib/notifications';
+	import { notificationIcon, notificationTint, notificationHref, type NotificationItem } from '$lib/notifications';
 
 	let open = $state(false);
 	let items = $state<NotificationItem[]>([]);
@@ -90,7 +90,7 @@
 				{#each items as n (n.id)}
 					{@const Icon = notificationIcon(n.type)}
 					<a
-						href={n.url}
+						href={notificationHref(n)}
 						onclick={() => openItem(n)}
 						class={`flex gap-2.5 border-b border-neutral-50 px-3 py-2.5 hover:bg-neutral-50 dark:border-neutral-800/60 dark:hover:bg-neutral-800/50 ${!n.readAt ? 'bg-brand-50 dark:bg-brand-500/10' : ''}`}
 					>

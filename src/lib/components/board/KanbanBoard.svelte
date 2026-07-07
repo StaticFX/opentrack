@@ -79,6 +79,21 @@
 	let showCreate = $state(false);
 	let createCol = $state<string | undefined>(undefined);
 
+	// Deep link: `?ticket=<id>` opens that ticket (used by in-app notifications).
+	const urlTicket = $derived(page.url.searchParams.get('ticket'));
+	$effect(() => {
+		if (urlTicket) selectedTicket = urlTicket;
+	});
+	function closeTicket() {
+		selectedTicket = null;
+		// Drop the deep-link param so a refresh / back doesn't reopen it.
+		if (page.url.searchParams.has('ticket')) {
+			const u = new URL(page.url);
+			u.searchParams.delete('ticket');
+			goto(`${u.pathname}${u.search}`, { noScroll: true, replaceState: true, keepFocus: true });
+		}
+	}
+
 	function openCreate(colId?: string) {
 		if (!canEdit) return;
 		createCol = colId;
@@ -457,7 +472,7 @@
 		{labels}
 		{columns}
 		{currentUser}
-		onclose={() => (selectedTicket = null)}
+		onclose={closeTicket}
 		onchanged={() => invalidate(`board:${boardId}`)}
 	/>
 {/if}

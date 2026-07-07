@@ -85,6 +85,9 @@ async function main() {
 	assert(aliceNotifs[0].title === tref?.title, 'notification title = subject title');
 	assert(aliceNotifs[0].body === 'Bob commented', 'notification body = action line');
 	assert(aliceNotifs[0].url === tref?.url, 'notification carries deep link');
+	// subjectType is what lets the in-app inbox/bell rewrite the public ticket
+	// url to the internal ticket route (see notificationHref in $lib/notifications).
+	assert(aliceNotifs[0].subjectType === 'ticket', 'notification carries subjectType');
 	assert((await listNotifications(bob.id, {})).length === 0, 'actor (bob) not notified');
 	const jobsAfter = (await db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'notify:push'))).length;
 	assert(jobsAfter === jobsBefore + 1, 'one push job enqueued (one recipient)');

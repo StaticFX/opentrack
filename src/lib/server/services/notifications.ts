@@ -273,6 +273,7 @@ export async function resolveMentions(usernames: string[]): Promise<string[]> {
 export interface NotificationView {
 	id: string;
 	type: string;
+	subjectType: string;
 	title: string;
 	body: string | null;
 	url: string;
@@ -293,6 +294,7 @@ export async function listNotifications(
 		.select({
 			id: schema.notifications.id,
 			type: schema.notifications.type,
+			subjectType: schema.notifications.subjectType,
 			title: schema.notifications.title,
 			body: schema.notifications.body,
 			url: schema.notifications.url,

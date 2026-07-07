@@ -2,7 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import { CheckCheck } from '@lucide/svelte';
 	import { ago } from '$lib/time';
-	import { notificationIcon, notificationTint } from '$lib/notifications';
+	import { notificationIcon, notificationTint, notificationHref } from '$lib/notifications';
 
 	let { data } = $props();
 
@@ -50,7 +50,7 @@
 		{#each data.items as n (n.id)}
 			{@const Icon = notificationIcon(n.type)}
 			<a
-				href={n.url}
+				href={notificationHref(n)}
 				onclick={() => openItem(n.id, n.readAt)}
 				class={`flex gap-3 border-b border-neutral-100 px-4 py-3 last:border-0 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800/40 ${!n.readAt ? 'bg-brand-50 dark:bg-brand-500/10' : ''}`}
 			>
