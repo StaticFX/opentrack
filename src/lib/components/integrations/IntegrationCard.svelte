@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Check } from '@lucide/svelte';
-	import { iconFor } from '$lib/integrations/icons';
+	import BrandIcon from './BrandIcon.svelte';
 	import { cn } from '$lib/utils/cn';
 
 	type Status = 'connected' | 'disconnected' | 'soon' | 'unavailable';
@@ -21,7 +21,6 @@
 		onclick?: () => void;
 	} = $props();
 
-	const Icon = $derived(iconFor(icon));
 	const disabled = $derived(status === 'soon' || status === 'unavailable');
 
 	const badge: Record<Status, { label: string; class: string }> = {
@@ -65,7 +64,7 @@
 					: 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-300'
 			)}
 		>
-			<Icon size={18} />
+			<BrandIcon name={icon} size={18} />
 		</div>
 		<div class="min-w-0 flex-1">
 			<div class="flex items-center gap-1.5">

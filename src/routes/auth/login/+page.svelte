@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import BrandIcon from '$lib/components/integrations/BrandIcon.svelte';
 
 	let { data, form } = $props();
 
@@ -9,7 +10,6 @@
 		discord: 'bg-[#5865F2] hover:bg-[#4752c4] text-white',
 		modrinth: 'bg-[#1bd96a] hover:bg-[#17b959] text-black'
 	};
-	const isUrl = (s: string | null) => !!s && /^https?:\/\//.test(s);
 
 	const redirectParam = $derived(
 		data.redirectTo && data.redirectTo !== '/'
@@ -39,11 +39,7 @@
 					href={`/auth/oauth/${provider.key}${redirectParam}`}
 					class={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition ${brandClass[provider.key] ?? 'border border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800'}`}
 				>
-					{#if isUrl(provider.icon)}
-						<img src={provider.icon} alt="" class="size-4" />
-					{:else if provider.icon}
-						<span class="text-base leading-none">{provider.icon}</span>
-					{/if}
+					<BrandIcon name={provider.icon || provider.key} size={18} class="shrink-0" />
 					Continue with {provider.label}
 				</a>
 			{/each}

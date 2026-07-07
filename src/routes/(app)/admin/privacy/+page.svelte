@@ -12,7 +12,6 @@
 	const f = $derived(form as Record<string, any> | null);
 
 	const providerLabel: Record<string, string> = { github: 'GitHub', discord: 'Discord', modrinth: 'Modrinth' };
-	const providerIcon: Record<string, string> = { github: 'git-branch', discord: 'message-square', modrinth: 'key-round' };
 
 	// Selection: a built-in provider key, `custom:<id>`, or `__add__`.
 	let selected = $state<string>(data.oauth[0]?.provider ?? '__add__');
@@ -50,7 +49,7 @@
 				<IntegrationCard
 					name={providerLabel[p.provider]}
 					blurb={p.active ? 'Sign-in enabled.' : 'Paste OAuth app credentials to enable.'}
-					icon={providerIcon[p.provider] ?? 'key-round'}
+					icon={p.provider}
 					status={p.active ? 'connected' : 'disconnected'}
 					selected={selected === p.provider}
 					onclick={() => (selected = p.provider)}
@@ -60,7 +59,7 @@
 				<IntegrationCard
 					name={p.label}
 					blurb="Custom OAuth2 / OIDC provider."
-					icon="key-round"
+					icon={p.icon || p.key}
 					status={p.enabled ? 'connected' : 'disconnected'}
 					selected={selected === `custom:${p.id}`}
 					onclick={() => (selected = `custom:${p.id}`)}

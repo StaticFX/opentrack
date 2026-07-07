@@ -5,6 +5,7 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import Field from '$lib/components/ui/Field.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
+	import BrandIcon from '$lib/components/integrations/BrandIcon.svelte';
 
 	let { data, form } = $props();
 
@@ -70,7 +71,6 @@
 	const user = $derived(data.user as { displayName: string; email: string | null; avatarUrl: string | null });
 
 	const builtinLabel: Record<string, string> = { github: 'GitHub', discord: 'Discord', modrinth: 'Modrinth' };
-	const isUrl = (s: string | null) => !!s && /^https?:\/\//.test(s);
 
 	const enabledByKey = $derived(new Map(data.enabledProviders.map((p) => [p.key, p])));
 	const linkedByKey = $derived(new Map(data.linked.map((l) => [l.provider, l])));
@@ -125,11 +125,9 @@
 				{@const linked = linkedByKey.get(key)}
 				{@const enabled = enabledByKey.has(key)}
 				<div class="flex items-center gap-3 rounded-lg border border-neutral-100 p-3 dark:border-neutral-800/60">
-					{#if isUrl(p.icon)}
-						<img src={p.icon} alt="" class="size-5 shrink-0" />
-					{:else if p.icon}
-						<span class="grid size-5 shrink-0 place-items-center text-base leading-none">{p.icon}</span>
-					{/if}
+					<span class="grid size-5 shrink-0 place-items-center text-neutral-600 dark:text-neutral-300">
+						<BrandIcon name={p.icon || key} size={20} />
+					</span>
 					<div class="min-w-0 flex-1">
 						<p class="text-sm font-medium">{p.label}</p>
 						{#if linked}

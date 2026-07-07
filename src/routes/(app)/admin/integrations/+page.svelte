@@ -45,7 +45,7 @@
 					<IntegrationCard
 						name={d.name}
 						blurb={d.blurb}
-						icon={d.icon}
+						icon={d.key}
 						status={statusFor(d.key)}
 						selected={selected === d.key}
 						onclick={() => (selected = d.key)}

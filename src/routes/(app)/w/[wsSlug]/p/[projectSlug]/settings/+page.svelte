@@ -417,7 +417,7 @@
 								<IntegrationCard
 									name={d.name}
 									blurb={d.blurb}
-									icon={d.icon}
+									icon={d.key}
 									status={integrationStatus(d.key)}
 									selected={selectedIntegration === d.key}
 									onclick={() => (selectedIntegration = d.key)}
