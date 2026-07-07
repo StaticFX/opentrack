@@ -3,6 +3,7 @@ import { CLOSED_CATEGORIES } from '$lib/constants';
 import { priorityLabelName } from '$lib/github-labels';
 import { db, schema } from '$lib/server/db';
 import { boardEvent } from '$lib/server/realtime/board';
+import { enqueueWorkflowEvent } from '$lib/server/services/workflow';
 import { rankAfter } from '$lib/server/util/rank';
 import { installationOctokit } from './app';
 import { githubLoginsForUsers, resolveGithubUsers } from './identity';
@@ -366,6 +367,7 @@ async function upsertIssueTicket(project: Project, issue: Parameters<typeof issu
 	const snapshot = project.githubSyncAssignees ? fields.assignees : undefined;
 
 	let ticketId: string;
+	const isNew = !existing;
 	if (existing) {
 		const wasClosed = !!existing.closedAt;
 		let columnId = existing.columnId;
@@ -432,6 +434,14 @@ async function upsertIssueTicket(project: Project, issue: Parameters<typeof issu
 		await reconcileTicketAssignees(ticketId, [...resolved.values()].map((u) => u.userId));
 	}
 	await boardEvent(board.id, 'ticket.synced', { issue: fields.githubIssueNumber });
+
+	// A brand-new ticket synced in from GitHub fires the `ticket.created`
+	// automation, same as one created in-app — but only after its labels /
+	// assignees are reconciled so has-label / assignee conditions can match.
+	// (Edits to an existing issue take the `existing` branch and don't re-fire.)
+	if (isNew) {
+		await enqueueWorkflowEvent(project.id, 'ticket.created', ticketId);
+	}
 }
 
 async function applyIssue(action: string, payload: any) {

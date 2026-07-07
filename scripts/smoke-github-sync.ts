@@ -5,6 +5,7 @@ import { applyWebhookEvent } from '$lib/server/github/sync';
 import { createProject } from '$lib/server/services/projects';
 import { listBoards, getBoardColumns } from '$lib/server/services/boards';
 import { createWorkspace } from '$lib/server/services/workspaces';
+import { createRule } from '$lib/server/services/workflow';
 import type { SessionUser } from '$lib/server/auth/session';
 
 function assert(c: unknown, m: string) {
@@ -118,6 +119,42 @@ async function main() {
 	});
 	const [ms2] = await db.select().from(schema.milestones).where(eq(schema.milestones.id, ms.id));
 	assert(ms2.title === 'v1.0.1' && ms2.state === 'closed', 'milestone updated + closed from webhook');
+
+	console.log('[5] issues.opened fires the ticket.created automation (regression)');
+	// Without an enabled rule, enqueueWorkflowEvent short-circuits — so add one.
+	await createRule(project.id, {
+		name: 'On create',
+		enabled: true,
+		trigger: { type: 'ticket.created', config: {} },
+		conditions: [],
+		actions: [{ type: 'add_label', config: { name: 'triage' } }]
+	});
+	await applyWebhookEvent('issues', 'opened', {
+		repository: { full_name: repo },
+		issue: { number: 200, node_id: 'I_200', title: 'Fresh issue', body: '', state: 'open', labels: [], assignees: [] }
+	});
+	const [t200] = await db
+		.select()
+		.from(schema.tickets)
+		.where(and(eq(schema.tickets.projectId, project.id), eq(schema.tickets.githubIssueNumber, 200)));
+	assert(t200, 'ticket created from issue #200');
+	const wfJobs = await db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'workflow:event'));
+	const fired = wfJobs.some(
+		(j) => (j.payload as any)?.ticketId === t200.id && (j.payload as any)?.trigger === 'ticket.created'
+	);
+	assert(fired, 'ticket.created workflow event enqueued for the GitHub-synced ticket');
+	// Editing the same issue must NOT re-fire ticket.created.
+	await applyWebhookEvent('issues', 'edited', {
+		repository: { full_name: repo },
+		issue: { number: 200, node_id: 'I_200', title: 'Fresh issue (edited)', body: '', state: 'open', labels: [], assignees: [] }
+	});
+	const wfJobs2 = await db.select().from(schema.jobs).where(eq(schema.jobs.queue, 'workflow:event'));
+	const firedForT200 = wfJobs2.filter((j) => (j.payload as any)?.ticketId === t200.id).length;
+	assert(firedForT200 === 1, 'issue edit does not re-fire ticket.created (still exactly one event)');
+
+	// Cleanup so the shared-db smoke is idempotent on re-run.
+	await db.delete(schema.workspaces).where(eq(schema.workspaces.id, ws.id));
+	await db.delete(schema.users).where(eq(schema.users.id, user.id));
 
 	console.log('\n[smoke-github-sync] ✓ all checks passed');
 	await closeDb();
