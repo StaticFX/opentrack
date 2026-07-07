@@ -227,6 +227,14 @@
 		if (!res.ok) alert((await res.json().catch(() => ({}))).message ?? 'Cannot delete column');
 		await invalidate(`board:${boardId}`);
 	}
+	async function archiveColumnTickets(col: Col) {
+		menuCol = null;
+		const n = col.items.filter((t) => !t.archived).length;
+		if (n === 0) return;
+		if (!confirm(`Archive ${n} ticket${n === 1 ? '' : 's'} in “${col.name}”? They'll be hidden from the board — toggle “Archived” to restore.`)) return;
+		await fetch(`/api/columns/${col.id}/archive`, { method: 'POST' });
+		await invalidate(`board:${boardId}`);
+	}
 	async function moveColumn(index: number, dir: -1 | 1) {
 		const j = index + dir;
 		if (j < 0 || j >= cols.length) return;
@@ -385,6 +393,7 @@
 											<span class="text-[11px] text-neutral-400">WIP limit</span>
 											<input type="number" min="0" value={col.wipLimit ?? ''} onchange={(e) => { const v = (e.currentTarget as HTMLInputElement).value; patchColumn(col.id, { wipLimit: v === '' ? null : Number(v) }); }} class="w-16 rounded border border-neutral-200 px-1 py-0.5 text-xs dark:border-neutral-700 dark:bg-neutral-900" />
 										</div>
+										<button onclick={() => archiveColumnTickets(col)} class="mb-2 flex w-full items-center gap-1.5 rounded border border-neutral-200 px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"><Archive size={13} /> Archive all tickets</button>
 										<div class="flex items-center justify-between border-t border-neutral-100 pt-2 dark:border-neutral-800">
 											<div class="flex gap-1">
 												<button onclick={() => moveColumn(i, -1)} disabled={i === 0} class="rounded p-1 text-neutral-400 hover:bg-neutral-100 disabled:opacity-30 dark:hover:bg-neutral-800" aria-label="Move left"><ArrowLeft size={14} /></button>

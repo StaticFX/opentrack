@@ -1,7 +1,7 @@
 import '$lib/server/load-env';
 import { asc, eq } from 'drizzle-orm';
 import { closeDb, db, schema } from '$lib/server/db';
-import { listBoardTickets, setArchived } from '$lib/server/services/tickets';
+import { archiveColumn, listBoardTickets, setArchived } from '$lib/server/services/tickets';
 import { changelogSvg, roadmapSvg } from '$lib/server/embed-svg';
 import { listBoards } from '$lib/server/services/boards';
 import { createProject } from '$lib/server/services/projects';
@@ -42,7 +42,9 @@ async function main() {
 	const ws = await createWorkspace(su, { name: 'QolWs', slug: 'qol-ws-smoke' });
 	const project = await createProject(su, ws, { name: 'QolP' });
 	const [board] = await listBoards(project.id);
-	const [col] = await db.select().from(schema.boardColumns).where(eq(schema.boardColumns.boardId, board.id)).orderBy(asc(schema.boardColumns.position)).limit(1);
+	const boardCols = await db.select().from(schema.boardColumns).where(eq(schema.boardColumns.boardId, board.id)).orderBy(asc(schema.boardColumns.position));
+	const col = boardCols[0];
+	const col2 = boardCols[1];
 
 	try {
 		console.log('\n[2] archive hides a ticket from the board; toggle brings it back');
@@ -64,6 +66,22 @@ async function main() {
 		await setArchived(b.id, false);
 		cards = await listBoardTickets(board.id);
 		assert(cards.length === 2, 'un-archiving restores it to the default board');
+
+		console.log('\n[3] archive a whole column at once');
+		// Two tickets in col, one in col2; one in col already archived.
+		const c1a = await db.insert(schema.tickets).values({ projectId: project.id, boardId: board.id, columnId: col.id, number: 3, title: 'c1a', position: 'a3' }).returning();
+		await db.insert(schema.tickets).values({ projectId: project.id, boardId: board.id, columnId: col.id, number: 4, title: 'c1b', position: 'a4', archivedAt: new Date() });
+		await db.insert(schema.tickets).values({ projectId: project.id, boardId: board.id, columnId: col2.id, number: 5, title: 'c2a', position: 'a5' });
+		// col currently holds the two open tickets from [2] (Keep + restored 'Archive me')
+		// plus c1a (open) and c1b (already archived) → 3 not-yet-archived.
+		const n = await archiveColumn(col.id);
+		assert(n === 3, `archiveColumn archived only the not-yet-archived tickets in the column (got ${n})`);
+		const boardAfter = await listBoardTickets(board.id);
+		assert(!boardAfter.some((t) => t.columnId === col.id), 'no tickets from the archived column remain on the default board');
+		assert(boardAfter.some((t) => t.columnId === col2.id), 'the other column is untouched');
+		const withArch = await listBoardTickets(board.id, true);
+		assert(withArch.filter((t) => t.columnId === col.id && t.archived).length >= 3, 'all of the column’s tickets show as archived with the toggle on');
+		void c1a;
 
 		console.log('\n[smoke-qol] ✓ all checks passed');
 	} finally {

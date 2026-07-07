@@ -273,6 +273,17 @@ export async function setArchived(ticketId: string, archived: boolean): Promise<
 		.where(eq(schema.tickets.id, ticketId));
 }
 
+/** Archive every not-yet-archived ticket in a column. Returns how many. */
+export async function archiveColumn(columnId: string): Promise<number> {
+	const now = new Date();
+	const rows = await db
+		.update(schema.tickets)
+		.set({ archivedAt: now, updatedAt: now })
+		.where(and(eq(schema.tickets.columnId, columnId), isNull(schema.tickets.archivedAt)))
+		.returning({ id: schema.tickets.id });
+	return rows.length;
+}
+
 // ── Assignees / labels / relations ─────────────────────────────────────────
 export async function setAssignee(ticketId: string, userId: string, add: boolean): Promise<void> {
 	if (add) {
