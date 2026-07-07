@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import { invalidate, goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { dndzone } from 'svelte-dnd-action';
-	import { Plus, Settings2, Trash2, ArrowLeft, ArrowRight, Search, X, CheckSquare, Archive } from '@lucide/svelte';
+	import { dndzone, dragHandleZone, dragHandle } from 'svelte-dnd-action';
+	import { Plus, Settings2, Trash2, GripVertical, Search, X, CheckSquare, Archive } from '@lucide/svelte';
 	import { COLUMN_CATEGORIES, PRIORITIES, type ColumnCategory } from '$lib/constants';
 	import { COLUMN_ICON_KEYS } from '$lib/columnIcons';
 	import { PALETTE } from '$lib/colors';
@@ -234,19 +234,23 @@
 		await fetch(`/api/columns/${col.id}/archive`, { method: 'POST' });
 		await invalidate(`board:${boardId}`);
 	}
-	async function moveColumn(index: number, dir: -1 | 1) {
-		const j = index + dir;
-		if (j < 0 || j >= cols.length) return;
-		// `cols` is sorted ascending by position; place the column past its neighbor.
+	// ── Column reordering (drag handle) ──────────────────────────────────
+	function considerCols(e: CustomEvent) {
+		cols = e.detail.items;
+	}
+	async function finalizeCols(e: CustomEvent) {
+		cols = e.detail.items;
+		const id = e.detail.info?.id as string | undefined;
+		const idx = cols.findIndex((c) => c.id === id);
+		if (idx < 0 || !id) return;
+		const prev = cols[idx - 1];
+		const next = cols[idx + 1];
 		let position: string;
-		if (dir === -1) {
-			const before = cols[j - 1];
-			position = before ? rankBetween(before.position, cols[j].position) : rankBefore(cols[j].position);
-		} else {
-			const after = cols[j + 1];
-			position = after ? rankBetween(cols[j].position, after.position) : rankAfter(cols[j].position);
-		}
-		await patchColumn(cols[index].id, { position });
+		if (prev && next) position = rankBetween(prev.position, next.position);
+		else if (prev) position = rankAfter(prev.position);
+		else if (next) position = rankBefore(next.position);
+		else return;
+		await patchColumn(id, { position });
 	}
 
 	// ── Live updates ─────────────────────────────────────────────────────
@@ -340,7 +344,13 @@
 
 	<div class="min-h-0 flex-1 overflow-x-auto">
 	<div class="flex h-full min-w-max items-stretch gap-3 p-4">
-		{#each cols as col, i (col.id)}
+		<section
+			class="flex h-full items-stretch gap-3"
+			use:dragHandleZone={{ items: cols, type: 'column', flipDurationMs: flip, dropTargetStyle: {} }}
+			onconsider={considerCols}
+			onfinalize={finalizeCols}
+		>
+		{#each cols as col (col.id)}
 			{@const items = display(col)}
 			{@const over = col.wipLimit != null && items.length > col.wipLimit}
 			<section class="group/col flex h-full min-h-0 w-72 flex-col rounded-xl bg-neutral-50 dark:bg-neutral-900/40">
@@ -354,10 +364,10 @@
 					</div>
 					<div class="flex items-center gap-0.5">
 						{#if canEdit}
-							<button onclick={() => (composerCol = composerCol === col.id ? null : col.id)} class="rounded p-0.5 text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800" aria-label="Add ticket"><Plus size={15} /></button>
 							<button onclick={() => archiveColumnTickets(col)} class="rounded p-0.5 text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800" aria-label="Archive all tickets" title="Archive all tickets"><Archive size={14} /></button>
 						{/if}
 						{#if canManage}
+							<button use:dragHandle class="cursor-grab rounded p-0.5 text-neutral-400 hover:bg-neutral-200 active:cursor-grabbing dark:hover:bg-neutral-800" aria-label="Drag to reorder column"><GripVertical size={14} /></button>
 							<button onclick={() => (menuCol = col.id)} class="rounded p-0.5 text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800" aria-label="Column settings"><Settings2 size={14} /></button>
 						{/if}
 					</div>
@@ -408,6 +418,7 @@
 				</div>
 			</section>
 		{/each}
+		</section>
 
 		{#if canManage}
 			<button onclick={addColumn} class="mt-0 flex w-56 items-center gap-2 rounded-xl border border-dashed border-neutral-300 px-3 py-2.5 text-sm text-neutral-500 hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900">
@@ -465,7 +476,6 @@
 
 {#if menuCol}
 	{@const editing = cols.find((c) => c.id === menuCol)}
-	{@const idx = cols.findIndex((c) => c.id === menuCol)}
 	{#if editing}
 		<div class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh]">
 			<button aria-label="Close" class="absolute inset-0 bg-neutral-950/40 backdrop-blur-[2px]" onclick={() => (menuCol = null)}></button>
@@ -503,10 +513,7 @@
 					</div>
 				</div>
 				<div class="flex items-center justify-between border-t border-neutral-100 px-5 py-3 dark:border-neutral-800">
-					<div class="flex gap-1">
-						<button onclick={() => moveColumn(idx, -1)} disabled={idx === 0} class="rounded-md border border-neutral-200 p-1.5 text-neutral-500 hover:bg-neutral-100 disabled:opacity-30 dark:border-neutral-700 dark:hover:bg-neutral-800" aria-label="Move left"><ArrowLeft size={15} /></button>
-						<button onclick={() => moveColumn(idx, 1)} disabled={idx === cols.length - 1} class="rounded-md border border-neutral-200 p-1.5 text-neutral-500 hover:bg-neutral-100 disabled:opacity-30 dark:border-neutral-700 dark:hover:bg-neutral-800" aria-label="Move right"><ArrowRight size={15} /></button>
-					</div>
+					<span class="text-xs text-neutral-400">Drag the grip on a column to reorder</span>
 					<button onclick={() => deleteColumn(editing.id)} class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"><Trash2 size={14} /> Delete column</button>
 				</div>
 			</div>
