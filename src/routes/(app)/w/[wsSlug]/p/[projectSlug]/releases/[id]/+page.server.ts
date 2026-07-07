@@ -47,8 +47,8 @@ export const actions: Actions = {
 		if (status === 'published' && detail.release.status !== 'published') {
 			const { logActivity } = await import('$lib/server/services/activity');
 			await logActivity({ projectId: ctx.project.id, subjectType: 'release', subjectId: params.id, actorId: locals.user?.id, type: 'release.published' });
-			const { enqueueDiscordForSubject } = await import('$lib/server/discord/enqueue');
-			await enqueueDiscordForSubject(ctx.project.id, 'release.published', 'release', params.id, {
+			const { notifyIntegrations } = await import('$lib/server/integrations/notify');
+			await notifyIntegrations(ctx.project.id, 'release.published', 'release', params.id, {
 				actor: locals.user?.displayName,
 				description: String(form.get('notes') ?? '').trim() || undefined
 			});

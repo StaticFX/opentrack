@@ -18,7 +18,7 @@
     "smoke": "tsx --tsconfig tsconfig.scripts.json scripts/smoke.ts",
     "smoke:import": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-import.ts",
     "smoke:notify": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-notify.ts",
-    "smoke:discord": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-discord.ts",
+    "smoke:integrations": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-integrations.ts",
     "smoke:views": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-views.ts",
     "smoke:search": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-search.ts",
     "smoke:roadmap": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-roadmap.ts",

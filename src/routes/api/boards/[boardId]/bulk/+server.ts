@@ -44,7 +44,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		if (!col) throw error(400, 'Invalid column');
 		for (const id of valid) {
 			await moveTicket(id, columnId);
-			await enqueueTicketPush(id);
+			await enqueueTicketPush(id, user.id);
 		}
 	} else if (action === 'label') {
 		const labelId = String(body.labelId ?? '');

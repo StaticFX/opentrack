@@ -1,5 +1,6 @@
 import { registerDiscordHandlers } from '$lib/server/discord/jobs';
 import { registerGithubHandlers } from '$lib/server/github/jobs';
+import { registerIntegrationHandlers } from '$lib/server/integrations/jobs';
 import { ensureWorkflowScheduled, registerWorkflowHandlers } from '$lib/server/workflow/jobs';
 import { ensureScheduledJobs as ensureMaintenanceScheduled, registerMaintenanceHandlers } from './maintenance';
 import { registerNotifyHandlers } from './notify';
@@ -24,6 +25,7 @@ export function registerAllHandlers(): void {
 	registerGithubHandlers();
 	registerNotifyHandlers();
 	registerDiscordHandlers();
+	registerIntegrationHandlers();
 	registerMaintenanceHandlers();
 	registerWorkflowHandlers();
 }

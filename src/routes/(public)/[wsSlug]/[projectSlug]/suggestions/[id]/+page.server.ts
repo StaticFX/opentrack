@@ -134,8 +134,8 @@ export const actions: Actions = {
 			body: `${locals.user?.displayName ?? 'A maintainer'} marked this ${label.toLowerCase()}`
 		});
 
-		const { enqueueDiscordForSubject } = await import('$lib/server/discord/enqueue');
-		await enqueueDiscordForSubject(ctx.project.id, 'suggestion.resolved', 'suggestion', params.id, {
+		const { notifyIntegrations } = await import('$lib/server/integrations/notify');
+		await notifyIntegrations(ctx.project.id, 'suggestion.resolved', 'suggestion', params.id, {
 			actor: locals.user?.displayName,
 			fields: [{ name: 'Decision', value: label }]
 		});

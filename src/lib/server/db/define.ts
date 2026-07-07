@@ -230,6 +230,28 @@ export function defineSchema(kit: Kit) {
 		]
 	);
 
+	// Generic per-project state for pluggable integrations (see
+	// src/lib/server/integrations). One row per (project, integration key).
+	// `config` holds non-secret settings (e.g. announced event keys); `secrets`
+	// is an AES-256-GCM-encrypted JSON blob (e.g. a webhook URL or token). This
+	// replaces the per-provider `projects.discord_*`/`github_*` columns going
+	// forward — providers read-through the legacy columns until backfilled.
+	const projectIntegrations = table(
+		'project_integrations',
+		{
+			projectId: text('project_id')
+				.notNull()
+				.references(() => projects.id, { onDelete: 'cascade' }),
+			key: text('key').notNull(),
+			enabled: bool('enabled').default(true).notNull(),
+			config: json<Record<string, unknown>>('config'),
+			secrets: text('secrets'),
+			createdAt: createdAt(),
+			updatedAt: updatedAt()
+		},
+		(t) => [primaryKey({ columns: [t.projectId, t.key] })]
+	);
+
 	const boards = table(
 		'boards',
 		{
@@ -874,6 +896,7 @@ export function defineSchema(kit: Kit) {
 		workspaceMembers,
 		projects,
 		projectMembers,
+		projectIntegrations,
 		boards,
 		boardColumns,
 		tickets,

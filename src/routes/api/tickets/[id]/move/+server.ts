@@ -6,7 +6,7 @@ import { db, schema } from '$lib/server/db';
 import { enqueueTicketPush } from '$lib/server/github/enqueue';
 import { ACCESS } from '$lib/server/permissions';
 import { boardEvent } from '$lib/server/realtime/board';
-import { enqueueDiscordForSubject } from '$lib/server/discord/enqueue';
+import { notifyIntegrations } from '$lib/server/integrations/notify';
 import { logActivity } from '$lib/server/services/activity';
 import { notifyWatchers } from '$lib/server/services/notifications';
 import { moveTicket } from '$lib/server/services/tickets';
@@ -24,7 +24,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
 	await moveTicket(params.id, columnId, position);
 	if (boardId) await boardEvent(boardId, 'ticket.moved', { ticketId: params.id }, user.id);
-	await enqueueTicketPush(params.id);
+	await enqueueTicketPush(params.id, user.id);
 
 	const [col] = await db
 		.select({ name: schema.boardColumns.name, category: schema.boardColumns.category })
@@ -50,7 +50,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 				actorId: user.id,
 				body: `${user.displayName} closed this (${col.name})`
 			});
-			await enqueueDiscordForSubject(projectId, 'ticket.closed', 'ticket', params.id, {
+			await notifyIntegrations(projectId, 'ticket.closed', 'ticket', params.id, {
 				actor: user.displayName,
 				fields: [{ name: 'Column', value: col.name }]
 			});

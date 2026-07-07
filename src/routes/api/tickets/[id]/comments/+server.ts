@@ -35,7 +35,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
 	const id = await addComment('ticket', params.id, user.id, text);
 	if (boardId) await boardEvent(boardId, 'ticket.commented', { ticketId: params.id }, user.id);
-	await enqueueCommentPush(id, params.id);
+	await enqueueCommentPush(id, params.id, user.id);
 	await logActivity({ projectId: access.project.id, subjectType: 'ticket', subjectId: params.id, actorId: user.id, type: 'ticket.commented' });
 
 	// Notifications: commenting subscribes you; @mentions get their own alert and

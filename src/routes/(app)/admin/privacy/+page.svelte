@@ -4,6 +4,7 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import Field from '$lib/components/ui/Field.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
+	import IntegrationCard from '$lib/components/integrations/IntegrationCard.svelte';
 
 	type CustomProvider = (typeof data.customProviders)[number];
 
@@ -11,19 +12,24 @@
 	const f = $derived(form as Record<string, any> | null);
 
 	const providerLabel: Record<string, string> = { github: 'GitHub', discord: 'Discord', modrinth: 'Modrinth' };
+	const providerIcon: Record<string, string> = { github: 'git-branch', discord: 'message-square', modrinth: 'key-round' };
+
+	// Selection: a built-in provider key, `custom:<id>`, or `__add__`.
+	let selected = $state<string>(data.oauth[0]?.provider ?? '__add__');
+	const selectedBuiltin = $derived(data.oauth.find((p) => p.provider === selected) ?? null);
+	const selectedCustom = $derived(
+		selected.startsWith('custom:') ? data.customProviders.find((p) => `custom:${p.id}` === selected) ?? null : null
+	);
 
 	// Track client IDs live so we can flag the common GitHub App-vs-OAuth-App mixup.
 	let clientIds = $state<Record<string, string>>(
 		Object.fromEntries(data.oauth.map((p) => [p.provider, p.clientId]))
 	);
-	// GitHub App client IDs start with "Iv"; OAuth App IDs start with "Ov" (or are 20-hex).
-	const githubAppIdWarning = (provider: string, id: string) =>
-		provider === 'github' && /^Iv/i.test(id.trim());
+	const githubAppIdWarning = (provider: string, id: string) => provider === 'github' && /^Iv/i.test(id.trim());
 
 	function copy(text: string) {
 		navigator.clipboard?.writeText(text);
 	}
-
 	function callbackFor(provider: string) {
 		return data.oauthCallback.replace('{provider}', provider);
 	}
@@ -34,93 +40,103 @@
 <div class="mx-auto max-w-2xl px-8 py-8">
 	<header class="mb-6">
 		<h1 class="text-xl font-semibold tracking-tight">Privacy</h1>
-		<p class="mt-0.5 text-sm text-neutral-500">OAuth login providers for sign-in.</p>
+		<p class="mt-0.5 text-sm text-neutral-500">OAuth login providers for sign-in. Pick a provider to configure it.</p>
 	</header>
 
-	<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
-		<h2 class="flex items-center gap-2 text-sm font-semibold"><KeyRound size={15} /> OAuth login providers</h2>
-		<p class="mt-1 mb-4 text-sm text-neutral-500">
-			Register an OAuth app with each provider, then paste its credentials here. Use the callback URL shown per provider.
-		</p>
-		<div class="space-y-4">
+	<section class="mb-6">
+		<h2 class="mb-3 flex items-center gap-2 text-sm font-semibold"><KeyRound size={15} /> OAuth login providers</h2>
+		<div class="grid gap-3 sm:grid-cols-2">
 			{#each data.oauth as p (p.provider)}
-				<form method="POST" action="?/saveOAuth" use:enhance class="rounded-lg border border-neutral-100 p-4 dark:border-neutral-800/60">
-					<input type="hidden" name="provider" value={p.provider} />
-					<div class="mb-3 flex items-center justify-between">
-						<span class="font-medium">{providerLabel[p.provider]}</span>
-						{#if p.active}
-							<span class="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300"><Check size={11} /> Enabled</span>
-						{:else}
-							<span class="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-500 dark:bg-neutral-800">Disabled</span>
-						{/if}
-					</div>
-
-					<div class="mb-3 space-y-1.5 rounded-lg bg-neutral-50 p-3 text-xs dark:bg-neutral-900">
-						<div class="flex items-center gap-2">
-							<span class="w-16 shrink-0 text-neutral-400">Callback</span>
-							<code class="min-w-0 flex-1 truncate">{callbackFor(p.provider)}</code>
-							<button type="button" onclick={() => copy(callbackFor(p.provider))} aria-label="Copy callback URL"><Copy size={12} /></button>
-						</div>
-						{#if p.meta}
-							<div class="flex items-center gap-3 pt-0.5">
-								<a href={p.meta.console} target="_blank" rel="noreferrer" class="flex items-center gap-1 text-brand-600 hover:underline">
-									<ExternalLink size={11} /> Create app
-								</a>
-								<a href={p.meta.docs} target="_blank" rel="noreferrer" class="flex items-center gap-1 text-neutral-500 hover:underline">
-									<ExternalLink size={11} /> Docs
-								</a>
-							</div>
-						{/if}
-					</div>
-
-					<div class="flex flex-col gap-3 sm:flex-row">
-						<div class="flex-1"><Field label="Client ID"><Input name="clientId" bind:value={clientIds[p.provider]} placeholder="client id" /></Field></div>
-						<div class="flex-1"><Field label="Client secret"><Input name="clientSecret" type="password" placeholder={p.hasSecret ? '•••••• (leave blank to keep)' : 'client secret'} /></Field></div>
-					</div>
-
-					{#if githubAppIdWarning(p.provider, clientIds[p.provider] ?? '')}
-						<p class="mt-2 rounded-lg bg-blue-50 p-2.5 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
-							Using a GitHub <strong>App</strong> Client ID (<code>Iv…</code>) for login works. On the App’s <em>Identifying and authorizing users</em> settings, register the <strong>Callback URL</strong> shown above — and to capture emails, grant the App’s <strong>Account → Email addresses (read)</strong> permission (without it, users are created with no email). A plain OAuth App (<code>Ov…</code>) works too.
-						</p>
-					{/if}
-					<div class="mt-3 flex items-center gap-3">
-						<Button size="sm" variant="primary" type="submit">Save</Button>
-						{#if f?.savedOAuth === p.provider}<span class="text-sm text-green-600">Saved</span>{/if}
-						<span class="text-xs text-neutral-400">Clear the Client ID to disable.</span>
-					</div>
-				</form>
+				<IntegrationCard
+					name={providerLabel[p.provider]}
+					blurb={p.active ? 'Sign-in enabled.' : 'Paste OAuth app credentials to enable.'}
+					icon={providerIcon[p.provider] ?? 'key-round'}
+					status={p.active ? 'connected' : 'disconnected'}
+					selected={selected === p.provider}
+					onclick={() => (selected = p.provider)}
+				/>
 			{/each}
+			{#each data.customProviders as p (p.id)}
+				<IntegrationCard
+					name={p.label}
+					blurb="Custom OAuth2 / OIDC provider."
+					icon="key-round"
+					status={p.enabled ? 'connected' : 'disconnected'}
+					selected={selected === `custom:${p.id}`}
+					onclick={() => (selected = `custom:${p.id}`)}
+				/>
+			{/each}
+			<IntegrationCard
+				name="Add provider"
+				blurb="Google, GitLab, Keycloak — any OAuth2 / OIDC."
+				icon="plug"
+				status="disconnected"
+				selected={selected === '__add__'}
+				onclick={() => (selected = '__add__')}
+			/>
 		</div>
 	</section>
 
-	<!-- Custom providers -->
-	<section class="mt-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
-		<h2 class="flex items-center gap-2 text-sm font-semibold"><Plus size={15} /> Custom providers</h2>
-		<p class="mt-1 mb-4 text-sm text-neutral-500">
-			Add any OAuth2 / OpenID Connect provider (Google, GitLab, Keycloak, …). Give it a URL-safe key, a label, and an icon (emoji or image URL).
-		</p>
+	<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+		{#if selectedBuiltin}
+			{@const p = selectedBuiltin}
+			<form method="POST" action="?/saveOAuth" use:enhance>
+				<input type="hidden" name="provider" value={p.provider} />
+				<div class="mb-3 flex items-center justify-between">
+					<span class="font-medium">{providerLabel[p.provider]}</span>
+					{#if p.active}
+						<span class="flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300"><Check size={11} /> Enabled</span>
+					{:else}
+						<span class="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-500 dark:bg-neutral-800">Disabled</span>
+					{/if}
+				</div>
 
-		{#if f?.customError}<p class="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-300">{f.customError}</p>{/if}
-		{#if f?.savedCustom}<p class="mb-3 text-sm text-green-600">Saved.</p>{/if}
-		{#if f?.deletedCustom}<p class="mb-3 text-sm text-neutral-500">Provider removed.</p>{/if}
+				<div class="mb-3 space-y-1.5 rounded-lg bg-neutral-50 p-3 text-xs dark:bg-neutral-900">
+					<div class="flex items-center gap-2">
+						<span class="w-16 shrink-0 text-neutral-400">Callback</span>
+						<code class="min-w-0 flex-1 truncate">{callbackFor(p.provider)}</code>
+						<button type="button" onclick={() => copy(callbackFor(p.provider))} aria-label="Copy callback URL"><Copy size={12} /></button>
+					</div>
+					{#if p.meta}
+						<div class="flex items-center gap-3 pt-0.5">
+							<a href={p.meta.console} target="_blank" rel="noreferrer" class="flex items-center gap-1 text-brand-600 hover:underline"><ExternalLink size={11} /> Create app</a>
+							<a href={p.meta.docs} target="_blank" rel="noreferrer" class="flex items-center gap-1 text-neutral-500 hover:underline"><ExternalLink size={11} /> Docs</a>
+						</div>
+					{/if}
+				</div>
 
-		{#if data.customProviders.length}
-			<div class="space-y-4">
-				{#each data.customProviders as p (p.id)}
-					{@render providerForm(p)}
-				{/each}
-			</div>
-		{/if}
+				<div class="flex flex-col gap-3 sm:flex-row">
+					<div class="flex-1"><Field label="Client ID"><Input name="clientId" bind:value={clientIds[p.provider]} placeholder="client id" /></Field></div>
+					<div class="flex-1"><Field label="Client secret"><Input name="clientSecret" type="password" placeholder={p.hasSecret ? '•••••• (leave blank to keep)' : 'client secret'} /></Field></div>
+				</div>
 
-		<div class="mt-4 border-t border-neutral-100 pt-4 dark:border-neutral-800">
-			<p class="mb-3 text-sm font-medium">Add a provider</p>
+				{#if githubAppIdWarning(p.provider, clientIds[p.provider] ?? '')}
+					<p class="mt-2 rounded-lg bg-blue-50 p-2.5 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+						Using a GitHub <strong>App</strong> Client ID (<code>Iv…</code>) for login works. On the App’s <em>Identifying and authorizing users</em> settings, register the <strong>Callback URL</strong> shown above — and to capture emails, grant the App’s <strong>Account → Email addresses (read)</strong> permission. A plain OAuth App (<code>Ov…</code>) works too.
+					</p>
+				{/if}
+				<div class="mt-3 flex items-center gap-3">
+					<Button size="sm" variant="primary" type="submit">Save</Button>
+					{#if f?.savedOAuth === p.provider}<span class="text-sm text-green-600">Saved</span>{/if}
+					<span class="text-xs text-neutral-400">Clear the Client ID to disable.</span>
+				</div>
+			</form>
+		{:else if selectedCustom}
+			{@render providerForm(selectedCustom)}
+		{:else}
+			<h2 class="mb-1 flex items-center gap-2 text-sm font-semibold"><Plus size={15} /> Add a custom provider</h2>
+			<p class="mb-4 text-sm text-neutral-500">
+				Add any OAuth2 / OpenID Connect provider (Google, GitLab, Keycloak, …). Give it a URL-safe key, a label, and an icon (emoji or image URL).
+			</p>
+			{#if f?.customError}<p class="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-300">{f.customError}</p>{/if}
+			{#if f?.savedCustom}<p class="mb-3 text-sm text-green-600">Saved.</p>{/if}
 			{@render providerForm(null)}
-		</div>
+		{/if}
 	</section>
 </div>
 
 {#snippet providerForm(p: CustomProvider | null)}
-	<form method="POST" action="?/saveCustomProvider" use:enhance class="rounded-lg border border-neutral-100 p-4 dark:border-neutral-800/60">
+	<form method="POST" action="?/saveCustomProvider" use:enhance>
 		<input type="hidden" name="id" value={p?.id ?? ''} />
 		<div class="flex items-center justify-between">
 			<div class="flex flex-wrap items-end gap-3">

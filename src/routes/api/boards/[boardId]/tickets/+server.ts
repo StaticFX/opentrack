@@ -4,7 +4,7 @@ import { PRIORITIES } from '$lib/constants';
 import { requireBoardAccess, requireUser } from '$lib/server/access';
 import { enqueueTicketPush } from '$lib/server/github/enqueue';
 import { ACCESS } from '$lib/server/permissions';
-import { enqueueDiscordForSubject } from '$lib/server/discord/enqueue';
+import { notifyIntegrations } from '$lib/server/integrations/notify';
 import { logActivity } from '$lib/server/services/activity';
 import { boardEvent } from '$lib/server/realtime/board';
 import { watch } from '$lib/server/services/notifications';
@@ -42,10 +42,10 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	}
 
 	await boardEvent(params.boardId, 'ticket.created', { ticketId: ticket.id }, user.id);
-	await enqueueTicketPush(ticket.id);
+	await enqueueTicketPush(ticket.id, user.id);
 	await logActivity({ projectId, subjectType: 'ticket', subjectId: ticket.id, actorId: user.id, type: 'ticket.created' });
 	await watch('ticket', ticket.id, user.id, 'author');
-	await enqueueDiscordForSubject(projectId, 'ticket.created', 'ticket', ticket.id, {
+	await notifyIntegrations(projectId, 'ticket.created', 'ticket', ticket.id, {
 		actor: user.displayName,
 		description: typeof body.description === 'string' ? body.description : undefined
 	});

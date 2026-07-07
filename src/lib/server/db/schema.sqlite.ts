@@ -29,6 +29,7 @@ export const {
 	workspaceMembers,
 	projects,
 	projectMembers,
+	projectIntegrations,
 	boards,
 	boardColumns,
 	tickets,

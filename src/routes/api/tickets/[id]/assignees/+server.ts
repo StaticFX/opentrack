@@ -19,7 +19,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	await setAssignee(params.id, userId, add);
 	if (boardId) await boardEvent(boardId, 'ticket.updated', { ticketId: params.id }, user.id);
 	// Mirror the assignment to the linked GitHub issue (no-op if unlinked).
-	await enqueueTicketPush(params.id);
+	await enqueueTicketPush(params.id, user.id);
 
 	// A newly-assigned user starts watching and is notified (unless self-assigning).
 	if (add) {

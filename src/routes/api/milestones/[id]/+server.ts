@@ -20,7 +20,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 		...(body.dueDate !== undefined ? { dueDate: body.dueDate ? new Date(body.dueDate) : null } : {}),
 		...(body.state !== undefined ? { state: body.state as MilestoneState } : {})
 	});
-	await enqueueMilestonePush(params.id);
+	await enqueueMilestonePush(params.id, locals.user?.id);
 	return json({ ok: true });
 };
 

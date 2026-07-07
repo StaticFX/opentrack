@@ -6,6 +6,7 @@ import { boardEvent } from '$lib/server/realtime/board';
 import { enqueueWorkflowEvent } from '$lib/server/services/workflow';
 import { rankAfter } from '$lib/server/util/rank';
 import { installationOctokit } from './app';
+import { outboundOctokit } from './client';
 import { githubLoginsForUsers, resolveGithubUsers } from './identity';
 import type { OctokitLike } from './import';
 import {
@@ -158,7 +159,7 @@ export async function upsertMilestoneFromRef(projectId: string, ref: GhMilestone
 }
 
 // ── Outbound: local → GitHub ────────────────────────────────────────────────
-export async function pushTicket(ticketId: string): Promise<void> {
+export async function pushTicket(ticketId: string, actorUserId?: string | null): Promise<void> {
 	const [row] = await db
 		.select({ ticket: schema.tickets, project: schema.projects })
 		.from(schema.tickets)
@@ -225,7 +226,7 @@ export async function pushTicket(ticketId: string): Promise<void> {
 		}
 	}
 
-	const octokit = await installationOctokit(project.githubInstallationId);
+	const octokit = await outboundOctokit(project.githubInstallationId, actorUserId);
 
 	if (ticket.githubIssueNumber) {
 		await octokit.request('PATCH /repos/{owner}/{repo}/issues/{issue_number}', {
@@ -250,9 +251,10 @@ export async function pushTicket(ticketId: string): Promise<void> {
 			...(assignees !== undefined ? { assignees } : {}),
 			...(milestone != null ? { milestone } : {})
 		});
+		const created = res.data as { number: number; node_id: string };
 		await db
 			.update(schema.tickets)
-			.set({ githubIssueNumber: res.data.number, githubNodeId: res.data.node_id, githubSyncedAt: new Date() })
+			.set({ githubIssueNumber: created.number, githubNodeId: created.node_id, githubSyncedAt: new Date() })
 			.where(eq(schema.tickets.id, ticketId));
 	}
 }
@@ -280,7 +282,7 @@ export async function closeIssue(
 }
 
 /** Push a local milestone to GitHub — create it or PATCH the existing one. */
-export async function pushMilestone(milestoneId: string): Promise<void> {
+export async function pushMilestone(milestoneId: string, actorUserId?: string | null): Promise<void> {
 	const [row] = await db
 		.select({ milestone: schema.milestones, project: schema.projects })
 		.from(schema.milestones)
@@ -292,7 +294,7 @@ export async function pushMilestone(milestoneId: string): Promise<void> {
 	const repo = parseRepo(project.githubRepo);
 	if (!repo || !project.githubInstallationId || !project.githubSyncMilestones) return;
 
-	const octokit = await installationOctokit(project.githubInstallationId);
+	const octokit = await outboundOctokit(project.githubInstallationId, actorUserId);
 	const body = {
 		title: milestone.title,
 		state: milestone.state,
@@ -323,7 +325,7 @@ export async function pushMilestone(milestoneId: string): Promise<void> {
 	}
 }
 
-export async function pushComment(commentId: string): Promise<void> {
+export async function pushComment(commentId: string, actorUserId?: string | null): Promise<void> {
 	const [c] = await db.select().from(schema.comments).where(eq(schema.comments.id, commentId)).limit(1);
 	if (!c || c.subjectType !== 'ticket' || c.githubCommentId) return;
 	const [row] = await db
@@ -336,13 +338,13 @@ export async function pushComment(commentId: string): Promise<void> {
 	const repo = parseRepo(row.project.githubRepo);
 	if (!repo || !row.project.githubInstallationId || !row.ticket.githubIssueNumber) return;
 
-	const octokit = await installationOctokit(row.project.githubInstallationId);
+	const octokit = await outboundOctokit(row.project.githubInstallationId, actorUserId);
 	const res = await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
 		...repo,
 		issue_number: row.ticket.githubIssueNumber,
 		body: c.body
 	});
-	await db.update(schema.comments).set({ githubCommentId: String(res.data.id) }).where(eq(schema.comments.id, commentId));
+	await db.update(schema.comments).set({ githubCommentId: String((res.data as { id: number }).id) }).where(eq(schema.comments.id, commentId));
 }
 
 // ── Inbound: GitHub → local ─────────────────────────────────────────────────

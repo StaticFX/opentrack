@@ -26,6 +26,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
 	await setTicketMilestone(params.id, milestoneId);
 	if (boardId) await boardEvent(boardId, 'ticket.updated', { ticketId: params.id }, user.id);
-	await enqueueTicketPush(params.id);
+	await enqueueTicketPush(params.id, user.id);
 	return json({ ok: true });
 };

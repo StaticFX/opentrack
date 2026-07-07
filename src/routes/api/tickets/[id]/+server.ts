@@ -77,7 +77,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 		...(body.dueDate !== undefined ? { dueDate: body.dueDate ? new Date(body.dueDate) : null } : {})
 	});
 	if (boardId) await boardEvent(boardId, 'ticket.updated', { ticketId: params.id }, user.id);
-	await enqueueTicketPush(params.id);
+	await enqueueTicketPush(params.id, user.id);
 
 	// Let watchers know the ticket changed (skips the actor + never throws).
 	if (changed.length) {

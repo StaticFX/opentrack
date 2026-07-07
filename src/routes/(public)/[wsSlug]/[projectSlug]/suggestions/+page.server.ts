@@ -71,8 +71,8 @@ export const actions: Actions = {
 			body: `${locals.user.displayName} suggested this`
 		});
 
-		const { enqueueDiscordForSubject } = await import('$lib/server/discord/enqueue');
-		await enqueueDiscordForSubject(ctx.project.id, 'suggestion.created', 'suggestion', id, {
+		const { notifyIntegrations } = await import('$lib/server/integrations/notify');
+		await notifyIntegrations(ctx.project.id, 'suggestion.created', 'suggestion', id, {
 			actor: locals.user.displayName,
 			description: body
 		});

@@ -29,15 +29,16 @@ export function registerGithubHandlers(): void {
 		}
 	});
 
-	// Outbound: push local changes to GitHub.
+	// Outbound: push local changes to GitHub. `actorUserId` (when present) is the
+	// user whose identity the write should be attributed to; see github/client.ts.
 	registerHandler('github:push-ticket', async (payload) => {
-		await pushTicket(String(payload.ticketId ?? ''));
+		await pushTicket(String(payload.ticketId ?? ''), (payload.actorUserId as string | null) ?? null);
 	});
 	registerHandler('github:push-comment', async (payload) => {
-		await pushComment(String(payload.commentId ?? ''));
+		await pushComment(String(payload.commentId ?? ''), (payload.actorUserId as string | null) ?? null);
 	});
 	registerHandler('github:push-milestone', async (payload) => {
-		await pushMilestone(String(payload.milestoneId ?? ''));
+		await pushMilestone(String(payload.milestoneId ?? ''), (payload.actorUserId as string | null) ?? null);
 	});
 	// Close a linked issue for a ticket that has been deleted (self-contained payload).
 	registerHandler('github:close-issue', async (payload) => {

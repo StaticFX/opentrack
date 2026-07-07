@@ -25,6 +25,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		dueDate: body.dueDate ? new Date(body.dueDate) : null,
 		state
 	});
-	await enqueueMilestonePush(milestone.id);
+	await enqueueMilestonePush(milestone.id, locals.user?.id);
 	return json(milestone);
 };

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Copy, Trash2, Check, GitBranch, Settings, Users, TriangleAlert, ArrowLeft, MessageSquare, Send, SlidersHorizontal, Plus, Zap, ArrowRight, Map } from '@lucide/svelte';
+	import { Copy, Trash2, Check, GitBranch, GitMerge, Settings, Users, TriangleAlert, ArrowLeft, Plug, SlidersHorizontal, Plus, Zap, ArrowRight, Map, ExternalLink } from '@lucide/svelte';
 	import { PALETTE } from '$lib/colors';
 	import { PRIORITIES } from '$lib/constants';
 	import { PRIORITY_META } from '$lib/priority';
-	import { DISCORD_EVENTS } from '$lib/discord';
 	import { CUSTOM_FIELD_TYPES, FIELD_TYPE_LABELS } from '$lib/customFields';
 	import { WORKFLOW_TRIGGERS, WORKFLOW_ACTIONS, WORKFLOW_CONDITIONS } from '$lib/workflow';
+	import { CATEGORY_META, CATEGORY_ORDER, byCategory, descriptor } from '$lib/integrations/catalog';
 	import { cn } from '$lib/utils/cn';
 	import Button from '$lib/components/ui/Button.svelte';
 	import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
@@ -14,6 +14,8 @@
 	import Input from '$lib/components/ui/Input.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import Textarea from '$lib/components/ui/Textarea.svelte';
+	import IntegrationCard from '$lib/components/integrations/IntegrationCard.svelte';
+	import NotificationConfigForm from '$lib/components/integrations/NotificationConfigForm.svelte';
 
 	let { data, form } = $props();
 	const f = $derived(form as Record<string, any> | null);
@@ -34,12 +36,26 @@
 		{ id: 'general', label: 'General', icon: Settings },
 		{ id: 'roadmap', label: 'Roadmap', icon: Map },
 		{ id: 'members', label: 'Collaborators', icon: Users },
-		{ id: 'github', label: 'GitHub', icon: GitBranch },
-		{ id: 'discord', label: 'Discord', icon: MessageSquare },
+		{ id: 'integrations', label: 'Integrations', icon: Plug },
 		{ id: 'fields', label: 'Fields', icon: SlidersHorizontal },
 		{ id: 'automation', label: 'Automation', icon: Zap },
 		{ id: 'danger', label: 'Danger', icon: TriangleAlert }
 	] as const;
+
+	// ── Integration cards (grouped by category) ──────────────────────────────
+	type CardStatus = 'connected' | 'disconnected' | 'soon' | 'unavailable';
+	function integrationStatus(key: string): CardStatus {
+		if (key === 'github')
+			return !data.githubEnabled ? 'unavailable' : data.linkedRepo ? 'connected' : 'disconnected';
+		if (key === 'gitlab') return 'soon';
+		if (key === 'discord' || key === 'slack') {
+			const s = (data.notifications as Record<string, { hasWebhook: boolean; enabled: boolean }>)[key];
+			return s?.hasWebhook && s?.enabled ? 'connected' : 'disconnected';
+		}
+		return 'disconnected';
+	}
+	let selectedIntegration = $state<string>('github');
+	const selectedDesc = $derived(descriptor(selectedIntegration));
 
 	// ── Roadmap lane options ─────────────────────────────────────────────────
 	const ROADMAP_LANES = [
@@ -388,8 +404,39 @@
 						</div>
 					{/if}
 				</section>
-			{:else if tab === 'github'}
-				<h2 class="mb-4 text-lg font-semibold tracking-tight">GitHub</h2>
+			{:else if tab === 'integrations'}
+				<h2 class="mb-1 text-lg font-semibold tracking-tight">Integrations</h2>
+				<p class="mb-5 text-sm text-neutral-500">Connect this project to an external issue tracker and announce activity to your channels.</p>
+
+				{#each CATEGORY_ORDER as cat (cat)}
+					<section class="mb-6">
+						<h3 class="mb-1 text-sm font-semibold">{CATEGORY_META[cat].label}</h3>
+						<p class="mb-3 text-xs text-neutral-500">{CATEGORY_META[cat].blurb}</p>
+						<div class="grid gap-3 sm:grid-cols-2">
+							{#each byCategory(cat) as d (d.key)}
+								<IntegrationCard
+									name={d.name}
+									blurb={d.blurb}
+									icon={d.icon}
+									status={integrationStatus(d.key)}
+									selected={selectedIntegration === d.key}
+									onclick={() => (selectedIntegration = d.key)}
+								/>
+							{/each}
+						</div>
+					</section>
+				{/each}
+
+				{#if selectedDesc}
+					<section class="mt-2 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+						<div class="mb-4 flex items-center justify-between">
+							<h3 class="text-sm font-semibold">{selectedDesc.name}</h3>
+							{#if selectedDesc.docsUrl}
+								<a href={selectedDesc.docsUrl} target="_blank" rel="noreferrer" class="flex items-center gap-1 text-xs text-brand-600 hover:underline"><ExternalLink size={12} /> Docs</a>
+							{/if}
+						</div>
+
+						{#if selectedIntegration === 'github'}
 				<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
 					<h3 class="flex items-center gap-2 text-sm font-semibold"><GitBranch size={15} /> Linked repository</h3>
 					<p class="mt-1 mb-4 text-sm text-neutral-500">Sync issues and pull requests. GitHub is the source of truth on conflicts.</p>
@@ -491,61 +538,31 @@
 						</form>
 					</section>
 				{/if}
-			{:else if tab === 'discord'}
-				<h2 class="mb-4 text-lg font-semibold tracking-tight">Discord</h2>
-				<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
-					<p class="mb-4 text-sm text-neutral-500">
-						Announce project activity to a Discord channel. In Discord: <span class="font-medium">Channel settings → Integrations → Webhooks → New Webhook</span>, then paste the webhook URL here.
-					</p>
-
-					{#if f?.discordError}<p class="mb-3 rounded-lg bg-red-50 p-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-300">{f.discordError}</p>{/if}
-					{#if f?.discordSaved}<p class="mb-3 rounded-lg bg-green-50 p-2.5 text-sm text-green-700 dark:bg-green-950/30 dark:text-green-300">Saved.</p>{/if}
-					{#if f?.discordTested}<p class="mb-3 rounded-lg bg-green-50 p-2.5 text-sm text-green-700 dark:bg-green-950/30 dark:text-green-300">Test message sent — check your channel.</p>{/if}
-					{#if f?.discordRemoved}<p class="mb-3 rounded-lg bg-neutral-100 p-2.5 text-sm text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">Webhook removed.</p>{/if}
-
-					<form method="POST" action="?/saveDiscord" use:enhance={() => async ({ update }) => { await update({ reset: false }); }} class="flex flex-col gap-4">
-						<Field label="Webhook URL">
-							<Input
-								name="webhookUrl"
-								type="password"
-								placeholder={data.discord.hasWebhook ? '•••••••• (leave blank to keep current)' : 'https://discord.com/api/webhooks/…'}
-							/>
-						</Field>
-
-						<div>
-							<span class="mb-2 block text-sm font-medium">Announce these events</span>
-							<div class="flex flex-col gap-2">
-								{#each DISCORD_EVENTS as ev (ev.key)}
-									<label class="flex items-start gap-2.5 text-sm">
-										<input
-											type="checkbox"
-											name="event"
-											value={ev.key}
-											checked={data.discord.events.includes(ev.key)}
-											class="mt-0.5 size-4 rounded border-neutral-300 text-brand-600 focus:ring-brand-500 dark:border-neutral-600 dark:bg-neutral-800"
-										/>
-										<span>
-											<span class="font-medium">{ev.label}</span>
-											<span class="block text-xs text-neutral-500">{ev.desc}</span>
-										</span>
-									</label>
-								{/each}
-							</div>
+					{:else if selectedIntegration === 'discord'}
+						<NotificationConfigForm
+							projectId={data.project.id}
+							providerKey="discord"
+							providerName="Discord"
+							placeholder={data.notifications.discord.hasWebhook ? '•••••••• (leave blank to keep current)' : 'https://discord.com/api/webhooks/…'}
+							setupHint="In Discord: Channel settings → Integrations → Webhooks → New Webhook, then paste the webhook URL here."
+							initial={data.notifications.discord}
+						/>
+					{:else if selectedIntegration === 'slack'}
+						<NotificationConfigForm
+							projectId={data.project.id}
+							providerKey="slack"
+							providerName="Slack"
+							placeholder={data.notifications.slack.hasWebhook ? '•••••••• (leave blank to keep current)' : 'https://hooks.slack.com/services/…'}
+							setupHint="In Slack: add an Incoming Webhook app to your workspace, pick a channel, then paste its webhook URL here."
+							initial={data.notifications.slack}
+						/>
+					{:else if selectedIntegration === 'gitlab'}
+						<div class="rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+							GitLab issue sync is coming soon. The provider is scaffolded and slots into the same abstraction; per-ticket issue mapping and inbound webhooks are still in progress.
 						</div>
-
-						<div class="flex items-center gap-2">
-							<Button variant="primary" type="submit">Save</Button>
-							{#if data.discord.hasWebhook}
-								<Button variant="default" type="submit" formaction="?/testDiscord"><Send size={14} /> Send test</Button>
-								<Button variant="ghost" type="submit" formaction="?/removeDiscord">Remove</Button>
-							{/if}
-						</div>
-					</form>
-
-					{#if data.discord.hasWebhook}
-						<p class="mt-3 flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400"><Check size={13} /> A webhook is configured for this project.</p>
 					{/if}
-				</section>
+					</section>
+				{/if}
 			{:else if tab === 'fields'}
 				<h2 class="mb-4 text-lg font-semibold tracking-tight">Custom fields</h2>
 				<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">

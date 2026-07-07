@@ -176,6 +176,13 @@
       "when": 1783418037556,
       "tag": "0024_roadmap_config",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1783431776892,
+      "tag": "0025_project_integrations",
+      "breakpoints": true
     }
   ]
 }
