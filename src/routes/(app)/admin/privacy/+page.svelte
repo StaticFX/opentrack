@@ -36,7 +36,7 @@
 
 <svelte:head><title>Privacy · Admin · OpenTrack</title></svelte:head>
 
-<div class="mx-auto max-w-2xl px-8 py-8">
+<div class="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
 	<header class="mb-6">
 		<h1 class="text-xl font-semibold tracking-tight">Privacy</h1>
 		<p class="mt-0.5 text-sm text-neutral-500">OAuth login providers for sign-in. Pick a provider to configure it.</p>

@@ -41,7 +41,7 @@
 
 <svelte:head><title>#{t.number} {t.title} — {data.project.name}</title></svelte:head>
 
-<main class="mx-auto max-w-3xl px-6 py-8">
+<main class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
 	<a href={boardUrl} class="text-sm text-neutral-400 hover:text-neutral-600">← Back to board</a>
 
 	<div class="mt-4 flex items-start gap-4">

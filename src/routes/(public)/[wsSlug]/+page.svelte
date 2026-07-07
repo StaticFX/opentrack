@@ -12,7 +12,7 @@
 
 <svelte:head><title>{ws.name}</title></svelte:head>
 
-<main class="mx-auto max-w-5xl px-6 py-16">
+<main class="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-16">
 	<!-- Hero -->
 	<section class="mb-14 flex items-start gap-4">
 		{#if ws.avatarUrl}
@@ -23,7 +23,7 @@
 			</div>
 		{/if}
 		<div class="max-w-2xl">
-			<h1 class="text-4xl font-bold tracking-tight">{headline}</h1>
+			<h1 class="text-3xl font-bold tracking-tight sm:text-4xl">{headline}</h1>
 			<p class="mt-3 text-lg text-neutral-600 dark:text-neutral-300">{tagline}</p>
 		</div>
 	</section>

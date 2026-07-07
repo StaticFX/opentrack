@@ -40,6 +40,7 @@
 	.hd { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 13px; margin-bottom: 10px; }
 	.hd a { color: #6366f1; text-decoration: none; font-weight: 500; font-size: 12px; }
 	.lanes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+		@media (max-width: 520px) { .lanes { grid-template-columns: 1fr; } }
 	.lane-hd { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
 	.dot { width: 8px; height: 8px; border-radius: 999px; }
 	.ct { color: #9ca3af; font-weight: 400; }

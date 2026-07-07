@@ -37,7 +37,7 @@
 	<link rel="alternate" type="application/rss+xml" title={`${data.project.name} suggestions`} href={`${base}/rss.xml`} />
 </svelte:head>
 
-<main class="mx-auto max-w-3xl px-6 py-8">
+<main class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
 	<!-- Submit -->
 	<div class="mb-6">
 		{#if data.canSubmit}
@@ -64,7 +64,7 @@
 	</div>
 
 	<!-- Controls -->
-	<div class="mb-4 flex items-center justify-between">
+	<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
 		<div class="flex gap-1">
 			{#each sorts as s (s.key)}
 				<button

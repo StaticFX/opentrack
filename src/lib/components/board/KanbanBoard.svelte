@@ -446,7 +446,7 @@
 
 {#if selectMode && selectedIds.length}
 	{@const sc = 'h-8 rounded-md border border-neutral-200 bg-white px-2 text-sm dark:border-neutral-700 dark:bg-neutral-800'}
-	<div class="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
+	<div class="fixed inset-x-2 bottom-4 z-40 flex max-w-[calc(100vw-1rem)] flex-wrap items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 shadow-xl sm:inset-x-auto sm:left-1/2 sm:max-w-none sm:-translate-x-1/2 sm:flex-nowrap dark:border-neutral-700 dark:bg-neutral-900">
 		<span class="px-1 text-sm font-medium">{selectedIds.length} selected</span>
 		<select class={sc} onchange={(e) => { const v = e.currentTarget.value; if (v) bulkAction('move', { columnId: v }); e.currentTarget.value = ''; }}>
 			{#each bulkColumnOptions as o (o.value)}<option value={o.value}>{o.label}</option>{/each}

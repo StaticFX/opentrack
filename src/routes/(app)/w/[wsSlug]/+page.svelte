@@ -69,9 +69,9 @@
 
 <svelte:head><title>{ws.name} · OpenTrack</title></svelte:head>
 
-<div class="mx-auto max-w-5xl px-8 py-8">
+<div class="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
 	<!-- Header -->
-	<header class="mb-8 flex items-start justify-between gap-4">
+	<header class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 		<div class="flex items-center gap-3">
 			{#if ws.avatarUrl}
 				<img src={ws.avatarUrl} alt="" class="size-11 shrink-0 rounded-xl object-cover" />
@@ -105,7 +105,7 @@
 	</header>
 
 	<!-- Stats -->
-	<div class="mb-8 grid grid-cols-3 gap-3">
+	<div class="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
 		{#each stats as s (s.label)}
 			<div class="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
 				<s.icon size={16} class="text-neutral-400" />

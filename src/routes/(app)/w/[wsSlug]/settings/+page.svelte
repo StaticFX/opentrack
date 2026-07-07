@@ -38,7 +38,7 @@
 
 <svelte:head><title>Settings · {data.workspace.name}</title></svelte:head>
 
-<div class="mx-auto max-w-2xl px-8 py-8">
+<div class="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
 	<header class="mb-8">
 		<h1 class="text-xl font-semibold tracking-tight">Workspace settings</h1>
 		<p class="mt-0.5 text-sm text-neutral-500">{data.workspace.name}</p>

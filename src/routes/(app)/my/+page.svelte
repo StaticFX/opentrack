@@ -60,7 +60,7 @@
 	</section>
 {/snippet}
 
-<div class="mx-auto max-w-3xl px-6 py-8">
+<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
 	<div class="mb-6">
 		<h1 class="text-xl font-semibold">My Work</h1>
 		<p class="text-sm text-neutral-500">Everything across your workspaces that needs you.</p>

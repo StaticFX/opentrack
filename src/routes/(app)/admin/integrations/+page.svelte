@@ -29,7 +29,7 @@
 
 <svelte:head><title>Integrations · Admin · OpenTrack</title></svelte:head>
 
-<div class="mx-auto max-w-2xl px-8 py-8">
+<div class="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
 	<header class="mb-6">
 		<h1 class="text-xl font-semibold tracking-tight">Integrations</h1>
 		<p class="mt-0.5 text-sm text-neutral-500">
@@ -87,7 +87,7 @@
 					<Field label="Private key (.pem)" hint={gh.hasPrivateKey ? 'Stored. Paste a new key to replace it.' : 'Paste the full PEM contents.'}>
 						<Textarea name="privateKey" rows={4} placeholder={gh.hasPrivateKey ? '•••••• (leave blank to keep)' : '-----BEGIN RSA PRIVATE KEY-----'} />
 					</Field>
-					<div class="flex gap-3">
+					<div class="flex flex-col gap-3 sm:flex-row">
 						<div class="flex-1"><Field label="Webhook secret"><Input name="webhookSecret" type="password" placeholder={gh.hasWebhookSecret ? '•••••• (keep)' : 'secret'} /></Field></div>
 						<div class="flex-1"><Field label="OAuth client ID"><Input name="clientId" value={gh.clientId} placeholder="optional" /></Field></div>
 						<div class="flex-1"><Field label="OAuth client secret"><Input name="clientSecret" type="password" placeholder={gh.hasClientSecret ? '•••••• (keep)' : 'optional'} /></Field></div>

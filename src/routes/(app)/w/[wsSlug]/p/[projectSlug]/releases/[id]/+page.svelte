@@ -26,7 +26,7 @@
 
 <svelte:head><title>{r.version} — Releases</title></svelte:head>
 
-<div class="mx-auto max-w-2xl px-8 py-8">
+<div class="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
 	<a href={`${base}/releases`} class="mb-4 inline-flex items-center gap-1 text-sm text-neutral-400 hover:text-neutral-600"><ArrowLeft size={14} /> Releases</a>
 
 	<!-- Details -->

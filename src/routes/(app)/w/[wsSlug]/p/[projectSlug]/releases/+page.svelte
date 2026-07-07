@@ -13,7 +13,7 @@
 
 <svelte:head><title>Releases — {data.project.name}</title></svelte:head>
 
-<div class="flex h-screen flex-col">
+<div class="flex h-full flex-col">
 	<ProjectPageHeader section="Releases">
 		{#snippet action()}
 			{#if showForm}
@@ -28,7 +28,7 @@
 		{/snippet}
 	</ProjectPageHeader>
 	<div class="min-h-0 flex-1 overflow-y-auto">
-		<div class="mx-auto max-w-3xl px-8 py-8">
+		<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
 	{#if form?.error}<p class="mb-3 text-sm text-red-600">{form.error}</p>{/if}
 
 	{#if data.releases.length}

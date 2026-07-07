@@ -146,7 +146,7 @@
 				class="mb-4 w-full resize-y rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none dark:border-neutral-700 dark:bg-neutral-900"
 			></textarea>
 
-			<div class="mb-4 grid grid-cols-3 gap-3">
+			<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
 				<label class="block">
 					<span class="mb-1 block text-xs font-medium text-neutral-400">Column</span>
 					<Select bind:value={columnId} options={columnOptions} size="sm" />

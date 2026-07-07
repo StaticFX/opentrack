@@ -9,7 +9,7 @@
 
 <svelte:head><title>{data.project.name} · OpenTrack</title></svelte:head>
 
-<div class="flex h-screen flex-col">
+<div class="flex h-full flex-col">
 	<ProjectPageHeader section={data.board.name}>
 		{#snippet action()}
 			{#if data.canEditContent}

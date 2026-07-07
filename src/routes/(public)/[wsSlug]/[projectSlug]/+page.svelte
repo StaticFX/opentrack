@@ -12,11 +12,11 @@
 <svelte:head><title>{data.project.name} — Board</title></svelte:head>
 
 {#if empty}
-	<div class="mx-auto max-w-6xl px-6 py-20 text-center text-sm text-neutral-400">
+	<div class="mx-auto max-w-6xl px-4 py-20 text-center text-sm text-neutral-400 sm:px-6">
 		Nothing on the public board yet.
 	</div>
 {:else}
-	<div class="overflow-x-auto px-6 py-6">
+	<div class="overflow-x-auto px-4 py-6 sm:px-6">
 		<div class="mx-auto flex w-max items-start gap-3">
 			{#each data.columns as col (col.id)}
 				<section class="w-72 rounded-xl bg-neutral-50 dark:bg-neutral-900/40">

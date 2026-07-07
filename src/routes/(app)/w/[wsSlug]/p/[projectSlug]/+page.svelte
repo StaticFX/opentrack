@@ -79,13 +79,13 @@
 
 <svelte:head><title>{data.project.name} · OpenTrack</title></svelte:head>
 
-<div class="flex h-screen flex-col">
+<div class="flex h-full flex-col">
 	<!-- Header -->
 	<ProjectPageHeader section="Overview" />
 
 	<!-- Body -->
 	<div class="min-h-0 flex-1 overflow-y-auto">
-		<div class="mx-auto max-w-4xl px-8 py-8">
+		<div class="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
 			<!-- Identity -->
 			<div class="mb-6 flex items-start gap-4">
 				<div class="grid size-12 shrink-0 place-items-center rounded-xl text-xl font-bold text-white" style={`background:${data.project.color ?? 'var(--color-brand-600)'}`}>

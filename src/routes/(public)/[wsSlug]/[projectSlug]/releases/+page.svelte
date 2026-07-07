@@ -14,7 +14,7 @@
 	<link rel="alternate" type="application/rss+xml" title={`${data.project.name} releases`} href={feed} />
 </svelte:head>
 
-<main class="mx-auto max-w-3xl px-6 py-8">
+<main class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
 	<div class="mb-4 flex justify-end">
 		<a href={feed} class="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-orange-500"><Rss size={13} /> RSS</a>
 	</div>

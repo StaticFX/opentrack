@@ -46,7 +46,7 @@
 
 <svelte:head><title>New project · OpenTrack</title></svelte:head>
 
-<div class="mx-auto max-w-lg px-8 py-12">
+<div class="mx-auto max-w-lg px-4 py-8 sm:px-8 sm:py-12">
 	<h1 class="text-xl font-semibold tracking-tight">Create a project</h1>
 	<p class="mt-0.5 text-sm text-neutral-500">in {data.workspace.name}</p>
 

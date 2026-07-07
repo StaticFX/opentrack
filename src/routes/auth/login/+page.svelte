@@ -22,7 +22,7 @@
 
 <svelte:head><title>Sign in · OpenTrack</title></svelte:head>
 
-<main class="mx-auto flex min-h-full max-w-sm flex-col justify-center gap-8 px-6 py-16">
+<main class="mx-auto flex min-h-full max-w-sm flex-col justify-center gap-8 px-4 py-16 sm:px-6">
 	<div class="text-center">
 		<h1 class="text-2xl font-bold tracking-tight">Sign in to OpenTrack</h1>
 		<p class="mt-1 text-sm text-neutral-500">Use a provider to comment, vote, and suggest.</p>

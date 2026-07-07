@@ -27,8 +27,8 @@
 
 <svelte:head><title>Inbox — OpenTrack</title></svelte:head>
 
-<div class="mx-auto max-w-2xl px-6 py-8">
-	<div class="mb-6 flex items-center justify-between">
+<div class="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
+	<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 		<div>
 			<h1 class="text-xl font-semibold">Inbox</h1>
 			<p class="text-sm text-neutral-500">
@@ -39,7 +39,7 @@
 			<button
 				type="button"
 				onclick={readAll}
-				class="flex items-center gap-1.5 rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800"
+				class="flex items-center gap-1.5 self-start rounded-md border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800"
 			>
 				<CheckCheck size={15} /> Mark all read
 			</button>

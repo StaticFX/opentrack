@@ -178,9 +178,9 @@
 
 <svelte:head><title>Settings · {data.project.name}</title></svelte:head>
 
-<div class="flex h-screen min-w-0">
+<div class="flex h-full min-w-0 flex-col lg:flex-row">
 	<!-- Settings nav (secondary sidebar) -->
-	<aside class="flex h-screen w-56 shrink-0 flex-col border-r border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/40">
+	<aside class="flex w-full shrink-0 flex-col border-b border-neutral-200 bg-neutral-50 lg:h-screen lg:w-56 lg:border-r lg:border-b-0 dark:border-neutral-800 dark:bg-neutral-900/40">
 		<div class="p-2">
 			<a href={base} class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neutral-500 hover:bg-neutral-200/60 dark:hover:bg-neutral-800">
 				<ArrowLeft size={15} /> Back to project
@@ -190,13 +190,13 @@
 			<h1 class="text-sm font-semibold tracking-tight">Project settings</h1>
 			<p class="truncate text-xs text-neutral-500">{data.project.name}</p>
 		</div>
-		<nav class="flex-1 overflow-y-auto px-2 py-2">
+		<nav class="flex flex-row gap-1 overflow-x-auto px-2 py-2 lg:flex-1 lg:flex-col lg:gap-0 lg:overflow-x-visible lg:overflow-y-auto">
 			{#each tabs as t (t.id)}
 				<button
 					type="button"
 					onclick={() => (tab = t.id)}
 					class={cn(
-						'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm',
+						'flex w-auto shrink-0 items-center gap-2 rounded-md px-2 py-1.5 text-sm whitespace-nowrap lg:w-full',
 						tab === t.id
 							? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
 							: t.id === 'danger'
@@ -213,7 +213,7 @@
 
 	<!-- Content -->
 	<div class="min-w-0 flex-1 overflow-y-auto">
-		<div class="mx-auto max-w-2xl px-8 py-8">
+		<div class="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
 			{#if tab === 'general'}
 				<h2 class="mb-4 text-lg font-semibold tracking-tight">General</h2>
 				<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
@@ -642,7 +642,7 @@
 							<button type="button" onclick={addCond} class="text-xs text-brand-600 hover:underline dark:text-brand-400">+ condition</button>
 						</div>
 						{#each rConds as c, i (i)}
-							<div class="mb-1.5 flex items-center gap-2">
+							<div class="mb-1.5 flex flex-wrap items-center gap-2">
 								<Select value={c.type} onchange={(v) => { rConds[i] = { type: v, value: '' }; }} options={WORKFLOW_CONDITIONS.map((x) => ({ value: x.type, label: x.label }))} class="w-40" />
 								{#if c.type === 'priority'}
 									<Select value={c.value} onchange={(v) => { rConds[i].value = v; }} options={priorityOpts} placeholder="priority" class="w-32" />
@@ -662,7 +662,7 @@
 							<button type="button" onclick={addAction} class="text-xs text-brand-600 hover:underline dark:text-brand-400">+ action</button>
 						</div>
 						{#each rActs as a, i (i)}
-							<div class="mb-1.5 flex items-center gap-2">
+							<div class="mb-1.5 flex flex-wrap items-center gap-2">
 								<Select value={a.type} onchange={(v) => { rActs[i] = { type: v, config: {} }; }} options={WORKFLOW_ACTIONS.map((x) => ({ value: x.type, label: x.label }))} class="w-44" />
 								{#if a.type === 'add_label'}
 									<Select value={String(a.config.labelId ?? '')} onchange={(v) => { rActs[i].config = { labelId: v }; }} options={labelOpts} placeholder="label" class="w-40" />

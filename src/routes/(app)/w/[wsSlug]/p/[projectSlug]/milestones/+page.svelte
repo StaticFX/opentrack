@@ -82,7 +82,7 @@
 
 <svelte:head><title>Milestones — {data.project.name}</title></svelte:head>
 
-<div class="flex h-screen flex-col">
+<div class="flex h-full flex-col">
 	<ProjectPageHeader section="Milestones">
 		{#snippet action()}
 			{#if data.canManage && !showForm}
@@ -91,7 +91,7 @@
 		{/snippet}
 	</ProjectPageHeader>
 	<div class="min-h-0 flex-1 overflow-y-auto">
-		<div class="mx-auto max-w-3xl px-8 py-8">
+		<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
 	{#if data.githubRepo}
 		<p class="mb-4 flex items-center gap-1 text-xs text-neutral-400"><GitBranch size={12} /> Synced with {data.githubRepo}</p>
 	{/if}

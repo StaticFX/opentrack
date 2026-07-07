@@ -12,7 +12,7 @@
 
 <div class="flex min-h-screen flex-col bg-white dark:bg-neutral-950">
 	<header class="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/80">
-		<div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
+		<div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
 			{#if data.brand}
 				<a href={`/${data.brand.slug}`} class="flex items-center gap-2">
 					{#if data.brand.avatarUrl}

@@ -18,6 +18,10 @@
 	import { PROJECT_NAV, isProjectNavActive } from '$lib/projectNav';
 	import NotificationBell from './NotificationBell.svelte';
 
+	// `open` toggles the off-canvas drawer on mobile; `onnavigate` lets the parent
+	// close the drawer when a non-link action (e.g. search) is triggered.
+	let { open = false, onnavigate }: { open?: boolean; onnavigate?: () => void } = $props();
+
 	type WsRef = {
 		id: string;
 		slug: string;
@@ -79,7 +83,10 @@
 {/snippet}
 
 <aside
-	class="flex h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/40"
+	class={cn(
+		'fixed inset-y-0 left-0 z-50 flex h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-neutral-50 transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0 dark:border-neutral-800 dark:bg-neutral-900/40',
+		open ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:shadow-none'
+	)}
 >
 	<!-- Workspace switcher -->
 	<div class="relative p-2">
@@ -139,7 +146,7 @@
 	<div class="px-2">
 		<button
 			type="button"
-			onclick={() => window.dispatchEvent(new CustomEvent('command-palette'))}
+			onclick={() => { onnavigate?.(); window.dispatchEvent(new CustomEvent('command-palette')); }}
 			class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-neutral-500 hover:bg-neutral-200/60 dark:text-neutral-400 dark:hover:bg-neutral-800"
 		>
 			<Search size={15} class="text-neutral-400" />

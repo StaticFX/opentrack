@@ -14,7 +14,7 @@
 
 <svelte:head><title>Roadmap — {data.project.name}</title></svelte:head>
 
-<div class="mx-auto max-w-6xl px-6 py-8">
+<div class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
 	{#if total === 0}
 		<p class="py-20 text-center text-sm text-neutral-400">Nothing on the roadmap yet — check back soon.</p>
 	{:else}
