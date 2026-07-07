@@ -12,6 +12,7 @@ import { getBoardColumns, listBoards, setColumnRoadmapLanes } from '$lib/server/
 import { laneForColumn } from '$lib/roadmap';
 import { githubConfigured } from '$lib/server/github/app';
 import { createStatusLabels } from '$lib/server/github/import';
+import { resyncProject } from '$lib/server/github/resync';
 import { listWorkspaceRepos } from '$lib/server/github/installations';
 import { canManageProject } from '$lib/server/permissions';
 import {
@@ -140,6 +141,22 @@ export const actions: Actions = {
 			.set({ githubInstallationId: installationId, githubRepo: fullName })
 			.where(eq(schema.projects.id, ctx.project.id));
 		return { linked: true };
+	},
+
+	// Reconcile local tickets ↔ GitHub issues in both directions. Detects issues
+	// present on one side but not the other and enqueues the work to close the
+	// gap (import missing issues; push tickets that never made it to GitHub).
+	resyncGithub: async ({ locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
+		if (!ctx.project.githubRepo || !ctx.project.githubInstallationId) {
+			return fail(400, { error: 'This project is not linked to a GitHub repository.' });
+		}
+		try {
+			const report = await resyncProject(ctx.project.id);
+			return { resynced: true, missingLocal: report.missingLocal, missingRemote: report.missingRemote };
+		} catch (e) {
+			return fail(502, { error: e instanceof Error ? e.message : 'Resync failed.' });
+		}
 	},
 
 	unlinkRepo: async ({ locals, params }) => {

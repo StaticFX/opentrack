@@ -2,19 +2,8 @@ import { error, json } from '@sveltejs/kit';
 import { requireBoardAccess, requireUser } from '$lib/server/access';
 import type { SessionUser } from '$lib/server/auth/session';
 import { ACCESS } from '$lib/server/permissions';
-import { deleteView, getView, updateView, type ViewFilters } from '$lib/server/services/views';
+import { deleteView, getView, sanitizeFilters, updateView, type ViewFilters } from '$lib/server/services/views';
 import type { RequestHandler } from './$types';
-
-function cleanFilters(input: unknown): ViewFilters {
-	const f = (input ?? {}) as Record<string, unknown>;
-	const out: ViewFilters = {};
-	const q = String(f.q ?? '').trim();
-	if (q) out.q = q;
-	if (f.label) out.label = String(f.label);
-	if (f.assignee) out.assignee = String(f.assignee);
-	if (f.priority) out.priority = String(f.priority);
-	return out;
-}
 
 /** The owner, or a board maintainer, may modify a view. */
 async function authorize(user: SessionUser, viewId: string) {
@@ -37,7 +26,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 		if (!name) throw error(400, 'A name is required');
 		patch.name = name;
 	}
-	if (body.filters !== undefined) patch.filters = cleanFilters(body.filters);
+	if (body.filters !== undefined) patch.filters = sanitizeFilters(body.filters);
 	if (body.shared !== undefined) {
 		patch.shared = body.shared === true && access.level >= ACCESS.COLLABORATOR;
 	}

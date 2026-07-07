@@ -26,6 +26,7 @@
 		columns={data.columns}
 		tickets={data.tickets}
 		labels={data.labels}
+		fields={data.fields}
 		canEdit={data.canEditContent}
 		canManage={data.canManageProject}
 		showArchived={data.showArchived}

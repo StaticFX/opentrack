@@ -2,16 +2,16 @@
 	import { onMount } from 'svelte';
 	import { ListFilter, Plus, Trash2, Users, Check } from '@lucide/svelte';
 	import { clickOutside } from '$lib/utils/clickOutside';
+	import type { BoardFilters } from '$lib/board';
 
-	type Filters = { q?: string; label?: string; assignee?: string; priority?: string };
-	type View = { id: string; name: string; filters: Filters; shared: boolean; mine: boolean };
+	type View = { id: string; name: string; filters: BoardFilters; shared: boolean; mine: boolean };
 
 	type Props = {
 		boardId: string;
-		current: Filters;
+		current: BoardFilters;
 		filterActive: boolean;
 		canShare: boolean;
-		onapply: (f: Filters) => void;
+		onapply: (f: BoardFilters) => void;
 	};
 	let { boardId, current, filterActive, canShare, onapply }: Props = $props();
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Copy, Trash2, Check, GitBranch, GitMerge, Settings, Users, TriangleAlert, ArrowLeft, Plug, SlidersHorizontal, Plus, Zap, ArrowRight, Map, ExternalLink } from '@lucide/svelte';
+	import { Copy, Trash2, Check, GitBranch, GitMerge, Settings, Users, TriangleAlert, ArrowLeft, Plug, SlidersHorizontal, Plus, Zap, ArrowRight, Map, ExternalLink, RefreshCw } from '@lucide/svelte';
 	import { PALETTE } from '$lib/colors';
 	import { PRIORITIES } from '$lib/constants';
 	import { PRIORITY_META } from '$lib/priority';
@@ -31,6 +31,7 @@
 	let visibility = $state(data.project.visibility);
 	let deleteOpen = $state(false);
 	let selectedRepo = $state('');
+	let resyncing = $state(false);
 
 	const tabs = [
 		{ id: 'general', label: 'General', icon: Settings },
@@ -445,10 +446,28 @@
 					{:else if data.linkedRepo}
 						<div class="flex items-center justify-between rounded-lg bg-neutral-100 p-3 dark:bg-neutral-900">
 							<a href={`https://github.com/${data.linkedRepo}`} target="_blank" rel="noreferrer" class="flex items-center gap-2 text-sm font-medium hover:underline"><GitBranch size={14} /> {data.linkedRepo}</a>
-							<form method="POST" action="?/unlinkRepo" use:enhance>
-								<button class="text-xs text-neutral-400 hover:text-red-600">Unlink</button>
-							</form>
+							<div class="flex items-center gap-3">
+								<form method="POST" action="?/resyncGithub" use:enhance={() => { resyncing = true; return async ({ update }) => { await update({ reset: false }); resyncing = false; }; }}>
+									<button type="submit" disabled={resyncing} class="flex items-center gap-1 text-xs text-neutral-500 hover:text-brand-600 disabled:opacity-60">
+										<RefreshCw size={12} class={resyncing ? 'animate-spin' : ''} /> {resyncing ? 'Resyncing…' : 'Resync'}
+									</button>
+								</form>
+								<form method="POST" action="?/unlinkRepo" use:enhance>
+									<button class="text-xs text-neutral-400 hover:text-red-600">Unlink</button>
+								</form>
+							</div>
 						</div>
+						{#if f?.resynced}
+							<p class="mt-2 text-sm text-green-600">
+								{#if f.missingLocal || f.missingRemote}
+									Reconciling{#if f.missingLocal} · {f.missingLocal} issue{f.missingLocal === 1 ? '' : 's'} → OpenTrack{/if}{#if f.missingRemote} · {f.missingRemote} ticket{f.missingRemote === 1 ? '' : 's'} → GitHub{/if}. Changes appear as the sync runs.
+								{:else}
+									Already in sync — nothing missing on either side.
+								{/if}
+							</p>
+						{:else if f?.error}
+							<p class="mt-2 text-sm text-red-600">{f.error}</p>
+						{/if}
 					{:else if data.repos.length}
 						<form method="POST" action="?/linkRepo" use:enhance class="flex items-end gap-2">
 							<div class="flex-1"><Select name="repo" bind:value={selectedRepo} options={data.repos} placeholder="Choose a repository…" /></div>

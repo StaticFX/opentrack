@@ -9,8 +9,10 @@
 	import { PALETTE } from '$lib/colors';
 	import { PRIORITY_META } from '$lib/priority';
 	import { rankAfter, rankBefore, rankBetween, rankForDrop } from '$lib/rank';
-	import type { TicketCard } from '$lib/board';
+	import { FILTER_NONE, filterCount, normalizeFilters, ticketMatchesFilters, type BoardFilters, type TicketCard } from '$lib/board';
+	import type { CustomFieldDef } from '$lib/customFields';
 	import Select from '$lib/components/ui/Select.svelte';
+	import BoardFilter, { type FilterSection } from './BoardFilter.svelte';
 	import BoardViews from './BoardViews.svelte';
 	import Card from './Card.svelte';
 	import ColumnIcon from './ColumnIcon.svelte';
@@ -42,12 +44,13 @@
 		columns: ColumnDef[];
 		tickets: TicketCard[];
 		labels: Array<{ id: string; name: string; color: string }>;
+		fields: CustomFieldDef[];
 		canEdit: boolean;
 		canManage: boolean;
 		showArchived: boolean;
 		currentUser: { id: string; displayName: string; avatarUrl: string | null };
 	};
-	let { boardId, projectId, columns, tickets, labels, canEdit, canManage, showArchived, currentUser }: Props =
+	let { boardId, projectId, columns, tickets, labels, fields, canEdit, canManage, showArchived, currentUser }: Props =
 		$props();
 
 	function toggleArchived() {
@@ -143,46 +146,85 @@
 	const jsonHeaders = { 'content-type': 'application/json' };
 
 	// ── Filtering ────────────────────────────────────────────────────────
-	let fq = $state('');
-	let fLabel = $state('');
-	let fAssignee = $state('');
-	let fPriority = $state('');
-	const filterActive = $derived(!!(fq.trim() || fLabel || fAssignee || fPriority));
+	// Multi-value, combinable filters (OR within a dimension, AND across).
+	let filters = $state<BoardFilters>({});
+	const filterActive = $derived(filterCount(filters) > 0);
 
-	const labelOptions = $derived([{ value: '', label: 'All labels' }, ...labels.map((l) => ({ value: l.id, label: l.name, color: l.color }))]);
-	const priorityFilterOptions = $derived([
-		{ value: '', label: 'Any priority' },
-		...PRIORITY_OPTIONS
-	]);
-	const assigneeOptions = $derived.by(() => {
+	const columnFilterOptions = $derived(columns.map((c) => ({ value: c.id, label: c.name, color: c.color })));
+	const labelFilterOptions = $derived(labels.map((l) => ({ value: l.id, label: l.name, color: l.color })));
+	const priorityFilterOptions = PRIORITY_OPTIONS;
+	// Assignees + milestones aren't passed as props, so derive them from the
+	// tickets currently on the board (plus a "none" pseudo-option).
+	const assigneeFilterOptions = $derived.by(() => {
 		const seen = new Map<string, string>();
 		for (const t of tickets) for (const a of t.assignees) if (a.userId) seen.set(a.userId, a.displayName);
-		return [{ value: '', label: 'Anyone' }, ...[...seen].map(([value, label]) => ({ value, label }))];
+		return [...[...seen].map(([value, label]) => ({ value, label })), { value: FILTER_NONE, label: 'Unassigned' }];
 	});
+	const milestoneFilterOptions = $derived.by(() => {
+		const seen = new Map<string, string>();
+		for (const t of tickets) if (t.milestone) seen.set(t.milestone.id, t.milestone.title);
+		const opts = [...seen].map(([value, label]) => ({ value, label }));
+		return opts.length ? [...opts, { value: FILTER_NONE, label: 'No milestone' }] : [];
+	});
+	// Custom fields become filter dimensions too (select + checkbox — the ones
+	// with a fixed, enumerable value set). Values live under `filters.fields`.
+	const fieldSections = $derived<FilterSection[]>(
+		fields
+			.filter((f) => f.type === 'select' || f.type === 'checkbox')
+			.map((f) => ({
+				id: f.id,
+				label: f.name,
+				field: true,
+				options:
+					f.type === 'checkbox'
+						? [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]
+						: (f.options ?? []).map((o) => ({ value: o, label: o }))
+			}))
+			.filter((s) => s.options.length > 0)
+	);
+	const filterSections = $derived<FilterSection[]>([
+		{ id: 'columns', label: 'Status', options: columnFilterOptions },
+		{ id: 'priorities', label: 'Priority', options: priorityFilterOptions },
+		{ id: 'assignees', label: 'Assignee', options: assigneeFilterOptions },
+		{ id: 'labels', label: 'Label', options: labelFilterOptions },
+		{ id: 'milestones', label: 'Milestone', options: milestoneFilterOptions },
+		...fieldSections
+	]);
 
-	function matches(t: TicketCard): boolean {
-		const q = fq.trim().toLowerCase();
-		if (q && !(`#${t.number} ${t.title}`.toLowerCase().includes(q))) return false;
-		if (fLabel && !t.labels.some((l) => l.id === fLabel)) return false;
-		if (fAssignee && !t.assignees.some((a) => a.userId === fAssignee)) return false;
-		if (fPriority && t.priority !== fPriority) return false;
-		return true;
-	}
 	function display(col: Col): TicketCard[] {
-		return filterActive ? col.items.filter(matches) : col.items;
+		return filterActive ? col.items.filter((t) => ticketMatchesFilters(t, filters)) : col.items;
 	}
 	function clearFilters() {
-		fq = '';
-		fLabel = '';
-		fAssignee = '';
-		fPriority = '';
+		filters = {};
 	}
-	/** Apply a saved view's filters to the live filter controls. */
-	function applyView(f: { q?: string; label?: string; assignee?: string; priority?: string }) {
-		fq = f.q ?? '';
-		fLabel = f.label ?? '';
-		fAssignee = f.assignee ?? '';
-		fPriority = f.priority ?? '';
+	/** Apply a saved view's filters (normalizing the legacy single-value shape). */
+	function applyView(f: unknown) {
+		filters = normalizeFilters(f);
+	}
+
+	// Removable chips — one per selected value, for at-a-glance active filters.
+	type Chip = { id: string; field: boolean; value: string; label: string; color?: string };
+	function sectionSelected(s: FilterSection): string[] {
+		return (s.field ? filters.fields?.[s.id] : (filters[s.id as keyof BoardFilters] as string[])) ?? [];
+	}
+	const chips = $derived.by(() => {
+		const out: Chip[] = [];
+		for (const s of filterSections) {
+			for (const v of sectionSelected(s)) {
+				const o = s.options.find((x) => x.value === v);
+				out.push({ id: s.id, field: !!s.field, value: v, label: o?.label ?? v, color: o?.color });
+			}
+		}
+		return out;
+	});
+	function removeChip(c: Chip) {
+		if (c.field) {
+			const cur = filters.fields?.[c.id] ?? [];
+			filters = { ...filters, fields: { ...(filters.fields ?? {}), [c.id]: cur.filter((v) => v !== c.value) } };
+		} else {
+			const cur = (filters[c.id as keyof BoardFilters] as string[] | undefined) ?? [];
+			filters = { ...filters, [c.id]: cur.filter((v) => v !== c.value) };
+		}
 	}
 
 	// ── Drag & drop ──────────────────────────────────────────────────────
@@ -316,45 +358,50 @@
 
 <div class="flex min-h-0 flex-1 flex-col">
 	<!-- Filter bar -->
-	<div class="flex flex-wrap items-center gap-2 border-b border-neutral-100 px-4 py-2 dark:border-neutral-800/60">
-		<div class="relative">
-			<Search size={14} class="absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
-			<input
-				bind:value={fq}
-				placeholder="Search…"
-				class="h-8 w-44 rounded-md border border-neutral-200 bg-white pr-2 pl-8 text-sm focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none dark:border-neutral-800 dark:bg-neutral-900"
-			/>
-		</div>
-		<Select bind:value={fLabel} options={labelOptions} size="sm" class="w-36" />
-		<Select bind:value={fAssignee} options={assigneeOptions} size="sm" class="w-32" />
-		<Select bind:value={fPriority} options={priorityFilterOptions} size="sm" class="w-32" />
-		{#if filterActive}
-			<button onclick={clearFilters} class="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"><X size={13} /> Clear</button>
-		{/if}
-		<div class="ml-auto flex items-center gap-2">
-			<button
-				onclick={toggleArchived}
-				class={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-sm ${showArchived ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'}`}
-				title={showArchived ? 'Hide archived tickets' : 'Show archived tickets'}
-			>
-				<Archive size={14} /> {showArchived ? 'Archived' : 'Archive'}
-			</button>
-			{#if canEdit}
-				<button
-					onclick={() => (selectMode ? exitSelect() : enterSelect())}
-					class={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-sm ${selectMode ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'}`}
-				>
-					<CheckSquare size={14} /> {selectMode ? 'Done' : 'Select'}
-				</button>
+	<div class="flex flex-col gap-2 border-b border-neutral-100 px-4 py-2 dark:border-neutral-800/60">
+		<div class="flex flex-wrap items-center gap-2">
+			<div class="relative">
+				<Search size={14} class="absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+				<input
+					bind:value={filters.q}
+					placeholder="Search…"
+					class="h-8 w-44 rounded-md border border-neutral-200 bg-white pr-2 pl-8 text-sm focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none dark:border-neutral-800 dark:bg-neutral-900"
+				/>
+			</div>
+			<BoardFilter bind:filters sections={filterSections} onclear={clearFilters} />
+			{#if filterActive}
+				<button onclick={clearFilters} class="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"><X size={13} /> Clear</button>
 			{/if}
-			<BoardViews
-				{boardId}
-				current={{ q: fq, label: fLabel, assignee: fAssignee, priority: fPriority }}
-				{filterActive}
-				canShare={canEdit}
-				onapply={applyView}
-			/>
+			<div class="ml-auto flex items-center gap-2">
+				<button
+					onclick={toggleArchived}
+					class={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-sm ${showArchived ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'}`}
+					title={showArchived ? 'Hide archived tickets' : 'Show archived tickets'}
+				>
+					<Archive size={14} /> {showArchived ? 'Archived' : 'Archive'}
+				</button>
+				{#if canEdit}
+					<button
+						onclick={() => (selectMode ? exitSelect() : enterSelect())}
+						class={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-sm ${selectMode ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'}`}
+					>
+						<CheckSquare size={14} /> {selectMode ? 'Done' : 'Select'}
+					</button>
+				{/if}
+				<BoardViews {boardId} current={filters} {filterActive} canShare={canEdit} onapply={applyView} />
+			</div>
 		</div>
+		{#if chips.length}
+			<div class="flex flex-wrap items-center gap-1.5">
+				{#each chips as c (c.id + c.value)}
+					<span class="flex items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 py-0.5 pr-1 pl-2 text-xs text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+						{#if c.color}<span class="size-2 shrink-0 rounded-full" style={`background:${c.color}`}></span>{/if}
+						{c.label}
+						<button onclick={() => removeChip(c)} class="rounded-full p-0.5 hover:bg-neutral-200 dark:hover:bg-neutral-700" aria-label={`Remove ${c.label} filter`}><X size={11} /></button>
+					</span>
+				{/each}
+			</div>
+		{/if}
 	</div>
 
 	<div class="min-h-0 flex-1 overflow-x-auto">

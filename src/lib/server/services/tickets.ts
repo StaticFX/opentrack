@@ -125,6 +125,41 @@ export async function listBoardTickets(boardId: string, includeArchived = false)
 	const votesByTicket = new Map(voteRows.map((r) => [r.subjectId, Number(r.c)]));
 	const commentsByTicket = new Map(commentRows.map((r) => [r.subjectId, Number(r.c)]));
 
+	// Custom-field values for the filterable field types (select + checkbox).
+	// Checkbox is normalized so an untouched box reads as 'false' — that lets a
+	// "No" filter match tickets whose box was never toggled.
+	const fieldDefs = await db
+		.select({ id: schema.customFields.id, type: schema.customFields.type })
+		.from(schema.customFields)
+		.where(eq(schema.customFields.projectId, tickets[0].projectId));
+	const checkboxIds = fieldDefs.filter((f) => f.type === 'checkbox').map((f) => f.id);
+	const filterableIds = new Set(
+		fieldDefs.filter((f) => f.type === 'select' || f.type === 'checkbox').map((f) => f.id)
+	);
+	const fieldValuesByTicket = new Map<string, Record<string, string>>();
+	if (filterableIds.size) {
+		const fieldRows = await db
+			.select({
+				ticketId: schema.ticketFieldValues.ticketId,
+				fieldId: schema.ticketFieldValues.fieldId,
+				value: schema.ticketFieldValues.value
+			})
+			.from(schema.ticketFieldValues)
+			.where(inArray(schema.ticketFieldValues.ticketId, ids));
+		for (const r of fieldRows) {
+			if (!filterableIds.has(r.fieldId)) continue;
+			const m = fieldValuesByTicket.get(r.ticketId) ?? {};
+			m[r.fieldId] = r.value;
+			fieldValuesByTicket.set(r.ticketId, m);
+		}
+	}
+	// Default every checkbox field to 'false' on every ticket that hasn't set it.
+	const fieldValuesFor = (ticketId: string): Record<string, string> => {
+		const m = { ...(fieldValuesByTicket.get(ticketId) ?? {}) };
+		for (const id of checkboxIds) if (!(id in m)) m[id] = 'false';
+		return m;
+	};
+
 	// Relation summary per ticket: total count (either direction) + blocked flag.
 	// A ticket is "blocked" when it is the target of a `blocks` relation or the
 	// source of a `blocked_by` relation.
@@ -163,7 +198,8 @@ export async function listBoardTickets(boardId: string, includeArchived = false)
 		comments: commentsByTicket.get(t.id) ?? 0,
 		relations: relCount.get(t.id) ?? 0,
 		blocked: blocked.has(t.id),
-		archived: !!t.archivedAt
+		archived: !!t.archivedAt,
+		fieldValues: fieldValuesFor(t.id)
 	}));
 }
 

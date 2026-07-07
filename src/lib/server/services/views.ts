@@ -1,11 +1,13 @@
 import { and, asc, eq, or } from 'drizzle-orm';
+import { normalizeFilters, type BoardFilters } from '$lib/board';
 import { db, schema } from '$lib/server/db';
 
-export interface ViewFilters {
-	q?: string;
-	label?: string;
-	assignee?: string;
-	priority?: string;
+/** The persisted filter shape (multi-value). See `$lib/board`. */
+export type ViewFilters = BoardFilters;
+
+/** Whitelist + normalize incoming filter JSON before it is stored. */
+export function sanitizeFilters(input: unknown): ViewFilters {
+	return normalizeFilters(input);
 }
 
 export interface BoardView {

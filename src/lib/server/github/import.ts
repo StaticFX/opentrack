@@ -15,7 +15,7 @@ export interface OctokitLike {
 
 // The installation Octokit only reliably exposes `.request` (no paginate
 // plugin), so we page manually via per_page + page until a short page.
-async function fetchAll<T>(
+export async function fetchAll<T>(
 	octokit: OctokitLike,
 	route: string,
 	params: Record<string, unknown>
