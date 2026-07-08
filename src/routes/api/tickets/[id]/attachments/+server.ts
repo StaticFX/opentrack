@@ -34,7 +34,8 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	if (file.size > MAX_UPLOAD_BYTES) throw error(413, 'File exceeds 25 MB');
 
 	const bytes = Buffer.from(await file.arrayBuffer());
-	const storageKey = await saveUpload(file.name || 'file', bytes);
+	const mime = file.type || 'application/octet-stream';
+	const { storageKey, driver } = await saveUpload(file.name || 'file', bytes, mime);
 
 	const [row] = await db
 		.insert(schema.attachments)
@@ -43,9 +44,10 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 			ticketId: params.id,
 			uploaderId: user.id,
 			filename: file.name || 'file',
-			mime: file.type || 'application/octet-stream',
+			mime,
 			size: file.size,
-			storageKey
+			storageKey,
+			storageDriver: driver
 		})
 		.returning({ id: schema.attachments.id, filename: schema.attachments.filename, mime: schema.attachments.mime });
 

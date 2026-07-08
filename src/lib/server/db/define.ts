@@ -851,6 +851,8 @@ export function defineSchema(kit: Kit) {
 			mime: text('mime').notNull(),
 			size: int('size').notNull(),
 			storageKey: text('storage_key').notNull(),
+			// Which storage backend the bytes live in ('local' | 's3').
+			storageDriver: text('storage_driver').notNull().default('local'),
 			createdAt: createdAt()
 		},
 		(t) => [index('attachments_ticket_idx').on(t.ticketId)]

@@ -1,10 +1,10 @@
-import { error, json } from '@sveltejs/kit';
+import { error, json, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { requireTicketAccess, requireUser } from '$lib/server/access';
 import { db, schema } from '$lib/server/db';
 import { canManageProject } from '$lib/server/permissions';
 import { ACCESS } from '$lib/server/permissions';
-import { deleteUpload, readUpload } from '$lib/server/uploads';
+import { deleteUpload, readUpload, serveUrl, type StorageDriver } from '$lib/server/uploads';
 import type { RequestHandler } from './$types';
 
 async function loadAttachment(id: string) {
@@ -19,13 +19,28 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	if (att.ticketId) await requireTicketAccess(locals.user, att.ticketId);
 	else throw error(404, 'Not found');
 
+	const driver = att.storageDriver as StorageDriver;
+	const inline = att.mime.startsWith('image/') || att.mime === 'application/pdf';
+
+	// S3-backed objects: hand the browser a short-lived presigned URL (offloads
+	// bandwidth to the bucket; disposition/type are baked into the signature).
+	if (driver === 's3') {
+		let url: string | null;
+		try {
+			url = await serveUrl(driver, att.storageKey, { mime: att.mime, filename: att.filename, inline });
+		} catch {
+			throw error(404, 'File missing');
+		}
+		if (!url) throw error(404, 'File missing');
+		throw redirect(302, url);
+	}
+
 	let bytes: Buffer;
 	try {
-		bytes = await readUpload(att.storageKey);
+		bytes = await readUpload(driver, att.storageKey);
 	} catch {
 		throw error(404, 'File missing');
 	}
-	const inline = att.mime.startsWith('image/') || att.mime === 'application/pdf';
 	return new Response(new Uint8Array(bytes), {
 		headers: {
 			'content-type': att.mime,
@@ -51,6 +66,6 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	}
 
 	await db.delete(schema.attachments).where(eq(schema.attachments.id, params.id));
-	await deleteUpload(att.storageKey);
+	await deleteUpload(att.storageDriver as StorageDriver, att.storageKey);
 	return json({ ok: true });
 };

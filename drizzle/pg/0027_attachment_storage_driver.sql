@@ -1,0 +1,1 @@
+ALTER TABLE "attachments" ADD COLUMN "storage_driver" text DEFAULT 'local' NOT NULL;

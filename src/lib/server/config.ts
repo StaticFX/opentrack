@@ -24,8 +24,26 @@ export interface PushConfig {
 	/** `mailto:` contact required by the Web Push spec. */
 	subject: string;
 }
+export interface S3Config {
+	/** Custom endpoint for R2/MinIO; empty = AWS S3. */
+	endpoint?: string;
+	region: string;
+	bucket: string;
+	accessKeyId: string;
+	/** AES-256-GCM encrypted at rest. */
+	secretAccessKey: string;
+	/** MinIO (and some setups) need path-style URLs. */
+	forcePathStyle: boolean;
+}
+export interface StorageConfig {
+	/** Active driver for NEW uploads. Existing files are served by their own driver. */
+	driver: 'local' | 's3';
+	/** S3 client config — present whenever credentials exist (even if driver=local), so already-stored S3 objects stay servable. */
+	s3?: S3Config;
+}
 export interface RuntimeConfig {
 	githubApp: GithubAppConfig;
+	storage: StorageConfig;
 	site: SiteConfig;
 	push: PushConfig;
 }
@@ -83,16 +101,37 @@ export async function getConfig(): Promise<RuntimeConfig> {
 		return e.encrypted ? (safeDecrypt(e.value) ?? undefined) : e.value;
 	};
 
-	cache = {
-		githubApp: {
-			appId: get('github.appId'),
-			slug: get('github.slug'),
-			privateKey: get('github.privateKey'),
-			webhookSecret: get('github.webhookSecret'),
-			clientId: get('github.clientId'),
-			clientSecret: get('github.clientSecret')
-		},
-		site: {
+	const s3Bucket = get('storage.s3.bucket');
+		const s3AccessKeyId = get('storage.s3.accessKeyId');
+		const s3SecretKey = get('storage.s3.secretAccessKey');
+		const s3: S3Config | undefined =
+			s3Bucket && s3AccessKeyId && s3SecretKey
+				? {
+						endpoint: get('storage.s3.endpoint') || undefined,
+						region: get('storage.s3.region') || 'auto',
+						bucket: s3Bucket,
+						accessKeyId: s3AccessKeyId,
+						secretAccessKey: s3SecretKey,
+						forcePathStyle: get('storage.s3.forcePathStyle') === '1'
+					}
+				: undefined;
+
+		cache = {
+			githubApp: {
+				appId: get('github.appId'),
+				slug: get('github.slug'),
+				privateKey: get('github.privateKey'),
+				webhookSecret: get('github.webhookSecret'),
+				clientId: get('github.clientId'),
+				clientSecret: get('github.clientSecret')
+			},
+			storage: {
+				// New uploads use S3 only when it's configured AND enabled; existing
+				// files are always served by the driver recorded on their row.
+				driver: get('storage.s3.enabled') === '1' && s3 ? 's3' : 'local',
+				s3
+			},
+			site: {
 			name: get('site.name') ?? SITE_DEFAULTS.name,
 			headline: get('site.headline') ?? SITE_DEFAULTS.headline,
 			tagline: get('site.tagline') ?? SITE_DEFAULTS.tagline
@@ -128,6 +167,19 @@ export async function getConfigView() {
 			hasWebhookSecret: has('github.webhookSecret'),
 			hasClientSecret: has('github.clientSecret'),
 			active: !!(cfg.githubApp.appId && cfg.githubApp.privateKey && cfg.githubApp.webhookSecret)
+		},
+		storage: {
+			s3Enabled: val('storage.s3.enabled') === '1',
+			endpoint: val('storage.s3.endpoint'),
+			region: val('storage.s3.region'),
+			bucket: val('storage.s3.bucket'),
+			accessKeyId: val('storage.s3.accessKeyId'),
+			hasSecret: has('storage.s3.secretAccessKey'),
+			forcePathStyle: val('storage.s3.forcePathStyle') === '1',
+			// True when S3 is the active driver for new uploads.
+			active: cfg.storage.driver === 's3',
+			// True when credentials are present (S3 objects are servable).
+			configured: !!cfg.storage.s3
 		},
 		// Raw stored values (blank when unset → the form shows the defaults as placeholders).
 		site: {
