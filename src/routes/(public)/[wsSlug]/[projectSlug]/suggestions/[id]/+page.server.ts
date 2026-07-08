@@ -1,7 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import type { SuggestionDecision } from '$lib/constants';
-import { SUGGESTION_DECISIONS } from '$lib/constants';
-import { ACCESS, canComment, canManageProject, publicInteractionLocked } from '$lib/server/permissions';
+import { ACCESS, canComment, publicInteractionLocked } from '$lib/server/permissions';
 import { addComment, listComments } from '$lib/server/services/comments';
 import {
 	isWatching,
@@ -13,7 +11,7 @@ import {
 } from '$lib/server/services/notifications';
 import { getBySlugs } from '$lib/server/services/projects';
 import { reactionsFor, summarize } from '$lib/server/services/reactions';
-import { applyDecision, convertToTicket, getSuggestion } from '$lib/server/services/suggestions';
+import { getSuggestion } from '$lib/server/services/suggestions';
 import { countVotes, hasVoted } from '$lib/server/services/votes';
 import { resolveVoter } from '$lib/server/util/anon';
 import type { Actions, PageServerLoad } from './$types';
@@ -53,18 +51,12 @@ export const load: PageServerLoad = async ({ parent, params, locals, cookies, ge
 		canComment:
 			!interactionsLocked &&
 			canComment(locals.user, p.level, p.effectiveVisibility, p.project.allowPublicComments),
-		canTriage: p.canTriage,
 		signedIn: p.signedIn
 	};
 };
 
-async function requireTriage(locals: App.Locals, wsSlug: string, projectSlug: string) {
-	const ctx = await getBySlugs(locals.user, wsSlug, projectSlug);
-	if (!ctx) throw error(404, 'Not found');
-	if (!canManageProject(ctx.level)) throw error(403, 'Not allowed');
-	return ctx;
-}
-
+// Triage (accept/decline/convert/merge) lives in the internal Inbox, not on the
+// public page — see /w/[wsSlug]/p/[projectSlug]/inbox.
 export const actions: Actions = {
 	comment: async ({ request, params, locals }) => {
 		if (!locals.user) throw redirect(302, '/auth/login');
@@ -105,51 +97,5 @@ export const actions: Actions = {
 			exclude: mentionIds
 		});
 		return { commented: true };
-	},
-
-	resolve: async ({ request, params, locals }) => {
-		const ctx = await requireTriage(locals, params.wsSlug, params.projectSlug);
-		const formData = await request.formData();
-		const status = String(formData.get('status') ?? '') as SuggestionDecision;
-		const note = String(formData.get('note') ?? '').trim();
-		if (!SUGGESTION_DECISIONS.includes(status)) return fail(400, { error: 'Invalid decision.' });
-
-		await applyDecision({
-			actor: locals.user!,
-			projectId: ctx.project.id,
-			suggestionId: params.id,
-			decision: status,
-			note: note || undefined
-		});
-		return { statusSet: true };
-	},
-
-	convert: async ({ params, locals }) => {
-		await requireTriage(locals, params.wsSlug, params.projectSlug);
-		const result = await convertToTicket(locals.user!, params.id);
-		if (!result) return fail(400, { error: 'Could not convert — the project has no board.' });
-		return { converted: true };
-	},
-
-	merge: async ({ request, params, locals }) => {
-		const ctx = await requireTriage(locals, params.wsSlug, params.projectSlug);
-		const targetId = String((await request.formData()).get('targetId') ?? '');
-		if (!targetId) return fail(400, { error: 'Pick a suggestion to merge into.' });
-		const { mergeSuggestion } = await import('$lib/server/services/suggestions');
-		const result = await mergeSuggestion(params.id, targetId);
-		if (!result) return fail(400, { error: 'Could not merge — invalid target.' });
-
-		// Record the merge on both threads + notify followers of the canonical one.
-		await addComment('suggestion', params.id, locals.user!.id, `Merged into **${result.targetTitle}** — votes and followers moved there.`);
-		const { logActivity } = await import('$lib/server/services/activity');
-		await logActivity({ projectId: ctx.project.id, subjectType: 'suggestion', subjectId: params.id, actorId: locals.user?.id, type: 'suggestion.status', data: { status: 'duplicate' } });
-		await notifyWatchers({
-			type: 'suggestion.status',
-			subjectType: 'suggestion',
-			subjectId: targetId,
-			actorId: locals.user?.id,
-			body: `A duplicate ("${result.sourceTitle}") was merged in`
-		});
-		return { merged: true };
 	}
 };
