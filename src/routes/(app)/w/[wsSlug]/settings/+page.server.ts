@@ -3,6 +3,7 @@ import type { Visibility, WorkspaceRole } from '$lib/constants';
 import { WORKSPACE_ROLES } from '$lib/constants';
 import { env } from '$lib/server/env';
 import { generateInviteCode } from '$lib/server/auth/invite';
+import { normalizeScopes } from '$lib/apiScopes';
 import { createApiKey, listApiKeys, revokeApiKey } from '$lib/server/services/api-keys';
 import { githubConfigured } from '$lib/server/github/app';
 import { listForWorkspace, removeInstallation } from '$lib/server/github/installations';
@@ -125,8 +126,10 @@ export const actions: Actions = {
 
 	createApiKey: async ({ request, locals, params }) => {
 		const ctx = await requireManage(locals, params.wsSlug);
-		const name = String((await request.formData()).get('name') ?? '').trim().slice(0, 60) || 'API key';
-		const { raw, key } = await createApiKey(ctx.workspace.id, name, locals.user!.id);
+		const form = await request.formData();
+		const name = String(form.get('name') ?? '').trim().slice(0, 60) || 'API key';
+		const scopes = normalizeScopes(form.getAll('scope').map(String));
+		const { raw, key } = await createApiKey(ctx.workspace.id, name, locals.user!.id, scopes.length ? scopes : ['read']);
 		// The raw key is shown ONCE here and never again.
 		return { apiKeyRaw: raw, apiKeyName: key.name };
 	},

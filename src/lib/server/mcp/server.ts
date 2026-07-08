@@ -49,14 +49,25 @@ export async function handleMcpMessage(
 			return ok(id, {});
 
 		case 'tools/list':
+			// Only advertise tools the key's scopes permit.
 			return ok(id, {
-				tools: MCP_TOOLS.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema }))
+				tools: MCP_TOOLS.filter((t) => ctx.scopes.includes(t.scope)).map((t) => ({
+					name: t.name,
+					description: t.description,
+					inputSchema: t.inputSchema
+				}))
 			});
 
 		case 'tools/call': {
 			const name = String(params?.name ?? '');
 			const tool = MCP_TOOLS.find((t) => t.name === name);
 			if (!tool) return fail(id, -32602, `Unknown tool: ${name}`);
+			if (!ctx.scopes.includes(tool.scope)) {
+				return ok(id, {
+					content: [{ type: 'text', text: `This API key lacks the "${tool.scope}" scope required for ${name}.` }],
+					isError: true
+				});
+			}
 			const args = (params?.arguments as Record<string, unknown>) ?? {};
 			try {
 				const result = await tool.handler(ctx, args);

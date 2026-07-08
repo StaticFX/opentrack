@@ -204,6 +204,13 @@
       "when": 1783505543479,
       "tag": "0028_backups",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1783510047505,
+      "tag": "0029_api_key_scopes",
+      "breakpoints": true
     }
   ]
 }

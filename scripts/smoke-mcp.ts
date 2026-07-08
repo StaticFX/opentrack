@@ -85,6 +85,18 @@ async function main() {
 	const unknown = (await call(ctx, 'nope', {})) as any;
 	assert(unknown.error?.code === -32602, 'unknown tool → JSON-RPC error');
 
+	console.log('[8] fine-grained scopes (read-only key)');
+	const { raw: roRaw } = await createApiKey(ws.id, 'ro-key', user.id, ['read']);
+	const ro = await resolveMcpContext(req(roRaw));
+	assert(ro?.scopes.length === 1 && ro.scopes[0] === 'read', 'read-only key resolves scope [read]');
+	const roList = (await handleMcpMessage({ jsonrpc: '2.0', id: 90, method: 'tools/list' }, ro!)) as any;
+	const roNames = roList.result.tools.map((t: any) => t.name);
+	assert(roNames.includes('list_tickets') && !roNames.includes('create_ticket'), 'tools/list hides write tools for a read-only key');
+	const denied = (await call(ro, 'create_ticket', { project: project.slug, title: 'nope' })) as any;
+	assert(denied.result?.isError && /write/.test(denied.result.content[0].text), 'write tool call rejected for read-only key');
+	const stillReads = callResult(await call(ro, 'list_projects', {}));
+	assert(Array.isArray(stillReads.projects), 'read tool still works for read-only key');
+
 	console.log('\n✅ smoke-mcp passed');
 	await closeDb();
 }

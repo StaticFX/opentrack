@@ -1,3 +1,4 @@
+import type { ApiScope } from '$lib/apiScopes';
 import type { SessionUser } from '$lib/server/auth/session';
 import { getUserById } from '$lib/server/auth/user';
 import { verifyApiKeyFull } from '$lib/server/services/api-keys';
@@ -7,6 +8,8 @@ export interface McpContext {
 	workspaceId: string;
 	/** The API key's creator, used to attribute mutations. Null if that account was removed. */
 	actor: SessionUser | null;
+	/** The key's scopes — gates which tools are available. */
+	scopes: ApiScope[];
 }
 
 function bearer(request: Request): string {
@@ -33,5 +36,5 @@ export async function resolveMcpContext(request: Request): Promise<McpContext | 
 			};
 		}
 	}
-	return { workspaceId: key.workspaceId, actor };
+	return { workspaceId: key.workspaceId, actor, scopes: key.scopes };
 }

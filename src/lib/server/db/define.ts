@@ -801,6 +801,8 @@ export function defineSchema(kit: Kit) {
 			name: text('name').notNull(),
 			keyHash: text('key_hash').notNull(),
 			prefix: text('prefix').notNull(), // first chars, for display ("otk_ab12…")
+			// Fine-grained scopes, e.g. ["read","write"]. Null = legacy full access.
+			scopes: json<string[]>('scopes'),
 			createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
 			lastUsedAt: ts('last_used_at'),
 			createdAt: createdAt()

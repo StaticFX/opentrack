@@ -18,6 +18,8 @@ import type { McpContext } from './context';
 export interface McpTool {
 	name: string;
 	description: string;
+	/** Scope a key must hold to see + call this tool. */
+	scope: 'read' | 'write';
 	inputSchema: Record<string, unknown>;
 	handler: (ctx: McpContext, args: Record<string, unknown>) => Promise<unknown>;
 }
@@ -62,6 +64,7 @@ async function ticketUrl(workspaceId: string, projectSlug: string, number: numbe
 export const MCP_TOOLS: McpTool[] = [
 	{
 		name: 'list_projects',
+		scope: 'read',
 		description: 'List the projects in this workspace (slug, name, description).',
 		inputSchema: { type: 'object', properties: {} },
 		handler: async (ctx) => {
@@ -75,6 +78,7 @@ export const MCP_TOOLS: McpTool[] = [
 	},
 	{
 		name: 'list_tickets',
+		scope: 'read',
 		description: 'List tickets in a project. Optionally filter by status (open/closed/all).',
 		inputSchema: {
 			type: 'object',
@@ -120,6 +124,7 @@ export const MCP_TOOLS: McpTool[] = [
 	},
 	{
 		name: 'get_ticket',
+		scope: 'read',
 		description: 'Get full detail for one ticket by project slug + ticket number.',
 		inputSchema: {
 			type: 'object',
@@ -151,6 +156,7 @@ export const MCP_TOOLS: McpTool[] = [
 	},
 	{
 		name: 'search_tickets',
+		scope: 'read',
 		description: 'Search tickets across this workspace by title text.',
 		inputSchema: {
 			type: 'object',
@@ -185,6 +191,7 @@ export const MCP_TOOLS: McpTool[] = [
 	},
 	{
 		name: 'create_ticket',
+		scope: 'write',
 		description: 'Create a ticket in a project. Fires the same automations as the app (GitHub sync, notifications, workflows).',
 		inputSchema: {
 			type: 'object',
@@ -230,6 +237,7 @@ export const MCP_TOOLS: McpTool[] = [
 	},
 	{
 		name: 'update_ticket',
+		scope: 'write',
 		description: 'Update a ticket’s title, description, and/or priority.',
 		inputSchema: {
 			type: 'object',
@@ -263,6 +271,7 @@ export const MCP_TOOLS: McpTool[] = [
 	},
 	{
 		name: 'add_comment',
+		scope: 'write',
 		description: 'Add a comment to a ticket.',
 		inputSchema: {
 			type: 'object',

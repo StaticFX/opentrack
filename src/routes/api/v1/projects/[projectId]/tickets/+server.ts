@@ -4,7 +4,7 @@ import { db, schema } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, request, url }) => {
-	const { workspaceId } = await requireApiKey(request, url);
+	const { workspaceId } = await requireApiKey(request, url, 'read');
 	const project = await apiProject(workspaceId, params.projectId);
 
 	const rows = await db

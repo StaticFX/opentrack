@@ -249,7 +249,7 @@
 	<section class="mt-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
 		<h2 class="flex items-center gap-2 text-sm font-semibold"><KeyRound size={15} /> API keys</h2>
 		<p class="mt-1 mb-4 text-sm text-neutral-500">
-			Read-only access to this workspace's projects via the <code class="rounded bg-neutral-100 px-1 text-xs dark:bg-neutral-800">/api/v1</code> endpoints. Send the key as <code class="rounded bg-neutral-100 px-1 text-xs dark:bg-neutral-800">Authorization: Bearer &lt;key&gt;</code>.
+			Programmatic access to this workspace via the <code class="rounded bg-neutral-100 px-1 text-xs dark:bg-neutral-800">/api/v1</code> endpoints and the <code class="rounded bg-neutral-100 px-1 text-xs dark:bg-neutral-800">/api/mcp</code> server. Send the key as <code class="rounded bg-neutral-100 px-1 text-xs dark:bg-neutral-800">Authorization: Bearer &lt;key&gt;</code>. Grant only the scopes it needs.
 		</p>
 
 		{#if f?.apiKeyRaw}
@@ -267,7 +267,10 @@
 				{#each data.apiKeys as k (k.id)}
 					<div class="flex items-center gap-3 py-2">
 						<div class="min-w-0 flex-1">
-							<p class="truncate text-sm font-medium">{k.name}</p>
+							<div class="flex items-center gap-1.5">
+								<p class="truncate text-sm font-medium">{k.name}</p>
+								{#each k.scopes as sc (sc)}<span class="rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-neutral-800">{sc}</span>{/each}
+							</div>
 							<p class="text-xs text-neutral-400">{k.prefix}…· {k.lastUsedAt ? `last used ${new Date(k.lastUsedAt).toLocaleDateString()}` : 'never used'}</p>
 						</div>
 						<form method="POST" action="?/revokeApiKey" use:enhance>
@@ -279,9 +282,15 @@
 			</div>
 		{/if}
 
-		<form method="POST" action="?/createApiKey" use:enhance class="flex items-end gap-2">
-			<div class="flex-1"><Field label="New key name"><Input name="name" placeholder="e.g. Docs website" /></Field></div>
-			<Button variant="primary" type="submit"><Plus size={15} /> Create key</Button>
+		<form method="POST" action="?/createApiKey" use:enhance class="flex flex-col gap-3">
+			<div class="flex items-end gap-2">
+				<div class="flex-1"><Field label="New key name"><Input name="name" placeholder="e.g. Docs website" /></Field></div>
+				<Button variant="primary" type="submit"><Plus size={15} /> Create key</Button>
+			</div>
+			<div class="flex flex-wrap gap-4">
+				<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="scope" value="read" checked class="size-4 accent-brand-600" /> Read <span class="text-xs text-neutral-400">— list/read + search</span></label>
+				<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="scope" value="write" class="size-4 accent-brand-600" /> Write <span class="text-xs text-neutral-400">— create/update/comment (MCP)</span></label>
+			</div>
 		</form>
 	</section>
 

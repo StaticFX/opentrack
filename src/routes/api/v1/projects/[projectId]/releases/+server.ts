@@ -3,7 +3,7 @@ import { getReleaseDetail, listReleases } from '$lib/server/services/releases';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, request, url }) => {
-	const { workspaceId } = await requireApiKey(request, url);
+	const { workspaceId } = await requireApiKey(request, url, 'read');
 	const project = await apiProject(workspaceId, params.projectId);
 	const published = await listReleases(project.id, { publishedOnly: true });
 	const details = (await Promise.all(published.map((r) => getReleaseDetail(r.id)))).filter(Boolean);

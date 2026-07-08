@@ -3,7 +3,7 @@ import { listSuggestions } from '$lib/server/services/suggestions';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, request, url }) => {
-	const { workspaceId } = await requireApiKey(request, url);
+	const { workspaceId } = await requireApiKey(request, url, 'read');
 	const project = await apiProject(workspaceId, params.projectId);
 	const { cards } = await listSuggestions(project.id, { sort: 'top', status: 'all' });
 	return apiJson({
