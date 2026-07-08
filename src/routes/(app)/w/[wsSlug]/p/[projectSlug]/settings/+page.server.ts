@@ -4,7 +4,7 @@ import { PROJECT_ROLES } from '$lib/constants';
 import { resolveEmbedConfig, type ProjectEmbedConfig } from '$lib/embeds';
 import { asc, eq } from 'drizzle-orm';
 import { env } from '$lib/server/env';
-import { generateInviteCode } from '$lib/server/auth/invite';
+import { deleteProjectInvite, generateInviteCode, listProjectInvites } from '$lib/server/auth/invite';
 import { db, schema } from '$lib/server/db';
 import { getNotificationView } from '$lib/server/integrations/service';
 import { listFields } from '$lib/server/services/custom-fields';
@@ -74,6 +74,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const repos = ghEnabled ? await listWorkspaceRepos(ctx.workspace.id) : [];
 	return {
 		members: await listMembers(ctx.project.id),
+		invites: await listProjectInvites(ctx.project.id),
 		githubEnabled: ghEnabled,
 		repos: repos.map((r) => ({ value: `${r.installationId}::${r.fullName}`, label: r.fullName })),
 		linkedRepo: ctx.project.githubRepo,
@@ -276,6 +277,13 @@ export const actions: Actions = {
 			maxUses
 		});
 		return { inviteCode: code, inviteLink: `${env.origin}/auth/invite?code=${code}` };
+	},
+
+	deleteInvite: async ({ request, locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
+		const id = String((await request.formData()).get('id') ?? '');
+		if (id) await deleteProjectInvite(id, ctx.project.id);
+		return { inviteDeleted: true };
 	},
 
 	setRole: async ({ request, locals, params }) => {

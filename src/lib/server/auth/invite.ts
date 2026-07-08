@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { encodeBase32UpperCaseNoPadding } from '@oslojs/encoding';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { InviteScope, ProjectRole, WorkspaceRole } from '$lib/constants';
 import { db, schema } from '$lib/server/db';
 import type { SessionUser } from './session';
@@ -50,6 +50,62 @@ export async function generateInviteCode(
 		.returning({ id: schema.inviteCodes.id });
 
 	return { code: formatCode(raw), id: row.id };
+}
+
+export interface InviteSummary {
+	id: string;
+	roleGrant: string;
+	uses: number;
+	maxUses: number;
+	note: string | null;
+	createdAt: Date;
+	expiresAt: Date | null;
+}
+
+function summarizeInvites(rows: (typeof schema.inviteCodes.$inferSelect)[]): InviteSummary[] {
+	return rows.map((r) => ({
+		id: r.id,
+		roleGrant: r.roleGrant,
+		uses: r.uses,
+		maxUses: r.maxUses,
+		note: r.note,
+		createdAt: r.createdAt,
+		expiresAt: r.expiresAt
+	}));
+}
+
+/** Active invite codes for a workspace (newest first). Codes are never re-shown. */
+export async function listWorkspaceInvites(workspaceId: string): Promise<InviteSummary[]> {
+	const rows = await db
+		.select()
+		.from(schema.inviteCodes)
+		.where(and(eq(schema.inviteCodes.scope, 'workspace'), eq(schema.inviteCodes.workspaceId, workspaceId)))
+		.orderBy(desc(schema.inviteCodes.createdAt));
+	return summarizeInvites(rows);
+}
+
+/** Active invite codes for a project (newest first). */
+export async function listProjectInvites(projectId: string): Promise<InviteSummary[]> {
+	const rows = await db
+		.select()
+		.from(schema.inviteCodes)
+		.where(and(eq(schema.inviteCodes.scope, 'project'), eq(schema.inviteCodes.projectId, projectId)))
+		.orderBy(desc(schema.inviteCodes.createdAt));
+	return summarizeInvites(rows);
+}
+
+/** Delete (revoke) a workspace invite, scoped so it must belong to the workspace. */
+export async function deleteWorkspaceInvite(id: string, workspaceId: string): Promise<void> {
+	await db
+		.delete(schema.inviteCodes)
+		.where(and(eq(schema.inviteCodes.id, id), eq(schema.inviteCodes.workspaceId, workspaceId)));
+}
+
+/** Delete (revoke) a project invite, scoped so it must belong to the project. */
+export async function deleteProjectInvite(id: string, projectId: string): Promise<void> {
+	await db
+		.delete(schema.inviteCodes)
+		.where(and(eq(schema.inviteCodes.id, id), eq(schema.inviteCodes.projectId, projectId)));
 }
 
 export type RedeemResult =

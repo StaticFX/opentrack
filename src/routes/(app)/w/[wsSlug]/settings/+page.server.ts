@@ -2,7 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Visibility, WorkspaceRole } from '$lib/constants';
 import { WORKSPACE_ROLES } from '$lib/constants';
 import { env } from '$lib/server/env';
-import { generateInviteCode } from '$lib/server/auth/invite';
+import { deleteWorkspaceInvite, generateInviteCode, listWorkspaceInvites } from '$lib/server/auth/invite';
 import { normalizeScopes } from '$lib/apiScopes';
 import { createApiKey, listApiKeys, revokeApiKey } from '$lib/server/services/api-keys';
 import { githubConfigured } from '$lib/server/github/app';
@@ -39,6 +39,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			accountType: i.accountType
 		})),
 		apiKeys: await listApiKeys(ctx.workspace.id),
+		invites: await listWorkspaceInvites(ctx.workspace.id),
 		origin: env.origin
 	};
 };
@@ -102,6 +103,13 @@ export const actions: Actions = {
 			maxUses
 		});
 		return { inviteCode: code, inviteLink: `${env.origin}/auth/invite?code=${code}` };
+	},
+
+	deleteInvite: async ({ request, locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug);
+		const id = String((await request.formData()).get('id') ?? '');
+		if (id) await deleteWorkspaceInvite(id, ctx.workspace.id);
+		return { inviteDeleted: true };
 	},
 
 	setRole: async ({ request, locals, params }) => {

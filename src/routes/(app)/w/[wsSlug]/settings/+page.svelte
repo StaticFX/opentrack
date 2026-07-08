@@ -19,6 +19,7 @@
 		{ value: 'member', label: 'Member' },
 		{ value: 'viewer', label: 'Viewer' }
 	];
+	const roleLabel = (v: string) => roleOptions.find((o) => o.value === v)?.label ?? v;
 
 	let visibility = $state<'public' | 'private'>(data.workspace.visibility === 'private' ? 'private' : 'public');
 
@@ -250,6 +251,27 @@
 							<Button size="sm" variant="ghost" onclick={() => copy(f.inviteLink)}>
 								<Copy size={14} /> Copy
 							</Button>
+						</div>
+					{/if}
+
+					{#if data.invites.length}
+						<div class="mt-5 border-t border-neutral-100 pt-4 dark:border-neutral-800">
+							<p class="mb-2 text-xs font-medium text-neutral-500">Active invite codes</p>
+							<ul class="divide-y divide-neutral-100 dark:divide-neutral-800">
+								{#each data.invites as inv (inv.id)}
+									<li class="flex items-center gap-3 py-2 text-sm">
+										<span class="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium capitalize dark:bg-neutral-800">{roleLabel(inv.roleGrant)}</span>
+										<span class="min-w-0 flex-1 truncate text-neutral-500">
+											{inv.uses}/{inv.maxUses} used{#if inv.note} · {inv.note}{/if}
+										</span>
+										<form method="POST" action="?/deleteInvite" use:enhance>
+											<input type="hidden" name="id" value={inv.id} />
+											<button class="rounded-md p-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40" aria-label="Delete invite"><Trash2 size={14} /></button>
+										</form>
+									</li>
+								{/each}
+							</ul>
+							<p class="mt-2 text-[11px] text-neutral-400">Codes can't be shown again after they're generated — delete and regenerate if one leaks.</p>
 						</div>
 					{/if}
 				</section>
