@@ -51,10 +51,15 @@ export interface BackupConfig {
 	/** Where backup files are written. */
 	destination: 'local' | 's3';
 }
+export interface McpConfig {
+	/** Expose the Model Context Protocol server at /api/mcp. */
+	enabled: boolean;
+}
 export interface RuntimeConfig {
 	githubApp: GithubAppConfig;
 	storage: StorageConfig;
 	backup: BackupConfig;
+	mcp: McpConfig;
 	site: SiteConfig;
 	push: PushConfig;
 }
@@ -148,6 +153,9 @@ export async function getConfig(): Promise<RuntimeConfig> {
 				retention: Math.max(1, Number(get('backup.retention')) || 7),
 				destination: get('backup.destination') === 's3' && s3 ? 's3' : 'local'
 			},
+			mcp: {
+				enabled: get('mcp.enabled') === '1'
+			},
 			site: {
 			name: get('site.name') ?? SITE_DEFAULTS.name,
 			headline: get('site.headline') ?? SITE_DEFAULTS.headline,
@@ -206,6 +214,7 @@ export async function getConfigView() {
 			/** S3 is only a valid destination when storage credentials exist. */
 			s3Available: !!cfg.storage.s3
 		},
+		mcp: { enabled: cfg.mcp.enabled },
 		// Raw stored values (blank when unset → the form shows the defaults as placeholders).
 		site: {
 			name: val('site.name'),

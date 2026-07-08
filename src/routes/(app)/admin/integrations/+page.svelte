@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Copy, Check, GitBranch, ExternalLink, HardDrive, Cloud, TriangleAlert } from '@lucide/svelte';
+	import { Copy, Check, GitBranch, ExternalLink, HardDrive, Cloud, TriangleAlert, Bot } from '@lucide/svelte';
 	import { ADMIN_CATEGORY_ORDER, CATEGORY_META, byCategory, descriptor } from '$lib/integrations/catalog';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Dialog from '$lib/components/ui/Dialog.svelte';
@@ -13,13 +13,19 @@
 	const f = $derived(form as Record<string, any> | null);
 	const gh = $derived(data.github);
 	const s3 = $derived(data.storage);
+	const mcp = $derived(data.mcp);
 
 	type CardStatus = 'connected' | 'disconnected' | 'soon' | 'unavailable';
 	function statusFor(key: string): CardStatus {
 		if (key === 'github') return gh.active ? 'connected' : 'disconnected';
 		if (key === 's3') return s3.active ? 'connected' : 'disconnected';
+		if (key === 'mcp') return mcp.enabled ? 'connected' : 'disconnected';
 		if (key === 'gitlab') return 'soon';
 		return 'disconnected'; // notification providers are configured per-project
+	}
+
+	function copyMcp() {
+		navigator.clipboard?.writeText(data.urls.mcp);
 	}
 
 	// Which integration's config modal is open (a catalog key), or null.
@@ -135,6 +141,25 @@
 					<Button size="sm" variant="ghost" type="button" onclick={close}>Cancel</Button>
 					<Button size="sm" variant="primary" type="submit">Save</Button>
 				</div>
+			</div>
+		</form>
+	{:else if openKey === 'mcp'}
+		<form method="POST" action="?/saveMcp" use:enhance={onSubmit} class="space-y-3">
+			<p class="text-sm text-neutral-500">
+				Exposes a <a href="https://modelcontextprotocol.io" target="_blank" rel="noreferrer" class="text-brand-600 hover:underline">Model Context Protocol</a> server so AI assistants (Claude, etc.) can list, search, create, update, and comment on tickets.
+			</p>
+			<div class="space-y-1 rounded-lg bg-neutral-50 p-3 text-xs dark:bg-neutral-900">
+				<div class="flex items-center gap-2">
+					<span class="w-16 shrink-0 text-neutral-400">Endpoint</span>
+					<code class="min-w-0 flex-1 truncate">{data.urls.mcp}</code>
+					<button type="button" onclick={copyMcp} aria-label="Copy MCP URL"><Copy size={12} /></button>
+				</div>
+				<p class="pt-1 text-neutral-500">Authenticate with a workspace <strong>API key</strong> as a Bearer token (create one in <span class="font-medium">Workspace → Settings → API keys</span>). The server is scoped to that key's workspace; changes are attributed to the key's creator.</p>
+			</div>
+			<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="enabled" checked={mcp.enabled} class="size-4 accent-brand-600" /> Enable the MCP server</label>
+			<div class="flex justify-end gap-2 border-t border-neutral-100 pt-3 dark:border-neutral-800">
+				<Button size="sm" variant="ghost" type="button" onclick={close}>Cancel</Button>
+				<Button size="sm" variant="primary" type="submit">Save</Button>
 			</div>
 		</form>
 	{:else if openKey === 'gitlab'}

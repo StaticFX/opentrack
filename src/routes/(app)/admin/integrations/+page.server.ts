@@ -14,10 +14,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		github: config.github,
 		storage: config.storage,
+		mcp: config.mcp,
 		urls: {
 			setup: `${env.origin}/api/github/setup`,
 			webhook: `${env.origin}/api/webhooks/github`,
-			newApp: 'https://github.com/settings/apps/new'
+			newApp: 'https://github.com/settings/apps/new',
+			mcp: `${env.origin}/api/mcp`
 		}
 	};
 };
@@ -93,5 +95,12 @@ export const actions: Actions = {
 		});
 		if (!res.ok) return fail(400, { testError: res.error ?? 'Connection failed.' });
 		return { tested: true };
+	},
+
+	saveMcp: async ({ request, locals }) => {
+		requireAdmin(locals);
+		const form = await request.formData();
+		await setSetting('mcp.enabled', form.get('enabled') === 'on' ? '1' : null);
+		return { savedMcp: true };
 	}
 };

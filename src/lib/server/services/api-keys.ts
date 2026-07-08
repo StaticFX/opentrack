@@ -65,3 +65,25 @@ export async function verifyApiKey(raw: string): Promise<{ workspaceId: string }
 	await db.update(schema.apiKeys).set({ lastUsedAt: new Date() }).where(eq(schema.apiKeys.id, row.id));
 	return { workspaceId: row.workspaceId };
 }
+
+/**
+ * Like `verifyApiKey`, but also returns the key's creator (the actor writes are
+ * attributed to). `actorId` is null if the creator's account was removed.
+ */
+export async function verifyApiKeyFull(
+	raw: string
+): Promise<{ workspaceId: string; actorId: string | null } | null> {
+	if (!raw) return null;
+	const [row] = await db
+		.select({
+			id: schema.apiKeys.id,
+			workspaceId: schema.apiKeys.workspaceId,
+			createdBy: schema.apiKeys.createdBy
+		})
+		.from(schema.apiKeys)
+		.where(eq(schema.apiKeys.keyHash, hashToken(raw)))
+		.limit(1);
+	if (!row) return null;
+	await db.update(schema.apiKeys).set({ lastUsedAt: new Date() }).where(eq(schema.apiKeys.id, row.id));
+	return { workspaceId: row.workspaceId, actorId: row.createdBy ?? null };
+}

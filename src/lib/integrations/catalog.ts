@@ -2,7 +2,7 @@
 // server registry so provider keys, names, and categories never drift. NO
 // server imports here — this module is bundled to the browser.
 
-export type IntegrationCategory = 'issue_tracking' | 'notifications' | 'storage';
+export type IntegrationCategory = 'issue_tracking' | 'notifications' | 'storage' | 'automation';
 
 /** Maturity of a provider. `soon` = scaffolded but not wired end-to-end yet. */
 export type IntegrationStatus = 'stable' | 'beta' | 'soon';
@@ -44,6 +44,11 @@ export const CATEGORY_META: Record<
 		label: 'Storage',
 		blurb: 'Where uploaded attachments are stored.',
 		icon: 'hard-drive'
+	},
+	automation: {
+		label: 'Automation',
+		blurb: 'Programmatic and AI access to this instance.',
+		icon: 'bot'
 	}
 };
 
@@ -96,6 +101,15 @@ export const INTEGRATION_CATALOG: IntegrationDescriptor[] = [
 		blurb: 'Store attachments in any S3-compatible bucket (AWS, R2, MinIO).',
 		requiresInstanceSetup: true,
 		status: 'stable'
+	},
+	{
+		key: 'mcp',
+		name: 'MCP Server',
+		category: 'automation',
+		icon: 'bot',
+		blurb: 'Let AI assistants read and manage tickets via the Model Context Protocol.',
+		requiresInstanceSetup: true,
+		status: 'stable'
 	}
 ];
 
@@ -110,9 +124,10 @@ export function byCategory(category: IntegrationCategory): IntegrationDescriptor
 /** Project-facing categories (per-project Settings → Integrations). */
 export const CATEGORY_ORDER: IntegrationCategory[] = ['issue_tracking', 'notifications'];
 
-/** Admin-facing categories (instance-level setup) — includes storage. */
+/** Admin-facing categories (instance-level setup) — includes storage + automation. */
 export const ADMIN_CATEGORY_ORDER: IntegrationCategory[] = [
 	'issue_tracking',
 	'notifications',
-	'storage'
+	'storage',
+	'automation'
 ];
