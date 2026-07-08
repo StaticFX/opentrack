@@ -2,7 +2,7 @@
 // server registry so provider keys, names, and categories never drift. NO
 // server imports here — this module is bundled to the browser.
 
-export type IntegrationCategory = 'issue_tracking' | 'notifications';
+export type IntegrationCategory = 'issue_tracking' | 'notifications' | 'storage';
 
 /** Maturity of a provider. `soon` = scaffolded but not wired end-to-end yet. */
 export type IntegrationStatus = 'stable' | 'beta' | 'soon';
@@ -39,6 +39,11 @@ export const CATEGORY_META: Record<
 		label: 'Notifications',
 		blurb: 'Announce project activity to a channel.',
 		icon: 'bell'
+	},
+	storage: {
+		label: 'Storage',
+		blurb: 'Where uploaded attachments are stored.',
+		icon: 'hard-drive'
 	}
 };
 
@@ -82,6 +87,15 @@ export const INTEGRATION_CATALOG: IntegrationDescriptor[] = [
 		docsUrl: 'https://api.slack.com/messaging/webhooks',
 		requiresInstanceSetup: false,
 		status: 'beta'
+	},
+	{
+		key: 's3',
+		name: 'S3 Storage',
+		category: 'storage',
+		icon: 'hard-drive',
+		blurb: 'Store attachments in any S3-compatible bucket (AWS, R2, MinIO).',
+		requiresInstanceSetup: true,
+		status: 'stable'
 	}
 ];
 
@@ -93,4 +107,12 @@ export function byCategory(category: IntegrationCategory): IntegrationDescriptor
 	return INTEGRATION_CATALOG.filter((d) => d.category === category);
 }
 
+/** Project-facing categories (per-project Settings → Integrations). */
 export const CATEGORY_ORDER: IntegrationCategory[] = ['issue_tracking', 'notifications'];
+
+/** Admin-facing categories (instance-level setup) — includes storage. */
+export const ADMIN_CATEGORY_ORDER: IntegrationCategory[] = [
+	'issue_tracking',
+	'notifications',
+	'storage'
+];
