@@ -10,10 +10,9 @@ import { listBoards, getBoardColumns } from '$lib/server/services/boards';
 import { createWorkspace } from '$lib/server/services/workspaces';
 import type { SessionUser } from '$lib/server/auth/session';
 
-// Provide a valid RSA key so getApp() can construct (used by the signature test).
-process.env.GITHUB_APP_ID = '1';
-process.env.GITHUB_APP_WEBHOOK_SECRET = 'test-webhook-secret';
-process.env.GITHUB_APP_PRIVATE_KEY = generateKeyPairSync('rsa', {
+// A valid RSA key so getApp() can construct (used by the signature test). The
+// GitHub App config is DB-backed now, so we store it via setSetting in main().
+const TEST_APP_PRIVATE_KEY = generateKeyPairSync('rsa', {
 	modulusLength: 2048,
 	privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
 	publicKeyEncoding: { type: 'spki', format: 'pem' }
@@ -45,6 +44,11 @@ async function main() {
 	assert(verifyState(st + 'x') === null, 'tampered state rejected');
 
 	console.log('[3] webhook signature verification');
+	const { setSetting, invalidateConfig } = await import('$lib/server/config');
+	await setSetting('github.appId', '1');
+	await setSetting('github.webhookSecret', 'test-webhook-secret', true);
+	await setSetting('github.privateKey', TEST_APP_PRIVATE_KEY, true);
+	invalidateConfig();
 	const { getApp } = await import('$lib/server/github/app');
 	const app = await getApp();
 	const body = JSON.stringify(issuePayload());

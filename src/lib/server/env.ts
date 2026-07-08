@@ -41,39 +41,9 @@ export const env = {
 	get pubsubDriver(): PubsubDriver {
 		return str('PUBSUB_DRIVER', 'memory') === 'postgres' ? 'postgres' : 'memory';
 	},
-	oauth: {
-		get github() {
-			return provider('GITHUB');
-		},
-		get discord() {
-			return provider('DISCORD');
-		},
-		get modrinth() {
-			return provider('MODRINTH');
-		}
-	},
-	githubApp: {
-		get appId() {
-			return opt('GITHUB_APP_ID');
-		},
-		get slug() {
-			// The app's URL slug, used to build the installation link.
-			return opt('GITHUB_APP_SLUG');
-		},
-		get privateKey() {
-			// Support both literal newlines and \n-escaped keys.
-			return opt('GITHUB_APP_PRIVATE_KEY')?.replace(/\\n/g, '\n');
-		},
-		get webhookSecret() {
-			return opt('GITHUB_APP_WEBHOOK_SECRET');
-		},
-		get clientId() {
-			return opt('GITHUB_APP_CLIENT_ID');
-		},
-		get clientSecret() {
-			return opt('GITHUB_APP_CLIENT_SECRET');
-		}
-	},
+	// OAuth login providers and the GitHub App are configured in the admin UI and
+	// stored (encrypted) in the DB — see `$lib/server/config` + `auth/oauth`. They
+	// are intentionally NOT read from the environment.
 	bootstrapAdmin: {
 		get username() {
 			return opt('ADMIN_USERNAME');
@@ -86,10 +56,3 @@ export const env = {
 		}
 	}
 };
-
-function provider(prefix: string): { clientId: string; clientSecret: string } | null {
-	const clientId = opt(`${prefix}_CLIENT_ID`);
-	const clientSecret = opt(`${prefix}_CLIENT_SECRET`);
-	if (!clientId || !clientSecret) return null;
-	return { clientId, clientSecret };
-}

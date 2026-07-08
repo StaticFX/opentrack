@@ -183,6 +183,13 @@
       "when": 1783431777648,
       "tag": "0025_project_integrations",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1783501006706,
+      "tag": "0026_oauth_builtin",
+      "breakpoints": true
     }
   ]
 }

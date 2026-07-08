@@ -1,13 +1,8 @@
 import { eq } from 'drizzle-orm';
-import type { OAuthProvider } from '$lib/constants';
 import { db, schema } from '$lib/server/db';
 import { decryptSecret, encryptSecret } from '$lib/server/crypto';
 import { env } from '$lib/server/env';
 
-export interface OAuthCred {
-	clientId: string;
-	clientSecret: string;
-}
 export interface GithubAppConfig {
 	appId?: string;
 	slug?: string;
@@ -30,7 +25,6 @@ export interface PushConfig {
 	subject: string;
 }
 export interface RuntimeConfig {
-	oauth: Record<OAuthProvider, OAuthCred | null>;
 	githubApp: GithubAppConfig;
 	site: SiteConfig;
 	push: PushConfig;
@@ -89,25 +83,14 @@ export async function getConfig(): Promise<RuntimeConfig> {
 		return e.encrypted ? (safeDecrypt(e.value) ?? undefined) : e.value;
 	};
 
-	const provider = (p: OAuthProvider, envCred: OAuthCred | null): OAuthCred | null => {
-		const clientId = get(`oauth.${p}.clientId`) ?? envCred?.clientId;
-		const clientSecret = get(`oauth.${p}.clientSecret`) ?? envCred?.clientSecret;
-		return clientId && clientSecret ? { clientId, clientSecret } : null;
-	};
-
 	cache = {
-		oauth: {
-			github: provider('github', env.oauth.github),
-			discord: provider('discord', env.oauth.discord),
-			modrinth: provider('modrinth', env.oauth.modrinth)
-		},
 		githubApp: {
-			appId: get('github.appId') ?? env.githubApp.appId,
-			slug: get('github.slug') ?? env.githubApp.slug,
-			privateKey: get('github.privateKey') ?? env.githubApp.privateKey,
-			webhookSecret: get('github.webhookSecret') ?? env.githubApp.webhookSecret,
-			clientId: get('github.clientId') ?? env.githubApp.clientId,
-			clientSecret: get('github.clientSecret') ?? env.githubApp.clientSecret
+			appId: get('github.appId'),
+			slug: get('github.slug'),
+			privateKey: get('github.privateKey'),
+			webhookSecret: get('github.webhookSecret'),
+			clientId: get('github.clientId'),
+			clientSecret: get('github.clientSecret')
 		},
 		site: {
 			name: get('site.name') ?? SITE_DEFAULTS.name,
@@ -137,12 +120,6 @@ export async function getConfigView() {
 	const cfg = await getConfig();
 
 	return {
-		oauth: (['github', 'discord', 'modrinth'] as OAuthProvider[]).map((p) => ({
-			provider: p,
-			clientId: val(`oauth.${p}.clientId`),
-			hasSecret: has(`oauth.${p}.clientSecret`),
-			active: cfg.oauth[p] !== null
-		})),
 		github: {
 			appId: val('github.appId'),
 			slug: val('github.slug'),

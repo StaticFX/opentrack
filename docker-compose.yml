@@ -12,16 +12,8 @@ services:
       DATABASE_DRIVER: postgres
       DATABASE_URL: postgres://opentrack:${POSTGRES_PASSWORD:-opentrack}@db:5432/opentrack
       PUBSUB_DRIVER: ${PUBSUB_DRIVER:-postgres}
-      # OAuth / GitHub App secrets are read from the environment / .env
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
-      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
-      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
-      MODRINTH_CLIENT_ID: ${MODRINTH_CLIENT_ID:-}
-      MODRINTH_CLIENT_SECRET: ${MODRINTH_CLIENT_SECRET:-}
-      GITHUB_APP_ID: ${GITHUB_APP_ID:-}
-      GITHUB_APP_PRIVATE_KEY: ${GITHUB_APP_PRIVATE_KEY:-}
-      GITHUB_APP_WEBHOOK_SECRET: ${GITHUB_APP_WEBHOOK_SECRET:-}
+      # OAuth login providers and the GitHub App are configured in-app (Admin →
+      # Privacy / Integrations) and stored encrypted in the DB — no env vars.
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       # Uploaded attachments are written here — mount a volume so they persist.

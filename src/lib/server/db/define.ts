@@ -826,6 +826,9 @@ export function defineSchema(kit: Kit) {
 			clientId: text('client_id').notNull(),
 			clientSecret: text('client_secret').notNull(), // AES-256-GCM encrypted
 			enabled: bool('enabled').default(true).notNull(),
+			// True for the shipped providers (github/discord/modrinth). Their flow
+			// logic lives in code; the row just holds credentials + enabled state.
+			builtin: bool('builtin').default(false).notNull(),
 			createdAt: createdAt(),
 			updatedAt: updatedAt()
 		},
