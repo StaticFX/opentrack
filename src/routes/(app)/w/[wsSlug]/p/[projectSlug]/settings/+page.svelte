@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Copy, Trash2, Check, GitBranch, GitMerge, Settings, Users, TriangleAlert, ArrowLeft, Plug, SlidersHorizontal, Plus, Zap, ArrowRight, Map, ExternalLink, RefreshCw } from '@lucide/svelte';
+	import { Copy, Trash2, Check, GitBranch, GitMerge, Settings, Users, TriangleAlert, Plug, SlidersHorizontal, Plus, Zap, ArrowRight, Map, ExternalLink, RefreshCw, Code } from '@lucide/svelte';
+	import { EMBED_WIDGETS, iframeSnippet, pictureSnippet, badgeSnippet, ROADMAP_LANE_KEYS, ROADMAP_LANE_LABELS } from '$lib/embeds';
+	import SettingsNavHeader from '$lib/components/app/SettingsNavHeader.svelte';
 	import { PALETTE } from '$lib/colors';
 	import { PRIORITIES } from '$lib/constants';
 	import { PRIORITY_META } from '$lib/priority';
@@ -40,6 +42,7 @@
 		{ id: 'integrations', label: 'Integrations', icon: Plug },
 		{ id: 'fields', label: 'Fields', icon: SlidersHorizontal },
 		{ id: 'automation', label: 'Automation', icon: Zap },
+		{ id: 'embeds', label: 'Embeds', icon: Code },
 		{ id: 'danger', label: 'Danger', icon: TriangleAlert }
 	] as const;
 
@@ -175,6 +178,25 @@
 	function copy(text: string) {
 		navigator.clipboard?.writeText(text);
 	}
+
+	// ── Embeds tab ───────────────────────────────────────────────────────────
+	let embed = $state(structuredClone(data.embedConfig));
+	let embedRev = $state(0); // bumps on save to reload the live previews
+	const embedBase = $derived(`${data.origin}/embed/${data.workspace.slug}/${data.project.slug}`);
+	const themeOpts = [
+		{ value: 'auto', label: 'Auto' },
+		{ value: 'light', label: 'Light' },
+		{ value: 'dark', label: 'Dark' }
+	];
+	const badgeMetricOpts = [
+		{ value: 'release', label: 'Latest release' },
+		{ value: 'shipped', label: 'Releases shipped' }
+	];
+	function toggleLane(key: string) {
+		const l = embed.roadmap.lanes;
+		embed.roadmap.lanes = l.includes(key) ? l.filter((x) => x !== key) : [...l, key];
+	}
+	const badgeSnip = $derived(badgeSnippet(data.origin, data.workspace.slug, data.project.slug, data.project.name));
 </script>
 
 <svelte:head><title>Settings · {data.project.name}</title></svelte:head>
@@ -182,15 +204,14 @@
 <div class="flex h-full min-w-0 flex-col lg:flex-row">
 	<!-- Settings nav (secondary sidebar) -->
 	<aside class="flex w-full shrink-0 flex-col border-b border-neutral-200 bg-neutral-50 lg:h-screen lg:w-56 lg:border-r lg:border-b-0 dark:border-neutral-800 dark:bg-neutral-900/40">
-		<div class="p-2">
-			<a href={base} class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neutral-500 hover:bg-neutral-200/60 dark:hover:bg-neutral-800">
-				<ArrowLeft size={15} /> Back to project
-			</a>
-		</div>
-		<div class="px-4 pt-3 pb-1">
-			<h1 class="text-sm font-semibold tracking-tight">Project settings</h1>
-			<p class="truncate text-xs text-neutral-500">{data.project.name}</p>
-		</div>
+		<SettingsNavHeader
+			scope="project"
+			title={data.project.name}
+			backHref={base}
+			backLabel="Back to project"
+			color={data.project.color}
+			icon={data.project.icon}
+		/>
 		<nav class="flex flex-row gap-1 overflow-x-auto px-2 py-2 lg:flex-1 lg:flex-col lg:gap-0 lg:overflow-x-visible lg:overflow-y-auto">
 			{#each tabs as t (t.id)}
 				<button
@@ -266,44 +287,9 @@
 					</form>
 				</section>
 
-				{#if data.isPublic}
-					<section class="mt-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
-						<h3 class="text-sm font-semibold">Embed</h3>
-						<p class="mt-1 mb-3 text-sm text-neutral-500">Drop your roadmap or releases into any website with an iframe.</p>
-						{#each [{ label: 'Roadmap', path: 'roadmap', h: 340 }, { label: 'Releases', path: 'changelog', h: 320 }] as em (em.path)}
-							{@const snippet = `<iframe src="${data.origin}/embed/${data.workspace.slug}/${data.project.slug}/${em.path}" width="100%" height="${em.h}" style="border:1px solid #e5e7eb;border-radius:12px" title="${data.project.name} ${em.label}"></iframe>`}
-							<div class="mb-3">
-								<div class="mb-1 flex items-center justify-between">
-									<span class="text-xs font-medium text-neutral-500">{em.label}</span>
-									<div class="flex items-center gap-2">
-										<a href={`${data.origin}/embed/${data.workspace.slug}/${data.project.slug}/${em.path}`} target="_blank" rel="noreferrer" class="text-xs text-brand-600 hover:underline">Preview</a>
-										<button type="button" onclick={() => copy(snippet)} class="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"><Copy size={12} /> Copy</button>
-									</div>
-								</div>
-								<code class="block overflow-x-auto rounded-lg bg-neutral-50 px-2.5 py-2 font-mono text-[11px] whitespace-pre text-neutral-600 dark:bg-neutral-800/60 dark:text-neutral-400">{snippet}</code>
-							</div>
-						{/each}
-
-						<div class="mt-2 border-t border-neutral-100 pt-3 dark:border-neutral-800">
-							<p class="mb-2 text-xs text-neutral-500">GitHub READMEs can’t embed iframes — use the SVG image instead. This <code class="rounded bg-neutral-100 px-1 text-[11px] dark:bg-neutral-800">&lt;picture&gt;</code> auto-switches with the reader’s light/dark theme:</p>
-							{#each [{ label: 'Roadmap', img: 'roadmap.svg', link: 'roadmap' }, { label: 'Releases', img: 'changelog.svg', link: 'releases' }] as em (em.img)}
-								{@const base = `${data.origin}/embed/${data.workspace.slug}/${data.project.slug}/${em.img}`}
-								{@const md = `<a href="${data.origin}/${data.workspace.slug}/${data.project.slug}/${em.link}">\n  <picture>\n    <source media="(prefers-color-scheme: dark)" srcset="${base}?theme=dark">\n    <img alt="${data.project.name} ${em.label}" src="${base}">\n  </picture>\n</a>`}
-								<div class="mb-3">
-									<div class="mb-1 flex items-center justify-between">
-										<span class="text-xs font-medium text-neutral-500">{em.label} · Markdown / HTML (auto dark mode)</span>
-										<div class="flex items-center gap-2">
-											<a href={base} target="_blank" rel="noreferrer" class="text-xs text-brand-600 hover:underline">Light</a>
-											<a href={`${base}?theme=dark`} target="_blank" rel="noreferrer" class="text-xs text-brand-600 hover:underline">Dark</a>
-											<button type="button" onclick={() => copy(md)} class="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"><Copy size={12} /> Copy</button>
-										</div>
-									</div>
-									<code class="block overflow-x-auto rounded-lg bg-neutral-50 px-2.5 py-2 font-mono text-[11px] whitespace-pre text-neutral-600 dark:bg-neutral-800/60 dark:text-neutral-400">{md}</code>
-								</div>
-							{/each}
-						</div>
-					</section>
-				{/if}
+				<p class="mt-4 text-sm text-neutral-500">
+					Publish your roadmap, changelog, feedback and more to any site from the <button type="button" onclick={() => (tab = 'embeds')} class="font-medium text-brand-600 hover:underline">Embeds</button> tab.
+				</p>
 			{:else if tab === 'roadmap'}
 				<h2 class="mb-1 text-lg font-semibold tracking-tight">Roadmap</h2>
 				<p class="mb-4 text-sm text-neutral-500">
@@ -704,6 +690,144 @@
 						{#if ruleErr}<span class="text-sm text-red-600">{ruleErr}</span>{/if}
 					</div>
 				</section>
+			{:else if tab === 'embeds'}
+				<h2 class="mb-1 text-lg font-semibold tracking-tight">Embeds</h2>
+				<p class="mb-5 text-sm text-neutral-500">Publish live widgets to any website. Configure each one, then copy the snippet. Changes apply after you save.</p>
+
+				{#if !data.isPublic}
+					<p class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+						Embeds are only available for public projects. Make this project public in <button type="button" onclick={() => (tab = 'general')} class="font-medium underline">General</button> to use them.
+					</p>
+				{:else}
+					<form method="POST" action="?/saveEmbeds" use:enhance={() => async ({ update, result }) => { await update({ reset: false }); if (result.type === 'success') embedRev++; }} class="flex flex-col gap-4">
+						<input type="hidden" name="config" value={JSON.stringify(embed)} />
+
+						{#each EMBED_WIDGETS as w (w.key)}
+							{@const cfg = embed[w.key]}
+							{@const iSnip = iframeSnippet(data.origin, data.workspace.slug, data.project.slug, w, data.project.name)}
+							<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+								<div class="flex items-start justify-between gap-3">
+									<div>
+										<h3 class="text-sm font-semibold">{w.label}</h3>
+										<p class="mt-0.5 text-xs text-neutral-500">{w.description}</p>
+									</div>
+									<label class="flex shrink-0 cursor-pointer items-center gap-2 text-sm">
+										<input type="checkbox" bind:checked={cfg.enabled} class="size-4 accent-brand-600" /> Enabled
+									</label>
+								</div>
+
+								{#if cfg.enabled}
+									<div class="mt-4 grid gap-3 sm:grid-cols-2">
+										<label class="flex flex-col gap-1 text-xs font-medium text-neutral-500">Theme
+											<select bind:value={cfg.theme} class="rounded-lg border border-neutral-200 bg-transparent px-2 py-1.5 text-sm text-neutral-900 dark:border-neutral-800 dark:text-neutral-100">
+												{#each themeOpts as t (t.value)}<option value={t.value}>{t.label}</option>{/each}
+											</select>
+										</label>
+										<label class="flex flex-col gap-1 text-xs font-medium text-neutral-500">Max items
+											<input type="number" min="1" max="50" bind:value={cfg.limit} class="rounded-lg border border-neutral-200 bg-transparent px-2 py-1.5 text-sm dark:border-neutral-800" />
+										</label>
+										<label class="flex flex-col gap-1 text-xs font-medium text-neutral-500">Accent (hex)
+											<input type="text" placeholder={data.projectColor ?? '#6366f1'} value={cfg.accent ?? ''} oninput={(e) => (cfg.accent = e.currentTarget.value.trim() || null)} class="rounded-lg border border-neutral-200 bg-transparent px-2 py-1.5 text-sm dark:border-neutral-800" />
+										</label>
+										<div class="flex items-end gap-4 pb-1 text-sm">
+											<label class="flex items-center gap-1.5"><input type="checkbox" bind:checked={cfg.showHeader} class="size-4 accent-brand-600" /> Header</label>
+											<label class="flex items-center gap-1.5"><input type="checkbox" bind:checked={cfg.showFooter} class="size-4 accent-brand-600" /> Footer</label>
+										</div>
+									</div>
+
+									{#if w.hasLanes}
+										<div class="mt-3">
+											<span class="text-xs font-medium text-neutral-500">Lanes</span>
+											<div class="mt-1 flex flex-wrap gap-3 text-sm">
+												{#each ROADMAP_LANE_KEYS as lk (lk)}
+													<label class="flex items-center gap-1.5"><input type="checkbox" checked={embed.roadmap.lanes.includes(lk)} onchange={() => toggleLane(lk)} class="size-4 accent-brand-600" /> {ROADMAP_LANE_LABELS[lk]}</label>
+												{/each}
+											</div>
+										</div>
+									{/if}
+
+									<!-- Snippets -->
+									<div class="mt-4 space-y-2">
+										<div>
+											<div class="mb-1 flex items-center justify-between">
+												<span class="text-xs font-medium text-neutral-500">iframe</span>
+												<button type="button" onclick={() => copy(iSnip)} class="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"><Copy size={12} /> Copy</button>
+											</div>
+											<code class="block overflow-x-auto rounded-lg bg-neutral-50 px-2.5 py-2 font-mono text-[11px] whitespace-pre text-neutral-600 dark:bg-neutral-800/60 dark:text-neutral-400">{iSnip}</code>
+										</div>
+										{#if w.svg}
+											{@const pSnip = pictureSnippet(data.origin, data.workspace.slug, data.project.slug, w, data.project.name)}
+											<div>
+												<div class="mb-1 flex items-center justify-between">
+													<span class="text-xs font-medium text-neutral-500">Markdown / README (SVG, auto dark)</span>
+													<button type="button" onclick={() => copy(pSnip)} class="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"><Copy size={12} /> Copy</button>
+												</div>
+												<code class="block overflow-x-auto rounded-lg bg-neutral-50 px-2.5 py-2 font-mono text-[11px] whitespace-pre text-neutral-600 dark:bg-neutral-800/60 dark:text-neutral-400">{pSnip}</code>
+											</div>
+										{/if}
+									</div>
+
+									<!-- Live preview (reflects saved settings) -->
+									<div class="mt-4">
+										<div class="mb-1 flex items-center justify-between text-xs text-neutral-400">
+											<span>Preview</span>
+											<a href={`${embedBase}/${w.path}`} target="_blank" rel="noreferrer" class="flex items-center gap-1 text-brand-600 hover:underline">Open <ExternalLink size={11} /></a>
+										</div>
+										{#key embedRev}
+											<iframe src={`${embedBase}/${w.path}?v=${embedRev}`} title={`${w.label} preview`} class="w-full rounded-lg border border-neutral-200 dark:border-neutral-800" style={`height:${w.height}px`} loading="lazy"></iframe>
+										{/key}
+									</div>
+								{/if}
+							</section>
+						{/each}
+
+						<!-- Badge -->
+						<section class="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
+							<div class="flex items-start justify-between gap-3">
+								<div>
+									<h3 class="text-sm font-semibold">Badge</h3>
+									<p class="mt-0.5 text-xs text-neutral-500">A shields-style badge for READMEs — latest release or count shipped.</p>
+								</div>
+								<label class="flex shrink-0 cursor-pointer items-center gap-2 text-sm">
+									<input type="checkbox" bind:checked={embed.badge.enabled} class="size-4 accent-brand-600" /> Enabled
+								</label>
+							</div>
+							{#if embed.badge.enabled}
+								<div class="mt-4 grid gap-3 sm:grid-cols-3">
+									<label class="flex flex-col gap-1 text-xs font-medium text-neutral-500">Metric
+										<select bind:value={embed.badge.metric} class="rounded-lg border border-neutral-200 bg-transparent px-2 py-1.5 text-sm text-neutral-900 dark:border-neutral-800 dark:text-neutral-100">
+											{#each badgeMetricOpts as m (m.value)}<option value={m.value}>{m.label}</option>{/each}
+										</select>
+									</label>
+									<label class="flex flex-col gap-1 text-xs font-medium text-neutral-500">Theme
+										<select bind:value={embed.badge.theme} class="rounded-lg border border-neutral-200 bg-transparent px-2 py-1.5 text-sm text-neutral-900 dark:border-neutral-800 dark:text-neutral-100">
+											{#each themeOpts as t (t.value)}<option value={t.value}>{t.label}</option>{/each}
+										</select>
+									</label>
+									<label class="flex flex-col gap-1 text-xs font-medium text-neutral-500">Label
+										<input type="text" bind:value={embed.badge.label} placeholder={embed.badge.metric} class="rounded-lg border border-neutral-200 bg-transparent px-2 py-1.5 text-sm dark:border-neutral-800" />
+									</label>
+								</div>
+								<div class="mt-4">
+									<div class="mb-1 flex items-center justify-between">
+										<span class="text-xs font-medium text-neutral-500">Markdown / README</span>
+										<button type="button" onclick={() => copy(badgeSnip)} class="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"><Copy size={12} /> Copy</button>
+									</div>
+									<code class="block overflow-x-auto rounded-lg bg-neutral-50 px-2.5 py-2 font-mono text-[11px] whitespace-pre text-neutral-600 dark:bg-neutral-800/60 dark:text-neutral-400">{badgeSnip}</code>
+									{#key embedRev}
+										<img src={`${embedBase}/badge.svg?v=${embedRev}`} alt="Badge preview" class="mt-3" />
+									{/key}
+								</div>
+							{/if}
+						</section>
+
+						<div class="flex items-center gap-3">
+							<Button variant="primary" type="submit">Save embed settings</Button>
+							{#if f?.embedsSaved}<span class="text-sm text-green-600">Saved</span>{/if}
+							{#if f?.error}<span class="text-sm text-red-600">{f.error}</span>{/if}
+						</div>
+					</form>
+				{/if}
 			{:else if tab === 'danger'}
 				<h2 class="mb-4 text-lg font-semibold tracking-tight">Danger zone</h2>
 				<section class="rounded-xl border border-red-200 p-5 dark:border-red-900/50">

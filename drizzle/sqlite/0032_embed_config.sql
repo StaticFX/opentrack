@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `embed_config` text;

@@ -27,7 +27,7 @@
 	<div class="mt-6 grid grid-cols-2 gap-3">
 		<div class="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
 			<div class="text-2xl font-bold">{p.stats.submitted}</div>
-			<div class="text-xs text-neutral-500">Suggestions submitted</div>
+			<div class="text-xs text-neutral-500">Feedback submitted</div>
 		</div>
 		<div class="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
 			<div class="text-2xl font-bold text-green-600 dark:text-green-400">{p.stats.accepted}</div>

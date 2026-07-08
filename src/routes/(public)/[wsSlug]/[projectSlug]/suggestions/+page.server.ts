@@ -1,6 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import type { SuggestionStatus } from '$lib/constants';
-import { SUGGESTION_STATUSES } from '$lib/constants';
+import type { SuggestionKind, SuggestionStatus } from '$lib/constants';
+import { SUGGESTION_KINDS, SUGGESTION_STATUSES } from '$lib/constants';
 import { ACCESS } from '$lib/server/permissions';
 import { createSuggestion, listSuggestions, type SuggestionSort } from '$lib/server/services/suggestions';
 import { resolveVoter } from '$lib/server/util/anon';
@@ -17,11 +17,16 @@ export const load: PageServerLoad = async ({ parent, url, locals, cookies, getCl
 	const status = (SUGGESTION_STATUSES.includes(statusParam as SuggestionStatus)
 		? statusParam
 		: 'all') as SuggestionStatus | 'all';
+	const kindParam = url.searchParams.get('kind');
+	const kind = (SUGGESTION_KINDS.includes(kindParam as SuggestionKind) ? kindParam : null) as
+		| SuggestionKind
+		| null;
 
 	const voter = resolveVoter(locals.user, cookies, getClientAddress);
 	const { cards, votedIds } = await listSuggestions(p.project.id, {
 		sort,
 		status,
+		kind: kind ?? undefined,
 		publicOnly: p.level < ACCESS.VIEWER,
 		voter
 	});
@@ -30,6 +35,7 @@ export const load: PageServerLoad = async ({ parent, url, locals, cookies, getCl
 		suggestions: cards.map((c) => ({ ...c, voted: votedIds.has(c.id) })),
 		sort,
 		status,
+		kind,
 		canSubmit: p.signedIn,
 		// Members keep interacting with resolved suggestions; the public does not.
 		isMember: p.level >= ACCESS.VIEWER
@@ -49,9 +55,11 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const title = String(form.get('title') ?? '').trim();
 		const body = String(form.get('body') ?? '').trim() || undefined;
-		if (!title) return fail(400, { error: 'Give your suggestion a title.', title: '' });
+		const kindRaw = String(form.get('kind') ?? 'suggestion');
+		const kind = (SUGGESTION_KINDS.includes(kindRaw as SuggestionKind) ? kindRaw : 'suggestion') as SuggestionKind;
+		if (!title) return fail(400, { error: 'Give your feedback a title.', title: '' });
 
-		const id = await createSuggestion(locals.user, ctx.project.id, { title, body });
+		const id = await createSuggestion(locals.user, ctx.project.id, { title, body, kind });
 		const { logActivity } = await import('$lib/server/services/activity');
 		await logActivity({ projectId: ctx.project.id, subjectType: 'suggestion', subjectId: id, actorId: locals.user.id, type: 'suggestion.created' });
 
@@ -68,7 +76,7 @@ export const actions: Actions = {
 			subjectType: 'suggestion',
 			subjectId: id,
 			actorId: locals.user.id,
-			body: `${locals.user.displayName} suggested this`
+			body: kind === 'bug' ? `${locals.user.displayName} reported a bug` : `${locals.user.displayName} suggested this`
 		});
 
 		const { notifyIntegrations } = await import('$lib/server/integrations/notify');

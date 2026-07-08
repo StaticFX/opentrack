@@ -211,6 +211,27 @@
       "when": 1783510046749,
       "tag": "0029_api_key_scopes",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1783516924365,
+      "tag": "0030_suggestion_archived_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1783520509943,
+      "tag": "0031_suggestion_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1783521874445,
+      "tag": "0032_embed_config",
+      "breakpoints": true
     }
   ]
 }

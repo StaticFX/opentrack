@@ -4,7 +4,8 @@ import {
 	Tag,
 	ChartColumn,
 	Activity,
-	Lightbulb,
+	Inbox,
+	MessagesSquare,
 	Settings
 } from '@lucide/svelte';
 
@@ -32,7 +33,8 @@ export const PROJECT_NAV: ProjectNavItem[] = [
 	{ key: 'releases', label: 'Releases', icon: Tag, href: (w, p) => `/w/${w}/p/${p}/releases`, manageOnly: true },
 	{ key: 'analytics', label: 'Analytics', icon: ChartColumn, href: (w, p) => `/w/${w}/p/${p}/analytics` },
 	{ key: 'activity', label: 'Activity', icon: Activity, href: (w, p) => `/w/${w}/p/${p}/activity` },
-	{ key: 'suggestions', label: 'Suggestions', icon: Lightbulb, href: (w, p) => `/${w}/${p}/suggestions`, external: true },
+	{ key: 'inbox', label: 'Inbox', icon: Inbox, href: (w, p) => `/w/${w}/p/${p}/inbox`, manageOnly: true },
+	{ key: 'suggestions', label: 'Feedback', icon: MessagesSquare, href: (w, p) => `/${w}/${p}/suggestions`, external: true },
 	{ key: 'settings', label: 'Settings', icon: Settings, href: (w, p) => `/w/${w}/p/${p}/settings`, manageOnly: true }
 ];
 

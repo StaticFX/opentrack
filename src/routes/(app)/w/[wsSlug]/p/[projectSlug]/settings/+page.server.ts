@@ -1,6 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { ProjectRole, Visibility } from '$lib/constants';
 import { PROJECT_ROLES } from '$lib/constants';
+import { resolveEmbedConfig, type ProjectEmbedConfig } from '$lib/embeds';
 import { asc, eq } from 'drizzle-orm';
 import { env } from '$lib/server/env';
 import { generateInviteCode } from '$lib/server/auth/invite';
@@ -95,6 +96,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		origin: env.origin,
 		isPublic: ctx.visibility === 'public',
 		roadmapEnabled: ctx.project.roadmapEnabled,
+		embedConfig: resolveEmbedConfig(ctx.project.embedConfig),
+		projectColor: ctx.project.color,
 		roadmap: await roadmapConfig(ctx.project.id),
 		fields: await listFields(ctx.project.id),
 		// Per-project notification-integration state (never includes secrets).
@@ -106,6 +109,27 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 };
 
 export const actions: Actions = {
+	saveEmbeds: async ({ request, locals, params }) => {
+		const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
+		const raw = String((await request.formData()).get('config') ?? '');
+		let parsed: Partial<ProjectEmbedConfig> | null;
+		try {
+			parsed = JSON.parse(raw);
+		} catch {
+			return fail(400, { error: 'Could not save embed settings.' });
+		}
+		const config = resolveEmbedConfig(parsed);
+		// Clamp item limits to a sane range regardless of what the client sent.
+		for (const w of [config.roadmap, config.changelog, config.feedback, config.knownIssues]) {
+			w.limit = Math.min(50, Math.max(1, Math.floor(Number(w.limit) || 8)));
+		}
+		await db
+			.update(schema.projects)
+			.set({ embedConfig: config, updatedAt: new Date() })
+			.where(eq(schema.projects.id, ctx.project.id));
+		return { embedsSaved: true };
+	},
+
 	updateGeneral: async ({ request, locals, params }) => {
 		const ctx = await requireManage(locals, params.wsSlug, params.projectSlug);
 		const form = await request.formData();

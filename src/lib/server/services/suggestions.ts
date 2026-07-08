@@ -1,5 +1,5 @@
-import { and, asc, count, desc, eq, inArray, ne, sql } from 'drizzle-orm';
-import type { SuggestionStatus } from '$lib/constants';
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
+import type { SuggestionDecision, SuggestionKind, SuggestionStatus } from '$lib/constants';
 import { db, schema } from '$lib/server/db';
 import type { SessionUser } from '$lib/server/auth/session';
 import { createTicket } from './tickets';
@@ -11,18 +11,23 @@ export interface SuggestionCard {
 	id: string;
 	title: string;
 	body: string | null;
+	kind: SuggestionKind;
 	status: SuggestionStatus;
 	authorName: string | null;
 	createdAt: Date;
 	votes: number;
 	comments: number;
 	convertedTicketId: string | null;
+	archived: boolean;
 }
 
 export interface ListOptions {
 	status?: SuggestionStatus | 'all';
+	kind?: SuggestionKind;
 	sort?: SuggestionSort;
 	publicOnly?: boolean;
+	/** Archived-item handling. Defaults to 'exclude'. publicOnly always excludes. */
+	archived?: 'exclude' | 'only' | 'all';
 	voter?: VoterKey;
 }
 
@@ -34,6 +39,11 @@ export async function listSuggestions(
 	const filters = [eq(schema.suggestions.projectId, projectId)];
 	if (opts.publicOnly) filters.push(eq(schema.suggestions.isPublic, true));
 	if (opts.status && opts.status !== 'all') filters.push(eq(schema.suggestions.status, opts.status));
+	if (opts.kind) filters.push(eq(schema.suggestions.kind, opts.kind));
+	// The public page never shows archived items; internally it's an explicit filter.
+	const archived = opts.publicOnly ? 'exclude' : (opts.archived ?? 'exclude');
+	if (archived === 'exclude') filters.push(isNull(schema.suggestions.archivedAt));
+	else if (archived === 'only') filters.push(isNotNull(schema.suggestions.archivedAt));
 
 	const rows = await db
 		.select({ suggestion: schema.suggestions, authorName: schema.users.displayName })
@@ -62,12 +72,14 @@ export async function listSuggestions(
 		id: r.suggestion.id,
 		title: r.suggestion.title,
 		body: r.suggestion.body,
+		kind: r.suggestion.kind,
 		status: r.suggestion.status,
 		authorName: r.authorName,
 		createdAt: r.suggestion.createdAt,
 		votes: votesById.get(r.suggestion.id) ?? 0,
 		comments: commentsById.get(r.suggestion.id) ?? 0,
-		convertedTicketId: r.suggestion.convertedTicketId
+		convertedTicketId: r.suggestion.convertedTicketId,
+		archived: r.suggestion.archivedAt != null
 	}));
 
 	const sort = opts.sort ?? 'top';
@@ -112,11 +124,17 @@ export async function getSuggestion(id: string) {
 export async function createSuggestion(
 	user: SessionUser,
 	projectId: string,
-	input: { title: string; body?: string }
+	input: { title: string; body?: string; kind?: SuggestionKind }
 ): Promise<string> {
 	const [row] = await db
 		.insert(schema.suggestions)
-		.values({ projectId, authorId: user.id, title: input.title, body: input.body ?? null })
+		.values({
+			projectId,
+			authorId: user.id,
+			title: input.title,
+			body: input.body ?? null,
+			kind: input.kind ?? 'suggestion'
+		})
 		.returning({ id: schema.suggestions.id });
 	return row.id;
 }
@@ -130,6 +148,128 @@ export async function setStatus(
 		.update(schema.suggestions)
 		.set({ status, declineReason: declineReason ?? null, updatedAt: new Date() })
 		.where(eq(schema.suggestions.id, id));
+}
+
+/** Soft-archive a suggestion (hidden from the public page + inbox, recoverable). */
+export async function archiveSuggestion(id: string): Promise<void> {
+	await db
+		.update(schema.suggestions)
+		.set({ archivedAt: new Date(), updatedAt: new Date() })
+		.where(eq(schema.suggestions.id, id));
+}
+
+/** Restore an archived suggestion. */
+export async function unarchiveSuggestion(id: string): Promise<void> {
+	await db
+		.update(schema.suggestions)
+		.set({ archivedAt: null, updatedAt: new Date() })
+		.where(eq(schema.suggestions.id, id));
+}
+
+/** Count of open (untriaged, live) suggestions — drives the sidebar Inbox badge. */
+export async function countOpenSuggestions(projectId: string): Promise<number> {
+	const [row] = await db
+		.select({ c: count() })
+		.from(schema.suggestions)
+		.where(
+			and(
+				eq(schema.suggestions.projectId, projectId),
+				eq(schema.suggestions.status, 'open'),
+				isNull(schema.suggestions.archivedAt)
+			)
+		);
+	return Number(row?.c ?? 0);
+}
+
+export interface InboxCounts {
+	open: number;
+	accepted: number;
+	declined: number;
+	duplicate: number;
+	converted: number;
+	all: number;
+	archived: number;
+}
+
+/** Per-tab counts for the inbox (live items grouped by status, plus archived). */
+export async function inboxCounts(projectId: string): Promise<InboxCounts> {
+	const [live, archivedRows] = await Promise.all([
+		db
+			.select({ status: schema.suggestions.status, c: count() })
+			.from(schema.suggestions)
+			.where(and(eq(schema.suggestions.projectId, projectId), isNull(schema.suggestions.archivedAt)))
+			.groupBy(schema.suggestions.status),
+		db
+			.select({ c: count() })
+			.from(schema.suggestions)
+			.where(
+				and(eq(schema.suggestions.projectId, projectId), isNotNull(schema.suggestions.archivedAt))
+			)
+	]);
+	const by = new Map(live.map((r) => [r.status, Number(r.c)]));
+	const open = by.get('open') ?? 0;
+	const accepted = by.get('accepted') ?? 0;
+	const declined = by.get('declined') ?? 0;
+	const duplicate = by.get('duplicate') ?? 0;
+	const converted = by.get('converted') ?? 0;
+	return {
+		open,
+		accepted,
+		declined,
+		duplicate,
+		converted,
+		all: open + accepted + declined + duplicate + converted,
+		archived: Number(archivedRows[0]?.c ?? 0)
+	};
+}
+
+/**
+ * Apply a triage decision with all its side-effects: set the status, record the
+ * decision (and optional note) as a comment on the thread, log activity, and
+ * notify followers + connected integrations. Shared by the public suggestion
+ * detail page and the internal inbox so both behave identically.
+ */
+export async function applyDecision(opts: {
+	actor: SessionUser;
+	projectId: string;
+	suggestionId: string;
+	decision: SuggestionDecision;
+	note?: string;
+}): Promise<void> {
+	const { actor, projectId, suggestionId, decision, note } = opts;
+	await setStatus(suggestionId, decision);
+
+	const { SUGGESTION_STATUS_META } = await import('$lib/suggestionStatus');
+	const label = SUGGESTION_STATUS_META[decision].label;
+	const body = note ? `**${label}** — ${note}` : `Marked as **${label}**`;
+
+	const { addComment } = await import('./comments');
+	await addComment('suggestion', suggestionId, actor.id, body);
+
+	const { logActivity } = await import('./activity');
+	await logActivity({
+		projectId,
+		subjectType: 'suggestion',
+		subjectId: suggestionId,
+		actorId: actor.id,
+		type: 'suggestion.status',
+		data: { status: decision }
+	});
+
+	const { notifyWatchers } = await import('./notifications');
+	await notifyWatchers({
+		type: 'suggestion.status',
+		subjectType: 'suggestion',
+		subjectId: suggestionId,
+		actorId: actor.id,
+		body: `${actor.displayName} marked this ${label.toLowerCase()}`
+	});
+
+	const { notifyIntegrations } = await import('$lib/server/integrations/notify');
+	await notifyIntegrations(projectId, 'suggestion.resolved', 'suggestion', suggestionId, {
+		actor: actor.displayName,
+		fields: [{ name: 'Decision', value: label }]
+	});
 }
 
 /** Search a project's suggestions by title (for the merge picker). */

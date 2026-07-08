@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import type { ProjectEmbedConfig } from '$lib/embeds';
 import type {
 	InviteScope,
 	JobStatus,
@@ -9,6 +10,7 @@ import type {
 	ReleaseLinkType,
 	ReleaseStatus,
 	SubjectType,
+	SuggestionKind,
 	SuggestionStatus,
 	UserStatus,
 	Visibility,
@@ -201,6 +203,8 @@ export function defineSchema(kit: Kit) {
 			allowPublicComments: bool('allow_public_comments').default(false).notNull(),
 			// Whether the public roadmap tab/route is exposed for this project.
 			roadmapEnabled: bool('roadmap_enabled').default(true).notNull(),
+			// Per-project embed configuration (see $lib/embeds). Null → defaults.
+			embedConfig: json<ProjectEmbedConfig>('embed_config'),
 			githubSyncedAt: ts('github_synced_at'),
 			position: text('position').notNull().default('a0'),
 			createdAt: createdAt(),
@@ -506,6 +510,8 @@ export function defineSchema(kit: Kit) {
 			authorId: text('author_id').references(() => users.id, { onDelete: 'set null' }),
 			title: text('title').notNull(),
 			body: text('body'),
+			// What the submitter is reporting: a suggestion or a bug.
+			kind: text('kind').$type<SuggestionKind>().default('suggestion').notNull(),
 			status: text('status').$type<SuggestionStatus>().default('open').notNull(),
 			declineReason: text('decline_reason'),
 			convertedTicketId: text('converted_ticket_id').references(() => tickets.id, {
@@ -514,6 +520,9 @@ export function defineSchema(kit: Kit) {
 			// When merged as a duplicate, points at the canonical suggestion.
 			duplicateOfId: text('duplicate_of_id'),
 			isPublic: bool('is_public').default(true).notNull(),
+			// Soft archive: hidden from the public page and the inbox default view,
+			// but recoverable. Null = live.
+			archivedAt: ts('archived_at'),
 			createdAt: createdAt(),
 			updatedAt: updatedAt()
 		},

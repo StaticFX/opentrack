@@ -58,6 +58,11 @@ export async function seedDemo(owner: SessionUser): Promise<void> {
 		title: 'Keyboard shortcuts',
 		body: 'Power users would love shortcuts for navigating the board.'
 	});
+	await createSuggestion(owner, project.id, {
+		title: 'Board scroll resets when reopening a ticket',
+		body: 'Steps: scroll down the board, open a ticket, close it — the board jumps back to the top.',
+		kind: 'bug'
+	});
 
 	const rel = await createRelease(project.id, {
 		version: 'v1.0.0',

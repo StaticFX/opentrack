@@ -46,6 +46,7 @@
 	const project = $derived(pd.project as ProjectCtx | undefined);
 	const boards = $derived((pd.boards ?? []) as BoardRef[]);
 	const canManageProject = $derived(Boolean(pd.canManageProject));
+	const inboxOpenCount = $derived(Number(pd.inboxOpenCount ?? 0));
 	const projNav = $derived(
 		currentWs && project
 			? PROJECT_NAV.filter((i) => !i.manageOnly || canManageProject)
@@ -244,6 +245,9 @@
 					>
 						<Icon size={15} class="text-neutral-400" />
 						<span class="flex-1 truncate">{item.label}</span>
+						{#if item.key === 'inbox' && inboxOpenCount > 0}
+							<span class="min-w-4 shrink-0 rounded-full bg-brand-600 px-1.5 text-center text-[11px] font-semibold text-white tabular-nums">{inboxOpenCount > 99 ? '99+' : inboxOpenCount}</span>
+						{/if}
 						{#if item.external}<ExternalLink size={12} class="text-neutral-400" />{/if}
 					</a>
 				{/each}

@@ -1,7 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { SuggestionDecision } from '$lib/constants';
 import { SUGGESTION_DECISIONS } from '$lib/constants';
-import { SUGGESTION_STATUS_META } from '$lib/suggestionStatus';
 import { ACCESS, canComment, canManageProject, publicInteractionLocked } from '$lib/server/permissions';
 import { addComment, listComments } from '$lib/server/services/comments';
 import {
@@ -14,7 +13,7 @@ import {
 } from '$lib/server/services/notifications';
 import { getBySlugs } from '$lib/server/services/projects';
 import { reactionsFor, summarize } from '$lib/server/services/reactions';
-import { convertToTicket, getSuggestion, setStatus } from '$lib/server/services/suggestions';
+import { applyDecision, convertToTicket, getSuggestion } from '$lib/server/services/suggestions';
 import { countVotes, hasVoted } from '$lib/server/services/votes';
 import { resolveVoter } from '$lib/server/util/anon';
 import type { Actions, PageServerLoad } from './$types';
@@ -115,29 +114,12 @@ export const actions: Actions = {
 		const note = String(formData.get('note') ?? '').trim();
 		if (!SUGGESTION_DECISIONS.includes(status)) return fail(400, { error: 'Invalid decision.' });
 
-		await setStatus(params.id, status);
-		// Record the decision (and the "why") as a comment on the thread so it is
-		// visible to the author and everyone following the suggestion.
-		const label = SUGGESTION_STATUS_META[status].label;
-		const body = note ? `**${label}** — ${note}` : `Marked as **${label}**`;
-		await addComment('suggestion', params.id, locals.user!.id, body);
-
-		const { logActivity } = await import('$lib/server/services/activity');
-		await logActivity({ projectId: ctx.project.id, subjectType: 'suggestion', subjectId: params.id, actorId: locals.user?.id, type: 'suggestion.status', data: { status } });
-
-		// Alert the author + everyone following the suggestion of the decision.
-		await notifyWatchers({
-			type: 'suggestion.status',
-			subjectType: 'suggestion',
-			subjectId: params.id,
-			actorId: locals.user?.id,
-			body: `${locals.user?.displayName ?? 'A maintainer'} marked this ${label.toLowerCase()}`
-		});
-
-		const { notifyIntegrations } = await import('$lib/server/integrations/notify');
-		await notifyIntegrations(ctx.project.id, 'suggestion.resolved', 'suggestion', params.id, {
-			actor: locals.user?.displayName,
-			fields: [{ name: 'Decision', value: label }]
+		await applyDecision({
+			actor: locals.user!,
+			projectId: ctx.project.id,
+			suggestionId: params.id,
+			decision: status,
+			note: note || undefined
 		});
 		return { statusSet: true };
 	},

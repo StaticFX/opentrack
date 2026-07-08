@@ -52,6 +52,11 @@ export type SuggestionStatus = (typeof SUGGESTION_STATUSES)[number];
 export const SUGGESTION_DECISIONS = ['accepted', 'declined', 'duplicate'] as const;
 export type SuggestionDecision = (typeof SUGGESTION_DECISIONS)[number];
 
+// What a submitter is reporting. Stored on each suggestion; the public
+// "Feedback" surface is the umbrella over all kinds.
+export const SUGGESTION_KINDS = ['suggestion', 'bug'] as const;
+export type SuggestionKind = (typeof SUGGESTION_KINDS)[number];
+
 export const RELEASE_STATUSES = ['draft', 'published'] as const;
 export type ReleaseStatus = (typeof RELEASE_STATUSES)[number];
 

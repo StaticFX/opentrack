@@ -6,6 +6,7 @@ import {
 } from '$lib/server/permissions';
 import { listBoards } from '$lib/server/services/boards';
 import { getBySlugs } from '$lib/server/services/projects';
+import { countOpenSuggestions } from '$lib/server/services/suggestions';
 import type { LayoutServerLoad } from './$types';
 
 export const load: LayoutServerLoad = async ({ locals, params }) => {
@@ -15,7 +16,10 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 		throw error(404, 'Project not found');
 	}
 
+	const canManage = canManageProject(ctx.level);
 	const boards = await listBoards(ctx.project.id);
+	// Only maintainers see the Inbox, so only they need its unread badge count.
+	const inboxOpenCount = canManage ? await countOpenSuggestions(ctx.project.id) : 0;
 
 	return {
 		project: {
@@ -31,8 +35,9 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 		},
 		projectLevel: ctx.level,
 		projectVisibility: ctx.visibility,
-		canManageProject: canManageProject(ctx.level),
+		canManageProject: canManage,
 		canEditContent: canEditProjectContent(ctx.level),
+		inboxOpenCount,
 		boards: boards.map((b) => ({ id: b.id, name: b.name }))
 	};
 };

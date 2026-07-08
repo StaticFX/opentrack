@@ -1,0 +1,1 @@
+ALTER TABLE "suggestions" ADD COLUMN "kind" text DEFAULT 'suggestion' NOT NULL;

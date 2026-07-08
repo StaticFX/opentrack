@@ -17,9 +17,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const recent = cards.slice(0, 30);
 
 	const feed = renderRss({
-		title: `${ctx.project.name} — Suggestions`,
+		title: `${ctx.project.name} — Feedback`,
 		link: `${base}/suggestions`,
-		description: `Latest suggestions for ${ctx.project.name}`,
+		description: `Latest feedback for ${ctx.project.name}`,
 		selfLink: `${base}/suggestions/rss.xml`,
 		items: recent.map((s) => ({
 			title: s.title,

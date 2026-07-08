@@ -138,6 +138,32 @@ export function changelogSvg(
 	return shell(p, W, H, out);
 }
 
+/** Render a shields-style two-segment badge (label | value) for READMEs. */
+export function badgeSvg(
+	label: string,
+	value: string,
+	theme: EmbedTheme = 'light',
+	accent?: string | null
+): string {
+	const p = PALETTES[theme];
+	const font = 11;
+	const charW = 6.6;
+	const padX = 8;
+	const labelW = Math.ceil(clip(label, 24).length * charW) + padX * 2;
+	const valueW = Math.ceil(clip(value, 24).length * charW) + padX * 2;
+	const W = labelW + valueW;
+	const H = 20;
+	const color = accent || p.accent;
+	const labelBg = theme === 'dark' ? '#30363d' : '#555555';
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+<rect width="${W}" height="${H}" rx="4" fill="${labelBg}"/>
+<rect x="${labelW}" width="${valueW}" height="${H}" rx="4" fill="${color}"/>
+<rect x="${labelW}" width="6" height="${H}" fill="${color}"/>
+<text x="${labelW / 2}" y="14" text-anchor="middle" font-size="${font}" fill="#ffffff">${esc(clip(label, 24))}</text>
+<text x="${labelW + valueW / 2}" y="14" text-anchor="middle" font-size="${font}" font-weight="600" fill="#ffffff">${esc(clip(value, 24))}</text>
+</svg>`;
+}
+
 /** Parse the ?theme= query param into a valid EmbedTheme (default light). */
 export function themeParam(v: string | null): EmbedTheme {
 	return v === 'dark' ? 'dark' : 'light';

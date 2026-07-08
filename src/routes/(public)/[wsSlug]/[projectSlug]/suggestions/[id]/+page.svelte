@@ -3,6 +3,7 @@
 	import { Check, X, Copy, Bell, BellOff } from '@lucide/svelte';
 	import { renderMarkdown } from '$lib/markdown';
 	import { SUGGESTION_STATUS_META } from '$lib/suggestionStatus';
+	import { SUGGESTION_KIND_META } from '$lib/suggestionKind';
 	import ReactionBar from '$lib/components/ReactionBar.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Textarea from '$lib/components/ui/Textarea.svelte';
@@ -23,6 +24,8 @@
 		else watching = !watching;
 	}
 	const s = $derived(data.suggestion);
+	const kindMeta = $derived(SUGGESTION_KIND_META[s.kind]);
+	const KindIcon = $derived(kindMeta.icon);
 
 	// Merge-duplicate picker (triage).
 	let mergeOpen = $state(false);
@@ -56,16 +59,17 @@
 	let commentDraft = $state('');
 </script>
 
-<svelte:head><title>{s.title} — Suggestions</title></svelte:head>
+<svelte:head><title>{s.title} — Feedback</title></svelte:head>
 
 <main class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
-	<a href={base} class="text-sm text-neutral-400 hover:text-neutral-600">← All suggestions</a>
+	<a href={base} class="text-sm text-neutral-400 hover:text-neutral-600">← All feedback</a>
 
 	<div class="mt-4 flex items-start gap-4">
 		<UpvoteButton subjectType="suggestion" id={s.id} count={data.votes} voted={data.voted} locked={data.interactionsLocked} />
 		<div class="min-w-0 flex-1">
 			<div class="flex items-center justify-between gap-2">
 				<div class="flex items-center gap-2">
+					<span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium" style={`background:${kindMeta.color}22;color:${kindMeta.color}`}><KindIcon size={11} /> {kindMeta.label}</span>
 					<span class="rounded-full px-2 py-0.5 text-[11px] font-medium" style={`background:${SUGGESTION_STATUS_META[s.status].color}22;color:${SUGGESTION_STATUS_META[s.status].color}`}>{SUGGESTION_STATUS_META[s.status].label}</span>
 					{#if s.authorName}<span class="text-xs text-neutral-400">by {#if s.authorUsername}<a href={`/u/${s.authorUsername}`} class="hover:text-neutral-600 hover:underline dark:hover:text-neutral-300">{s.authorName}</a>{:else}{s.authorName}{/if}</span>{/if}
 				</div>

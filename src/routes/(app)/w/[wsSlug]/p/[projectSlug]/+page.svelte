@@ -31,7 +31,7 @@
 		{ label: 'Open tickets', value: data.stats.openTickets, icon: CircleDot },
 		{ label: 'Total tickets', value: data.stats.totalTickets, icon: ListChecks },
 		{ label: 'Boards', value: data.stats.boards, icon: LayoutGrid },
-		{ label: 'Suggestions', value: data.stats.suggestions, icon: Lightbulb },
+		{ label: 'Feedback', value: data.stats.suggestions, icon: Lightbulb },
 		{ label: 'Releases', value: data.stats.releases, icon: Tag },
 		{ label: 'Collaborators', value: data.stats.members, icon: Users }
 	]);

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { LayoutGrid, Map, Lightbulb, Tag, GitBranch, ExternalLink } from '@lucide/svelte';
+	import { LayoutGrid, Map, MessagesSquare, Tag, GitBranch, ExternalLink } from '@lucide/svelte';
 	import { cn } from '$lib/utils/cn';
 
 	let { data, children } = $props();
@@ -11,7 +11,7 @@
 		...(data.project.roadmapEnabled
 			? [{ href: `${base}/roadmap`, label: 'Roadmap', icon: Map, match: (p: string) => p.startsWith(`${base}/roadmap`) }]
 			: []),
-		{ href: `${base}/suggestions`, label: 'Suggestions', icon: Lightbulb, match: (p: string) => p.startsWith(`${base}/suggestions`) },
+		{ href: `${base}/suggestions`, label: 'Feedback', icon: MessagesSquare, match: (p: string) => p.startsWith(`${base}/suggestions`) },
 		...(data.hasReleases
 			? [{ href: `${base}/releases`, label: 'Releases', icon: Tag, match: (p: string) => p.startsWith(`${base}/releases`) }]
 			: [])

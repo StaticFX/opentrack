@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { ArrowLeft, Users, ShieldCheck, Plug, Palette, Bell, DatabaseBackup, KeyRound } from '@lucide/svelte';
+	import { Users, ShieldCheck, Plug, Palette, Bell, DatabaseBackup, KeyRound } from '@lucide/svelte';
 	import { cn } from '$lib/utils/cn';
+	import SettingsNavHeader from './SettingsNavHeader.svelte';
 
 	const tabs = [
 		{ href: '/admin/users', label: 'Users', icon: Users },
@@ -17,19 +18,7 @@
 <aside
 	class="flex shrink-0 flex-col border-b border-neutral-200 bg-neutral-50 lg:h-screen lg:w-56 lg:border-r lg:border-b-0 dark:border-neutral-800 dark:bg-neutral-900/40"
 >
-	<div class="p-2">
-		<a
-			href="/dashboard"
-			class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-neutral-500 hover:bg-neutral-200/60 dark:hover:bg-neutral-800"
-		>
-			<ArrowLeft size={15} /> Back to app
-		</a>
-	</div>
-
-	<div class="px-4 pt-1 pb-2 lg:pt-3 lg:pb-1">
-		<h1 class="text-sm font-semibold tracking-tight">Admin</h1>
-		<p class="hidden text-xs text-neutral-500 lg:block">Instance administration</p>
-	</div>
+	<SettingsNavHeader scope="instance" title="Admin" backHref="/dashboard" backLabel="Back to app" />
 
 	<!-- Horizontal scrolling tabs on mobile, vertical list on lg. -->
 	<nav
