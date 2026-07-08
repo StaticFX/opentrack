@@ -133,6 +133,28 @@ export async function deleteUpload(driver: StorageDriver, storageKey: string): P
 	await unlink(localPath(storageKey)).catch(() => {});
 }
 
+// ── Low-level S3 object ops (used by the backup system for a chosen key) ───
+export async function s3PutObject(key: string, bytes: Buffer, contentType?: string): Promise<void> {
+	const s3 = await requireS3();
+	await s3Client(s3).send(
+		new PutObjectCommand({
+			Bucket: s3.bucket,
+			Key: key,
+			Body: bytes,
+			ContentType: contentType || 'application/octet-stream'
+		})
+	);
+}
+export async function s3GetObject(key: string): Promise<Buffer> {
+	const s3 = await requireS3();
+	const res = await s3Client(s3).send(new GetObjectCommand({ Bucket: s3.bucket, Key: key }));
+	return Buffer.from(await res.Body!.transformToByteArray());
+}
+export async function s3DeleteObject(key: string): Promise<void> {
+	const s3 = await requireS3();
+	await s3Client(s3).send(new DeleteObjectCommand({ Bucket: s3.bucket, Key: key }));
+}
+
 /** Verify S3 credentials + bucket reachability (for the admin "Test" button). */
 export async function testS3(cfg: S3Config): Promise<{ ok: boolean; error?: string }> {
 	try {

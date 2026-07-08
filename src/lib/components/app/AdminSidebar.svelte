@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { ArrowLeft, Users, ShieldCheck, Plug, Palette, Bell } from '@lucide/svelte';
+	import { ArrowLeft, Users, ShieldCheck, Plug, Palette, Bell, DatabaseBackup } from '@lucide/svelte';
 	import { cn } from '$lib/utils/cn';
 
 	const tabs = [
@@ -8,7 +8,8 @@
 		{ href: '/admin/appearance', label: 'Appearance', icon: Palette },
 		{ href: '/admin/notifications', label: 'Notifications', icon: Bell },
 		{ href: '/admin/privacy', label: 'Privacy', icon: ShieldCheck },
-		{ href: '/admin/integrations', label: 'Integrations', icon: Plug }
+		{ href: '/admin/integrations', label: 'Integrations', icon: Plug },
+		{ href: '/admin/backups', label: 'Backups', icon: DatabaseBackup }
 	];
 </script>
 

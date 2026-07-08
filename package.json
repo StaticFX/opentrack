@@ -35,6 +35,7 @@
     "smoke:fields": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-fields.ts",
     "smoke:oauth": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-oauth.ts",
     "smoke:storage": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-storage.ts",
+    "smoke:backup": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-backup.ts",
     "smoke:github-sync": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-github-sync.ts",
     "smoke:github-pr": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-github-pr.ts",
     "smoke:github-close": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-github-close.ts",

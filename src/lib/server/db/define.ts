@@ -878,7 +878,26 @@ export function defineSchema(kit: Kit) {
 		(t) => [index('workflow_rules_project_idx').on(t.projectId)]
 	);
 
+	// Database backups (snapshots). The bytes live on disk (local backups dir) or
+	// in the configured S3 bucket; this row is the metadata + pointer.
+	const backups = table(
+		'backups',
+		{
+			id: pk(),
+			filename: text('filename').notNull(),
+			size: int('size').notNull(),
+			destination: text('destination').notNull(), // 'local' | 's3'
+			storageKey: text('storage_key').notNull(), // local filename or s3 object key
+			kind: text('kind').notNull(), // 'manual' | 'auto'
+			status: text('status').notNull().default('ok'), // 'ok' | 'failed'
+			error: text('error'),
+			createdAt: createdAt()
+		},
+		(t) => [index('backups_created_idx').on(t.createdAt)]
+	);
+
 	return {
+		backups,
 		attachments,
 		workflowRules,
 		watchers,

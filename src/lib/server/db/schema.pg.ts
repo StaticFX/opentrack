@@ -7,6 +7,7 @@ export const schema = defineSchema(pgKit);
 
 // Named exports so drizzle-kit discovers every table.
 export const {
+	backups,
 	attachments,
 	workflowRules,
 	watchers,

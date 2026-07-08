@@ -1,3 +1,4 @@
+import { ensureBackupScheduled, registerBackupHandlers } from '$lib/server/backup/jobs';
 import { registerDiscordHandlers } from '$lib/server/discord/jobs';
 import { registerGithubHandlers } from '$lib/server/github/jobs';
 import { registerIntegrationHandlers } from '$lib/server/integrations/jobs';
@@ -12,6 +13,7 @@ export * from './queue';
 export async function ensureScheduledJobs(): Promise<void> {
 	await ensureMaintenanceScheduled();
 	await ensureWorkflowScheduled();
+	await ensureBackupScheduled();
 }
 
 /**
@@ -28,4 +30,5 @@ export function registerAllHandlers(): void {
 	registerIntegrationHandlers();
 	registerMaintenanceHandlers();
 	registerWorkflowHandlers();
+	registerBackupHandlers();
 }

@@ -41,9 +41,20 @@ export interface StorageConfig {
 	/** S3 client config — present whenever credentials exist (even if driver=local), so already-stored S3 objects stay servable. */
 	s3?: S3Config;
 }
+export interface BackupConfig {
+	/** Automatic scheduled backups on/off. */
+	auto: boolean;
+	/** Hours between automatic backups. */
+	intervalHours: number;
+	/** How many automatic backups to keep (older ones are pruned). */
+	retention: number;
+	/** Where backup files are written. */
+	destination: 'local' | 's3';
+}
 export interface RuntimeConfig {
 	githubApp: GithubAppConfig;
 	storage: StorageConfig;
+	backup: BackupConfig;
 	site: SiteConfig;
 	push: PushConfig;
 }
@@ -131,6 +142,12 @@ export async function getConfig(): Promise<RuntimeConfig> {
 				driver: get('storage.s3.enabled') === '1' && s3 ? 's3' : 'local',
 				s3
 			},
+			backup: {
+				auto: get('backup.auto') === '1',
+				intervalHours: Math.max(1, Number(get('backup.intervalHours')) || 24),
+				retention: Math.max(1, Number(get('backup.retention')) || 7),
+				destination: get('backup.destination') === 's3' && s3 ? 's3' : 'local'
+			},
 			site: {
 			name: get('site.name') ?? SITE_DEFAULTS.name,
 			headline: get('site.headline') ?? SITE_DEFAULTS.headline,
@@ -180,6 +197,14 @@ export async function getConfigView() {
 			active: cfg.storage.driver === 's3',
 			// True when credentials are present (S3 objects are servable).
 			configured: !!cfg.storage.s3
+		},
+		backup: {
+			auto: cfg.backup.auto,
+			intervalHours: cfg.backup.intervalHours,
+			retention: cfg.backup.retention,
+			destination: cfg.backup.destination,
+			/** S3 is only a valid destination when storage credentials exist. */
+			s3Available: !!cfg.storage.s3
 		},
 		// Raw stored values (blank when unset → the form shows the defaults as placeholders).
 		site: {
