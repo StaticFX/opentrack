@@ -2,6 +2,7 @@ import { error, fail } from '@sveltejs/kit';
 import { getConfigView, setSetting } from '$lib/server/config';
 import { createBackup, deleteBackup, listBackups, stageRestore, backupsSupported } from '$lib/server/backup/service';
 import { rescheduleBackups } from '$lib/server/backup/jobs';
+import { checkBucketPublic } from '$lib/server/uploads';
 import type { Actions, PageServerLoad } from './$types';
 
 function requireAdmin(locals: App.Locals) {
@@ -11,9 +12,13 @@ function requireAdmin(locals: App.Locals) {
 export const load: PageServerLoad = async ({ locals }) => {
 	requireAdmin(locals);
 	const view = await getConfigView();
+	// If S3 is available, check the bucket's visibility so we can warn against
+	// storing backups (which contain the whole DB) in a public bucket.
+	const bucketVisibility = view.backup.s3Available ? await checkBucketPublic() : null;
 	return {
 		supported: backupsSupported(),
 		config: view.backup,
+		bucketVisibility,
 		backups: backupsSupported() ? await listBackups() : []
 	};
 };

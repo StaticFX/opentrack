@@ -3,6 +3,8 @@ import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
 	DeleteObjectCommand,
+	GetBucketAclCommand,
+	GetBucketPolicyStatusCommand,
 	GetObjectCommand,
 	HeadBucketCommand,
 	PutObjectCommand,
@@ -153,6 +155,31 @@ export async function s3GetObject(key: string): Promise<Buffer> {
 export async function s3DeleteObject(key: string): Promise<void> {
 	const s3 = await requireS3();
 	await s3Client(s3).send(new DeleteObjectCommand({ Bucket: s3.bucket, Key: key }));
+}
+
+/**
+ * Best-effort check of whether the configured bucket is publicly readable —
+ * backups must never live in a public bucket. Uses the bucket policy status +
+ * ACL (AWS); R2/MinIO often don't implement these, so we return 'unknown'
+ * rather than a false all-clear.
+ */
+export async function checkBucketPublic(): Promise<'public' | 'private' | 'unknown'> {
+	const { s3 } = (await getConfig()).storage;
+	if (!s3) return 'unknown';
+	const client = s3Client(s3);
+	try {
+		const ps = await client.send(new GetBucketPolicyStatusCommand({ Bucket: s3.bucket }));
+		if (ps.PolicyStatus?.IsPublic) return 'public';
+	} catch {
+		// policy status not supported / denied — fall through to ACL
+	}
+	try {
+		const acl = await client.send(new GetBucketAclCommand({ Bucket: s3.bucket }));
+		const anon = acl.Grants?.some((g) => g.Grantee?.URI?.includes('AllUsers'));
+		return anon ? 'public' : 'private';
+	} catch {
+		return 'unknown';
+	}
 }
 
 /** Verify S3 credentials + bucket reachability (for the admin "Test" button). */

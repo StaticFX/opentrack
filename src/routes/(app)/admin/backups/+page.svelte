@@ -53,6 +53,13 @@
 				</div>
 				{#if !data.config.s3Available}
 					<p class="text-xs text-neutral-400">Configure S3 in <a href="/admin/integrations" class="text-brand-600 hover:underline">Integrations</a> to store backups offsite.</p>
+				{:else if data.bucketVisibility === 'public'}
+					<p class="flex items-start gap-2 rounded-lg bg-red-50 p-3 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-300">
+						<TriangleAlert size={14} class="mt-0.5 shrink-0" />
+						<span>The configured S3 bucket appears to be <strong>publicly readable</strong>. A backup contains your entire database — do <strong>not</strong> store backups in a public bucket. Make it private first.</span>
+					</p>
+				{:else if data.bucketVisibility === 'unknown' && destination === 's3'}
+					<p class="text-xs text-amber-600 dark:text-amber-400">Couldn't verify the bucket's visibility — make sure it's private before relying on S3 backups.</p>
 				{/if}
 				<div class="flex items-center gap-3">
 					<Button size="sm" variant="primary" type="submit">Save schedule</Button>
