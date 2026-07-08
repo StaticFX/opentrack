@@ -1,0 +1,49 @@
+# OpenTrack
+
+> An open, public-by-default issue tracker: workspaces → projects → boards, customizable
+> kanban, tickets, public feedback (suggestions & bug reports), releases/changelog, and
+> bidirectional GitHub sync. Self-hosted. This instance exposes a scoped REST API and an MCP
+> server for programmatic and agent access.
+
+All paths below are relative to this instance's origin (the site you fetched this file from).
+Public read pages need no auth; the API and MCP require an API key.
+
+## Authentication
+
+- Create an API key under a workspace's **Settings → API keys** (or, as an admin, under
+  **Admin → API tokens**). Keys are scoped to one workspace.
+- Scopes: `read` (list/read + search) and `write` (create/update tickets, add comments).
+- Send it as a header: `Authorization: Bearer <key>`. The REST API also accepts `?api_key=<key>`.
+- Rate limits: REST ~120 req/min per workspace; MCP ~240 req/min per workspace.
+
+## MCP server (for AI agents)
+
+- Endpoint: [`/api/mcp`](/api/mcp) — JSON-RPC 2.0 over HTTP POST (Streamable HTTP transport;
+  no SSE stream). Send `Authorization: Bearer <key>`. Must be enabled by an admin
+  (Admin → Integrations); returns 404 if disabled.
+- Read tools (need `read`): `list_projects`, `list_tickets` (filter by open/closed/all),
+  `get_ticket` (by project slug + number), `search_tickets`.
+- Write tools (need `write`): `create_ticket`, `update_ticket`, `add_comment`.
+- Standard MCP handshake: `initialize`, then `tools/list` to discover exact input schemas,
+  then `tools/call`.
+
+## REST API (v1)
+
+Read endpoints, `read` scope, JSON responses. `{projectId}` is the project's id.
+
+- [`GET /api/v1/projects/{projectId}/tickets`](/api/v1) — tickets (number, title, priority, open/closed status, column, timestamps).
+- `GET /api/v1/projects/{projectId}/suggestions` — feedback items (title, status, votes, comments).
+- `GET /api/v1/projects/{projectId}/releases` — published releases.
+
+## Public (no auth)
+
+- `/{workspace}/{project}` — public project board.
+- `/{workspace}/{project}/suggestions` — public feedback (suggestions & bugs); submit, upvote, comment.
+- `/{workspace}/{project}/suggestions/rss.xml` — feedback RSS feed.
+- `/{workspace}/{project}/roadmap` and `/releases` — public roadmap & changelog.
+- `/embed/{workspace}/{project}/{roadmap|changelog|feedback|known-issues}` — embeddable widgets (iframe); `roadmap.svg`, `changelog.svg`, `badge.svg` for READMEs. Availability is per-project (owner-configured).
+
+## Docs
+
+- Self-hosting guide: `docs/self-hosting.md` in the source repository.
+- README: `README.md` in the source repository.

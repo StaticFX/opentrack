@@ -64,6 +64,10 @@ docker compose up -d --build   # app + Postgres; migrations run on boot
 Configure via environment (see `.env.example`). Behind a reverse proxy, set
 `ORIGIN` to the public URL and add Traefik labels to the `app` service.
 
+**→ Full walkthrough: [`docs/self-hosting.md`](docs/self-hosting.md)** — Postgres &
+SQLite setups, env reference, TLS, backups, post-install integrations, and updates.
+Agent/API access is documented at `{ORIGIN}/llms.txt` (source: [`static/llms.txt`](static/llms.txt)).
+
 ## Configuration
 
 All configuration is via environment variables — see `.env.example` for the full
