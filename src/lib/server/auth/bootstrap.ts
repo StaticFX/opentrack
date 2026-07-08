@@ -1,40 +1,40 @@
-import { randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
-import { db, schema } from '$lib/server/db';
 import { env } from '$lib/server/env';
 import { createAdminUser } from './user';
+import { adminExists, armSetupToken } from './setup';
 
 /**
- * Create the initial admin on first boot if none exists. The username defaults
- * to ADMIN_USERNAME (or "admin") and the password to ADMIN_PASSWORD, or a
- * random one that is printed to the container logs so the operator can read it
- * from `docker logs` and sign in. No email required.
+ * On first boot, prepare the first admin. Two paths:
+ *
+ *  - **Default (interactive):** no admin and no `ADMIN_PASSWORD` → arm the
+ *    first-run setup flow. A one-time code is printed to the logs; the operator
+ *    creates their account at `/setup` (name + code, then their own password).
+ *  - **Non-interactive override:** if `ADMIN_PASSWORD` is set, create the admin
+ *    directly (for automation / unattended installs).
  */
 export async function bootstrapAdmin(): Promise<void> {
-	const [existing] = await db
-		.select({ id: schema.users.id })
-		.from(schema.users)
-		.where(eq(schema.users.isAdmin, true))
-		.limit(1);
-	if (existing) return;
+	if (await adminExists()) return;
 
-	const username = env.bootstrapAdmin.username || 'admin';
-	const configured = env.bootstrapAdmin.password;
-	const password = configured || randomBytes(9).toString('base64url'); // ~12 chars
+	if (env.bootstrapAdmin.password) {
+		const username = env.bootstrapAdmin.username || 'admin';
+		const user = await createAdminUser({
+			username,
+			password: env.bootstrapAdmin.password,
+			email: env.bootstrapAdmin.email || null
+		});
+		const line = '━'.repeat(52);
+		console.log(
+			[
+				'',
+				line,
+				'  OpenTrack — initial admin account created (from ADMIN_PASSWORD)',
+				`  Username: ${user.username}`,
+				'  → Sign in, then change it in Account → Security.',
+				line,
+				''
+			].join('\n')
+		);
+		return;
+	}
 
-	const user = await createAdminUser({ username, password, email: env.bootstrapAdmin.email || null });
-
-	const line = '━'.repeat(52);
-	console.log(
-		[
-			'',
-			line,
-			'  OpenTrack — initial admin account created',
-			`  Username: ${user.username}`,
-			configured ? '  Password: (from ADMIN_PASSWORD)' : `  Password: ${password}`,
-			'  → Sign in, then change it in Account → Security.',
-			line,
-			''
-		].join('\n')
-	);
+	await armSetupToken();
 }

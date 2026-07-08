@@ -137,15 +137,28 @@ not here (see [Post-install configuration](#post-install-configuration)).
 
 ## First sign-in
 
-The first admin is created automatically on first boot **if no admin exists yet**
-(`src/lib/server/auth/bootstrap.ts`):
+By default there's **no admin in your `.env`**. On first boot with no admin, OpenTrack prints a
+one-time **setup code** to the logs and opens a guided first-run flow:
 
-- Username: `ADMIN_USERNAME` or `admin`.
-- Password: `ADMIN_PASSWORD` if you set one, otherwise a random password **printed to the
-  container logs** — read it with `docker compose logs app`.
+```bash
+docker compose logs app
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#   OpenTrack — first-run setup
+#   1. Open  https://track.example.com/setup
+#   2. Enter this one-time setup code:
+#
+#        A1B2-C3D4
+#
+#   It creates the first admin account and is single-use.
+```
 
-Sign in, then change the password under **Account → Security**. Create a workspace, then a
-project, and you're running.
+Any page visit is redirected to **`/setup`** until that account exists. There you pick a
+username, paste the setup code, and choose your own password — then you're signed in. The code
+is consumed on success (and a fresh one is issued if the container restarts before you claim it).
+
+**Non-interactive override.** For automated/unattended installs, set `ADMIN_PASSWORD` (and
+optionally `ADMIN_USERNAME`). When present, the admin is created directly on first boot and the
+`/setup` flow is skipped.
 
 ---
 

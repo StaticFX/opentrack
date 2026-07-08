@@ -1,9 +1,10 @@
-import type { Handle } from '@sveltejs/kit';
+import { redirect, type Handle } from '@sveltejs/kit';
 import {
 	SESSION_COOKIE,
 	deleteSessionCookie,
 	validateSessionToken
 } from '$lib/server/auth/session';
+import { isInitialized } from '$lib/server/auth/setup';
 import { ensureStarted } from '$lib/server/startup';
 
 ensureStarted();
@@ -20,6 +21,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.sessionId = null;
 	}
 
-	// Route-group authorization (admin/internal gating) is layered on in M2.
+	// First-run: until the first admin exists, funnel page visits to /setup.
+	// `isInitialized()` is memoized, so this is free once the instance is set up.
+	const p = event.url.pathname;
+	const bypass =
+		p === '/setup' || p.startsWith('/auth/') || p.startsWith('/api/') || p.includes('.');
+	if (!bypass && !(await isInitialized())) {
+		throw redirect(302, '/setup');
+	}
+
 	return resolve(event);
 };
