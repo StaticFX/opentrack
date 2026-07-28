@@ -18,12 +18,12 @@
 		{#snippet action()}
 			{#if showForm}
 				<form method="POST" action="?/create" use:enhance class="flex items-end gap-2">
-					<Field label=""><Input name="version" placeholder="v1.2.0" required autofocus class="w-32" /></Field>
-					<Button variant="primary" size="sm" type="submit">Create</Button>
+					<Field label=""><Input name="version" placeholder="v1.2.0" required autofocus class="w-32 font-mono" /></Field>
+					<Button variant="accent" size="sm" type="submit">Create</Button>
 					<Button variant="ghost" size="sm" type="button" onclick={() => (showForm = false)}>Cancel</Button>
 				</form>
 			{:else}
-				<Button variant="primary" size="sm" onclick={() => (showForm = true)}><Tag size={15} /> New release</Button>
+				<Button variant="accent" size="sm" onclick={() => (showForm = true)}><Tag size={15} /> New release</Button>
 			{/if}
 		{/snippet}
 	</ProjectPageHeader>
@@ -32,22 +32,23 @@
 	{#if form?.error}<p class="mb-3 text-sm text-red-600">{form.error}</p>{/if}
 
 	{#if data.releases.length}
-		<div class="divide-y divide-neutral-100 dark:divide-neutral-800">
-			{#each data.releases as r (r.id)}
-				<a href={`${base}/releases/${r.id}`} class="flex items-center justify-between py-3 hover:opacity-80">
-					<div class="flex items-center gap-3">
-						<Tag size={16} class="text-neutral-400" />
-						<div>
-							<p class="font-medium">{r.version}{#if r.name} — {r.name}{/if}</p>
-							{#if r.releasedAt}<p class="text-xs text-neutral-400">{new Date(r.releasedAt).toLocaleDateString()}</p>{/if}
-						</div>
-					</div>
-					<span class="rounded-full px-2 py-0.5 text-[11px] font-medium {r.status === 'published' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' : 'bg-neutral-100 text-neutral-500 dark:bg-neutral-800'}">{r.status}</span>
+		<div class="space-y-2.5">
+			{#each data.releases as r, i (r.id)}
+				<a href={`${base}/releases/${r.id}`} class="pub-card ot-rise group flex items-center gap-3.5 p-3.5 transition duration-150 hover:-translate-y-0.5" style={`--rise-i:${i}`}>
+					<span class="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent-fg)]"><Tag size={15} /></span>
+					<span class="min-w-0 flex-1">
+						<span class="flex items-baseline gap-2">
+							<span class="font-mono text-sm font-semibold tabular-nums group-hover:text-[var(--accent-fg)]">{r.version}</span>
+							{#if r.name}<span class="truncate text-sm text-neutral-500 dark:text-neutral-400">{r.name}</span>{/if}
+						</span>
+						{#if r.releasedAt}<span class="mt-0.5 block font-mono text-[11px] tabular-nums text-neutral-400 dark:text-neutral-500">{new Date(r.releasedAt).toLocaleDateString()}</span>{/if}
+					</span>
+					<span class="shrink-0 rounded-full px-2 py-0.5 font-mono text-[11px] font-medium {r.status === 'published' ? 'text-green-700 dark:text-green-300' : 'text-neutral-500 dark:text-neutral-400'}" style="background:color-mix(in oklab, currentColor 12%, transparent)">{r.status}</span>
 				</a>
 			{/each}
 		</div>
 	{:else}
-		<div class="rounded-xl border border-dashed border-neutral-300 py-16 text-center text-sm text-neutral-400 dark:border-neutral-700">
+		<div class="rounded-2xl bg-black/[0.03] py-16 text-center text-sm text-neutral-400 dark:bg-white/[0.04]">
 			No releases yet. Create one to start a public changelog.
 		</div>
 	{/if}

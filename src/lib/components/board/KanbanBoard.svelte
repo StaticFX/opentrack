@@ -357,35 +357,35 @@
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col">
-	<!-- Filter bar -->
-	<div class="flex flex-col gap-2 border-b border-neutral-100 px-4 py-2 dark:border-neutral-800/60">
+	<!-- Filter bar — quiet strip of rounded pill controls (the public pages' voice). -->
+	<div class="flex flex-col gap-2 border-b border-black/5 px-4 py-2.5 dark:border-white/8">
 		<div class="flex flex-wrap items-center gap-2">
 			<div class="relative">
-				<Search size={14} class="absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+				<Search size={14} class="absolute top-1/2 left-3 -translate-y-1/2 text-neutral-400" />
 				<input
 					bind:value={filters.q}
 					placeholder="Search…"
-					class="h-8 w-44 rounded-md border border-neutral-200 bg-white pr-2 pl-8 text-sm focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none dark:border-neutral-800 dark:bg-neutral-900"
+					class="h-8 w-44 rounded-full border border-black/5 bg-white/70 pr-3 pl-8 text-sm shadow-sm focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-glow)] focus-visible:outline-none dark:border-white/5 dark:bg-neutral-800/70"
 				/>
 			</div>
 			<BoardFilter bind:filters sections={filterSections} onclear={clearFilters} />
 			{#if filterActive}
-				<button onclick={clearFilters} class="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"><X size={13} /> Clear</button>
+				<button onclick={clearFilters} class="flex h-8 items-center gap-1 rounded-full px-2.5 text-xs font-semibold text-neutral-500 transition-colors hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"><X size={13} /> Clear</button>
 			{/if}
 			<div class="ml-auto flex items-center gap-2">
 				<button
 					onclick={toggleArchived}
-					class={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-sm ${showArchived ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'}`}
+					class={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${showArchived ? 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-fg)]' : 'border-black/5 bg-white/70 text-neutral-500 hover:text-neutral-800 dark:border-white/5 dark:bg-neutral-800/70 dark:text-neutral-400 dark:hover:text-neutral-200'}`}
 					title={showArchived ? 'Hide archived tickets' : 'Show archived tickets'}
 				>
-					<Archive size={14} /> {showArchived ? 'Archived' : 'Archive'}
+					<Archive size={13} /> {showArchived ? 'Archived' : 'Archive'}
 				</button>
 				{#if canEdit}
 					<button
 						onclick={() => (selectMode ? exitSelect() : enterSelect())}
-						class={`flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-sm ${selectMode ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-800'}`}
+						class={`flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${selectMode ? 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-fg)]' : 'border-black/5 bg-white/70 text-neutral-500 hover:text-neutral-800 dark:border-white/5 dark:bg-neutral-800/70 dark:text-neutral-400 dark:hover:text-neutral-200'}`}
 					>
-						<CheckSquare size={14} /> {selectMode ? 'Done' : 'Select'}
+						<CheckSquare size={13} /> {selectMode ? 'Done' : 'Select'}
 					</button>
 				{/if}
 				<BoardViews {boardId} current={filters} {filterActive} canShare={canEdit} onapply={applyView} />
@@ -394,10 +394,10 @@
 		{#if chips.length}
 			<div class="flex flex-wrap items-center gap-1.5">
 				{#each chips as c (c.id + c.value)}
-					<span class="flex items-center gap-1 rounded-full border border-neutral-200 bg-neutral-50 py-0.5 pr-1 pl-2 text-xs text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+					<span class="flex items-center gap-1 rounded-full border border-black/5 bg-white/70 py-0.5 pr-1 pl-2 text-xs font-medium text-neutral-600 dark:border-white/5 dark:bg-neutral-800/70 dark:text-neutral-300">
 						{#if c.color}<span class="size-2 shrink-0 rounded-full" style={`background:${c.color}`}></span>{/if}
 						{c.label}
-						<button onclick={() => removeChip(c)} class="rounded-full p-0.5 hover:bg-neutral-200 dark:hover:bg-neutral-700" aria-label={`Remove ${c.label} filter`}><X size={11} /></button>
+						<button onclick={() => removeChip(c)} class="rounded-full p-0.5 text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-700 dark:hover:bg-white/10 dark:hover:text-neutral-200" aria-label={`Remove ${c.label} filter`}><X size={11} /></button>
 					</span>
 				{/each}
 			</div>
@@ -415,22 +415,23 @@
 		{#each cols as col (col.id)}
 			{@const items = display(col)}
 			{@const over = col.wipLimit != null && items.length > col.wipLimit}
-			<section class="group/col flex h-full min-h-0 w-72 flex-col rounded-2xl bg-white/55 ring-1 ring-black/[0.04] backdrop-blur-sm dark:bg-white/[0.035] dark:ring-white/5">
+			<!-- Recessed well: the column is a quiet tray the ticket cards float inside. -->
+			<section class="group/col flex h-full min-h-0 w-72 flex-col rounded-2xl bg-black/[0.03] dark:bg-white/[0.04]">
 				<div class="flex items-center justify-between px-3 py-2.5">
 					<div class="flex min-w-0 items-center gap-2">
 						<ColumnIcon icon={col.icon} color={col.color} />
-						<span class="truncate text-sm font-medium">{col.name}</span>
-						<span class="text-xs {over ? 'font-semibold text-red-500' : 'text-neutral-400'}">
+						<span class="truncate font-display text-sm font-semibold tracking-tight">{col.name}</span>
+						<span class="font-mono text-xs tabular-nums {over ? 'font-semibold text-red-500' : 'text-neutral-400'}">
 							{items.length}{col.wipLimit != null ? `/${col.wipLimit}` : ''}
 						</span>
 					</div>
 					<div class="flex items-center gap-0.5">
 						{#if canEdit}
-							<button onclick={() => archiveColumnTickets(col)} class="rounded p-0.5 text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800" aria-label="Archive all tickets" title="Archive all tickets"><Archive size={14} /></button>
+							<button onclick={() => archiveColumnTickets(col)} class="rounded-md p-1 text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-600 dark:hover:bg-white/10 dark:hover:text-neutral-300" aria-label="Archive all tickets" title="Archive all tickets"><Archive size={14} /></button>
 						{/if}
 						{#if canManage}
-							<button use:dragHandle class="cursor-grab rounded p-0.5 text-neutral-400 hover:bg-neutral-200 active:cursor-grabbing dark:hover:bg-neutral-800" aria-label="Drag to reorder column"><GripVertical size={14} /></button>
-							<button onclick={() => (menuCol = col.id)} class="rounded p-0.5 text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800" aria-label="Column settings"><Settings2 size={14} /></button>
+							<button use:dragHandle class="cursor-grab rounded-md p-1 text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-600 active:cursor-grabbing dark:hover:bg-white/10 dark:hover:text-neutral-300" aria-label="Drag to reorder column"><GripVertical size={14} /></button>
+							<button onclick={() => (menuCol = col.id)} class="rounded-md p-1 text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-600 dark:hover:bg-white/10 dark:hover:text-neutral-300" aria-label="Column settings"><Settings2 size={14} /></button>
 						{/if}
 					</div>
 				</div>
@@ -443,7 +444,7 @@
 							autofocus
 							placeholder="Ticket title…"
 							onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); createTicket(col); } if (e.key === 'Escape') { composerCol = null; composerText = ''; } }}
-							class="w-full resize-none rounded-lg border border-neutral-200 bg-white p-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+							class="w-full resize-none rounded-xl border border-black/10 bg-white p-2.5 text-sm shadow-sm focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-glow)] focus-visible:outline-none dark:border-white/10 dark:bg-neutral-800"
 							rows="2"
 						></textarea>
 					</div>
@@ -456,7 +457,7 @@
 						flipDurationMs: flip,
 						dragDisabled: !canEdit || filterActive || selectMode,
 						dropTargetStyle: {},
-						dropTargetClasses: ['ring-2', 'ring-brand-500/40', 'rounded-lg'],
+						dropTargetClasses: ['ring-2', 'ring-[var(--accent-glow)]', 'rounded-xl'],
 						type: 'card'
 					}}
 					onconsider={(e) => consider(col, e)}
@@ -464,7 +465,7 @@
 				>
 					{#each items as item (item.id)}
 						<div class="shrink-0 {item.archived ? 'opacity-60' : ''}">
-							<div class={selectMode && selectedIds.includes(item.id) ? 'rounded-xl ring-2 ring-brand-500 ring-offset-1 dark:ring-offset-neutral-800' : ''}>
+							<div class={selectMode && selectedIds.includes(item.id) ? 'rounded-xl ring-2 ring-[var(--accent-solid)] ring-offset-1 dark:ring-offset-neutral-800' : ''}>
 								<Card ticket={item} onopen={cardClick} />
 							</div>
 						</div>
@@ -472,7 +473,7 @@
 					{#if canEdit && !selectMode}
 						<button
 							onclick={() => openCreate(col.id)}
-							class="mt-0.5 hidden shrink-0 items-center justify-center gap-1.5 rounded-lg border border-dashed border-neutral-300 py-2 text-xs text-neutral-400 hover:border-brand-400 hover:text-brand-600 group-hover/col:flex dark:border-neutral-700 dark:hover:border-brand-500 dark:hover:text-brand-400"
+							class="mt-0.5 hidden shrink-0 items-center justify-center gap-1.5 rounded-xl border border-dashed border-neutral-300 py-2 text-xs font-medium text-neutral-500 transition-colors group-hover/col:flex hover:border-[var(--accent-border)] hover:text-[var(--accent-fg)] dark:border-neutral-700"
 						>
 							<Plus size={14} /> New ticket
 						</button>
@@ -483,7 +484,7 @@
 		</section>
 
 		{#if canManage}
-			<button onclick={addColumn} class="mt-0 flex w-56 items-center gap-2 rounded-2xl border border-dashed border-neutral-300 px-3 py-2.5 text-sm text-neutral-500 hover:border-brand-400 hover:bg-neutral-50 hover:text-brand-600 dark:border-neutral-700 dark:hover:bg-neutral-800/60">
+			<button onclick={addColumn} class="mt-0 flex w-56 items-center gap-2 rounded-2xl border border-dashed border-neutral-300 px-3 py-2.5 text-sm font-medium text-neutral-500 transition-colors hover:border-[var(--accent-border)] hover:bg-black/[0.02] hover:text-[var(--accent-fg)] dark:border-neutral-700 dark:hover:bg-white/[0.04]">
 				<Plus size={15} /> Add column
 			</button>
 		{/if}
@@ -492,9 +493,9 @@
 </div>
 
 {#if selectMode && selectedIds.length}
-	{@const sc = 'h-8 rounded-md border border-neutral-200 bg-white px-2 text-sm dark:border-neutral-700 dark:bg-neutral-800'}
-	<div class="fixed inset-x-2 bottom-4 z-40 flex max-w-[calc(100vw-1rem)] flex-wrap items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-2 shadow-xl sm:inset-x-auto sm:left-1/2 sm:max-w-none sm:-translate-x-1/2 sm:flex-nowrap dark:border-neutral-700 dark:bg-neutral-900">
-		<span class="px-1 text-sm font-medium">{selectedIds.length} selected</span>
+	{@const sc = 'h-8 rounded-lg border border-black/10 bg-white px-2 text-sm dark:border-white/10 dark:bg-neutral-900'}
+	<div class="fixed inset-x-2 bottom-4 z-40 flex max-w-[calc(100vw-1rem)] flex-wrap items-center justify-center gap-2 rounded-2xl border border-black/5 bg-white px-3 py-2 shadow-2xl sm:inset-x-auto sm:left-1/2 sm:max-w-none sm:-translate-x-1/2 sm:flex-nowrap dark:border-white/8 dark:bg-neutral-800">
+		<span class="px-1 text-sm font-medium"><span class="font-mono tabular-nums">{selectedIds.length}</span> selected</span>
 		<select class={sc} onchange={(e) => { const v = e.currentTarget.value; if (v) bulkAction('move', { columnId: v }); e.currentTarget.value = ''; }}>
 			{#each bulkColumnOptions as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
 		</select>
@@ -505,9 +506,9 @@
 			{#each bulkMemberOptions as o (o.value)}<option value={o.value}>{o.label}</option>{/each}
 		</select>
 		{#if canManage}
-			<button onclick={() => bulkAction('delete')} class="flex h-8 items-center gap-1 rounded-md px-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"><Trash2 size={14} /> Delete</button>
+			<button onclick={() => bulkAction('delete')} class="flex h-8 items-center gap-1 rounded-full px-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-950/40"><Trash2 size={14} /> Delete</button>
 		{/if}
-		<button onclick={() => (selectedIds = [])} class="h-8 rounded-md px-2 text-sm text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800">Clear</button>
+		<button onclick={() => (selectedIds = [])} class="h-8 rounded-full px-2.5 text-sm text-neutral-500 transition-colors hover:bg-black/5 dark:hover:bg-white/10">Clear</button>
 	</div>
 {/if}
 
@@ -541,42 +542,42 @@
 	{#if editing}
 		<div class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh]">
 			<button aria-label="Close" class="absolute inset-0 bg-neutral-950/40 backdrop-blur-[2px]" onclick={() => (menuCol = null)}></button>
-			<div class="relative z-10 w-full max-w-md overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-900">
-				<div class="flex items-center justify-between border-b border-neutral-100 px-5 py-3 dark:border-neutral-800">
-					<h2 class="flex items-center gap-2 text-sm font-semibold"><ColumnIcon icon={editing.icon} color={editing.color} /> Column settings</h2>
-					<button onclick={() => (menuCol = null)} class="rounded p-1 text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close"><X size={16} /></button>
+			<div class="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl dark:border-white/8 dark:bg-neutral-800">
+				<div class="flex items-center justify-between border-b border-black/5 px-5 py-3 dark:border-white/8">
+					<h2 class="flex items-center gap-2 font-display text-sm font-semibold tracking-tight"><ColumnIcon icon={editing.icon} color={editing.color} /> Column settings</h2>
+					<button onclick={() => (menuCol = null)} class="rounded-md p-1 text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-600 dark:hover:bg-white/10 dark:hover:text-neutral-300" aria-label="Close"><X size={16} /></button>
 				</div>
 				<div class="max-h-[65vh] space-y-4 overflow-y-auto px-5 py-4">
 					<label class="block">
-						<span class="mb-1 block text-xs font-medium text-neutral-400">Name</span>
-						<input value={editing.name} onchange={(e) => patchColumn(editing.id, { name: (e.currentTarget as HTMLInputElement).value })} class="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm focus-visible:border-brand-500 focus-visible:outline-none dark:border-neutral-700 dark:bg-neutral-900" />
+						<span class="pub-label mb-1 block">Name</span>
+						<input value={editing.name} onchange={(e) => patchColumn(editing.id, { name: (e.currentTarget as HTMLInputElement).value })} class="w-full rounded-lg border border-black/10 px-3 py-2 text-sm focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-glow)] focus-visible:outline-none dark:border-white/10 dark:bg-neutral-900" />
 					</label>
 					<div>
-						<span class="mb-1.5 block text-xs font-medium text-neutral-400">Color</span>
+						<span class="pub-label mb-1.5 block">Color</span>
 						<div class="flex flex-wrap gap-1.5">
-							{#each PALETTE as c (c)}<button onclick={() => patchColumn(editing.id, { color: c })} class="size-6 rounded-full" class:ring-2={editing.color === c} style={`background:${c};--tw-ring-color:${c}`} aria-label={c}></button>{/each}
+							{#each PALETTE as c (c)}<button onclick={() => patchColumn(editing.id, { color: c })} class="size-6 rounded-full transition-transform hover:scale-110" class:ring-2={editing.color === c} style={`background:${c};--tw-ring-color:${c}`} aria-label={c}></button>{/each}
 						</div>
 					</div>
 					<div>
-						<span class="mb-1.5 block text-xs font-medium text-neutral-400">Icon</span>
+						<span class="pub-label mb-1.5 block">Icon</span>
 						<div class="flex flex-wrap gap-1.5">
-							{#each COLUMN_ICON_KEYS as key (key)}<button onclick={() => patchColumn(editing.id, { icon: key })} class="grid size-8 place-items-center rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800" class:bg-neutral-200={editing.icon === key} aria-label={key}><ColumnIcon icon={key} color={editing.color} size={16} /></button>{/each}
+							{#each COLUMN_ICON_KEYS as key (key)}<button onclick={() => patchColumn(editing.id, { icon: key })} class="grid size-8 place-items-center rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10 {editing.icon === key ? 'bg-black/10 dark:bg-white/15' : ''}" aria-label={key}><ColumnIcon icon={key} color={editing.color} size={16} /></button>{/each}
 						</div>
 					</div>
 					<div class="grid grid-cols-2 gap-3">
 						<label class="block">
-							<span class="mb-1 block text-xs font-medium text-neutral-400">Type (GitHub state)</span>
+							<span class="pub-label mb-1 block">Type (GitHub state)</span>
 							<Select value={editing.category} options={CATEGORY_OPTIONS} size="sm" onchange={(v) => patchColumn(editing.id, { category: v as ColumnCategory })} />
 						</label>
 						<label class="block">
-							<span class="mb-1 block text-xs font-medium text-neutral-400">Ticket limit</span>
-							<input type="number" min="0" value={editing.wipLimit ?? ''} onchange={(e) => { const v = (e.currentTarget as HTMLInputElement).value; patchColumn(editing.id, { wipLimit: v === '' ? null : Number(v) }); }} placeholder="No limit" class="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm focus-visible:border-brand-500 focus-visible:outline-none dark:border-neutral-700 dark:bg-neutral-900" />
+							<span class="pub-label mb-1 block">Ticket limit</span>
+							<input type="number" min="0" value={editing.wipLimit ?? ''} onchange={(e) => { const v = (e.currentTarget as HTMLInputElement).value; patchColumn(editing.id, { wipLimit: v === '' ? null : Number(v) }); }} placeholder="No limit" class="w-full rounded-lg border border-black/10 px-3 py-2 font-mono text-sm tabular-nums focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[var(--accent-glow)] focus-visible:outline-none dark:border-white/10 dark:bg-neutral-900" />
 						</label>
 					</div>
 				</div>
-				<div class="flex items-center justify-between border-t border-neutral-100 px-5 py-3 dark:border-neutral-800">
+				<div class="flex items-center justify-between border-t border-black/5 px-5 py-3 dark:border-white/8">
 					<span class="text-xs text-neutral-400">Drag the grip on a column to reorder</span>
-					<button onclick={() => deleteColumn(editing.id)} class="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"><Trash2 size={14} /> Delete column</button>
+					<button onclick={() => deleteColumn(editing.id)} class="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-950/40"><Trash2 size={14} /> Delete column</button>
 				</div>
 			</div>
 		</div>

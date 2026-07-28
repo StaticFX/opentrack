@@ -69,30 +69,32 @@
 <div class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
 	<header class="mb-6 flex items-start justify-between gap-3">
 		<div>
-			<h1 class="flex items-center gap-2 text-xl font-semibold tracking-tight"><Inbox size={20} /> Inbox</h1>
-			<p class="mt-0.5 text-sm text-neutral-500">Triage feedback coming in from your public page — accept, convert to a ticket, decline, or archive.</p>
+			<h1 class="type-poster flex items-center gap-2 text-2xl"><Inbox size={20} class="text-[var(--accent-fg)]" /> Inbox</h1>
+			<p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Triage feedback coming in from your public page — accept, convert to a ticket, decline, or archive.</p>
 		</div>
-		<a href={publicUrl} target="_blank" rel="noreferrer" class="mt-1 flex shrink-0 items-center gap-1 text-xs text-brand-600 hover:underline">
+		<a href={publicUrl} target="_blank" rel="noreferrer" class="mt-1.5 flex shrink-0 items-center gap-1 text-xs font-medium text-neutral-400 transition-colors hover:text-[var(--accent-fg)]">
 			View public page <ExternalLink size={12} />
 		</a>
 	</header>
 
 	{#if f?.error}
-		<p class="mb-4 rounded-lg bg-red-50 p-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-300">{f.error}</p>
+		<p class="mb-4 rounded-xl bg-red-50 p-2.5 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-300">{f.error}</p>
 	{/if}
 
 	<!-- Tabs -->
-	<div class="mb-3 flex flex-wrap gap-1 border-b border-neutral-200 dark:border-neutral-800">
+	<div class="mb-3 flex flex-wrap gap-1 border-b border-black/5 dark:border-white/8">
 		{#each tabs as t (t.key)}
 			<button
 				onclick={() => go({ view: t.key })}
 				class="-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors {data.view === t.key
-					? 'border-brand-500 text-neutral-900 dark:text-neutral-100'
+					? 'border-[var(--accent)] text-neutral-900 dark:text-neutral-100'
 					: 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
 			>
 				{t.label}
 				{#if t.count > 0}
-					<span class="rounded-full bg-neutral-100 px-1.5 text-[11px] tabular-nums text-neutral-500 dark:bg-neutral-800">{t.count}</span>
+					<span class="rounded-full px-1.5 font-mono text-[11px] tabular-nums {data.view === t.key
+						? 'bg-[var(--accent-soft)] text-[var(--accent-fg)]'
+						: 'bg-black/5 text-neutral-500 dark:bg-white/10'}">{t.count}</span>
 				{/if}
 			</button>
 		{/each}
@@ -104,8 +106,8 @@
 			{#each kindFilters as k (k.key)}
 				<button
 					onclick={() => go({ kind: k.key })}
-					class="rounded-md px-2.5 py-0.5 text-xs font-medium {(data.kind ?? '') === k.key
-						? 'bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
+					class="rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors {(data.kind ?? '') === k.key
+						? 'bg-[var(--accent-soft)] text-[var(--accent-fg)]'
 						: 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
 				>{k.label}</button>
 			{/each}
@@ -114,8 +116,8 @@
 			{#each sorts as s (s.key)}
 				<button
 					onclick={() => go({ sort: s.key })}
-					class="rounded-md px-2 py-0.5 text-xs font-medium {data.sort === s.key
-						? 'bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
+					class="rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors {data.sort === s.key
+						? 'bg-[var(--accent-soft)] text-[var(--accent-fg)]'
 						: 'text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'}"
 				>{s.label}</button>
 			{/each}
@@ -123,31 +125,31 @@
 	</div>
 
 	<!-- List -->
-	<div class="space-y-2">
-		{#each data.suggestions as s (s.id)}
+	<div class="space-y-2.5">
+		{#each data.suggestions as s, i (s.id)}
 			{@const kindMeta = SUGGESTION_KIND_META[s.kind]}
 			{@const KindIcon = kindMeta.icon}
-			<div class="rounded-xl border border-neutral-200 p-3 dark:border-neutral-800">
+			<div class="pub-card ot-rise p-3.5" style={`--rise-i:${i}`}>
 				<div class="flex items-start gap-3">
 					<!-- Vote count (read-only internally) -->
-					<div class="flex w-9 shrink-0 flex-col items-center rounded-md border border-neutral-200 py-1 dark:border-neutral-800">
+					<div class="flex w-9 shrink-0 flex-col items-center rounded-lg bg-black/[0.04] py-1.5 dark:bg-white/[0.06]">
 						<ChevronUp size={14} class="text-neutral-400" />
-						<span class="text-sm font-semibold tabular-nums">{s.votes}</span>
+						<span class="font-mono text-sm font-semibold tabular-nums">{s.votes}</span>
 					</div>
 
 					<div class="min-w-0 flex-1">
 						<div class="flex flex-wrap items-center gap-2">
-							<span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium" style={`background:${kindMeta.color}22;color:${kindMeta.color}`}><KindIcon size={11} /> {kindMeta.label}</span>
-							<span class="rounded-full px-2 py-0.5 text-[11px] font-medium" style={`background:${SUGGESTION_STATUS_META[s.status].color}22;color:${SUGGESTION_STATUS_META[s.status].color}`}>{SUGGESTION_STATUS_META[s.status].label}</span>
-							{#if s.archived}<span class="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-500 dark:bg-neutral-800">Archived</span>{/if}
-							<a href={`${publicUrl}/${s.id}`} target="_blank" rel="noreferrer" class="min-w-0 flex-1 truncate font-medium hover:underline">{s.title}</a>
+							<span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium" style={`background:color-mix(in oklab, ${kindMeta.color} 12%, transparent);color:${kindMeta.color}`}><KindIcon size={11} /> {kindMeta.label}</span>
+							<span class="rounded-full px-2 py-0.5 text-[11px] font-medium" style={`background:color-mix(in oklab, ${SUGGESTION_STATUS_META[s.status].color} 12%, transparent);color:${SUGGESTION_STATUS_META[s.status].color}`}>{SUGGESTION_STATUS_META[s.status].label}</span>
+							{#if s.archived}<span class="rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-medium text-neutral-500 dark:bg-white/10">Archived</span>{/if}
+							<a href={`${publicUrl}/${s.id}`} target="_blank" rel="noreferrer" class="min-w-0 flex-1 truncate font-medium transition-colors hover:text-[var(--accent-fg)]">{s.title}</a>
 						</div>
-						{#if s.body}<p class="mt-1 line-clamp-2 text-sm text-neutral-500">{s.body}</p>{/if}
-						<div class="mt-1.5 flex items-center gap-3 text-xs text-neutral-400">
+						{#if s.body}<p class="mt-1 line-clamp-2 text-sm text-neutral-500 dark:text-neutral-400">{s.body}</p>{/if}
+						<div class="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-neutral-400">
 							{#if s.authorName}<span>by {s.authorName}</span>{/if}
-							<span>{ago(s.createdAt)}</span>
-							{#if s.comments > 0}<span class="flex items-center gap-1"><MessageSquare size={12} /> {s.comments}</span>{/if}
-							<a href={`${publicUrl}/${s.id}`} target="_blank" rel="noreferrer" class="flex items-center gap-1 hover:text-neutral-600 dark:hover:text-neutral-300">Open thread <ExternalLink size={11} /></a>
+							<span class="font-mono text-[11px]">{ago(s.createdAt)}</span>
+							{#if s.comments > 0}<span class="flex items-center gap-1 font-mono text-[11px]"><MessageSquare size={12} /> {s.comments}</span>{/if}
+							<a href={`${publicUrl}/${s.id}`} target="_blank" rel="noreferrer" class="flex items-center gap-1 transition-colors hover:text-[var(--accent-fg)]">Open thread <ExternalLink size={11} /></a>
 						</div>
 
 						<!-- Triage actions -->
@@ -161,7 +163,7 @@
 								{#if s.status !== 'converted'}
 									<form method="POST" action="?/convert" use:enhance>
 										<input type="hidden" name="id" value={s.id} />
-										<Button size="sm" variant="primary" type="submit"><Ticket size={14} /> Convert to ticket</Button>
+										<Button size="sm" variant="accent" type="submit"><Ticket size={14} /> Convert to ticket</Button>
 									</form>
 								{/if}
 								{#if s.status !== 'accepted'}
@@ -188,7 +190,7 @@
 				</div>
 			</div>
 		{:else}
-			<div class="rounded-xl border border-dashed border-neutral-300 py-16 text-center text-sm text-neutral-400 dark:border-neutral-700">
+			<div class="rounded-2xl bg-black/[0.03] py-16 text-center text-sm text-neutral-400 dark:bg-white/[0.04]">
 				{#if data.view === 'triage'}
 					Nothing to triage — you're all caught up. 🎉
 				{:else if data.view === 'archived'}

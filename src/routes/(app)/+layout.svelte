@@ -1,4 +1,11 @@
 <script lang="ts">
+	// The app speaks the same three type voices as the public pages, so the
+	// faces are loaded here too (the public layout loads its own copy).
+	import '@fontsource-variable/instrument-sans';
+	import '@fontsource-variable/bricolage-grotesque/opsz.css';
+	import '@fontsource-variable/jetbrains-mono';
+	import sansUrl from '@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2?url';
+	import displayUrl from '@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-opsz-normal.woff2?url';
 	import { Menu } from '@lucide/svelte';
 	import { page } from '$app/state';
 	import { afterNavigate } from '$app/navigation';
@@ -13,11 +20,22 @@
 
 	const pd = $derived(page.data as Record<string, unknown>);
 	const ws = $derived(pd.workspace as { name: string } | undefined);
-	const proj = $derived(pd.project as { name: string } | undefined);
+	const proj = $derived(pd.project as { name: string; color?: string | null } | undefined);
 	const barTitle = $derived(proj?.name ?? ws?.name ?? 'OpenTrack');
 </script>
 
-<div class="flex h-screen overflow-hidden lg:gap-3 lg:p-3" style="background:var(--ot-ground)">
+<svelte:head>
+	<link rel="preload" as="font" type="font/woff2" href={sansUrl} crossorigin="anonymous" />
+	<link rel="preload" as="font" type="font/woff2" href={displayUrl} crossorigin="anonymous" />
+</svelte:head>
+
+<!-- Accent scope: on project routes every accent token (--accent-soft, --accent-solid, …)
+     resolves to the project's colour — for the rail and the content panel alike.
+     Elsewhere it falls back to brand orange. -->
+<div
+	class="accent-scope flex h-screen overflow-hidden font-sans lg:gap-3 lg:p-3"
+	style={`--accent:${proj?.color || 'var(--color-brand-600)'};background:var(--ot-ground)`}
+>
 	<!-- Mobile drawer backdrop -->
 	{#if drawerOpen}
 		<button
@@ -35,17 +53,17 @@
 	>
 		<!-- Mobile top bar (hidden on lg where the sidebar is always visible) -->
 		<header
-			class="flex h-12 shrink-0 items-center gap-2 border-b border-neutral-200 px-3 lg:hidden dark:border-neutral-800"
+			class="flex h-12 shrink-0 items-center gap-2 border-b border-black/5 px-3 lg:hidden dark:border-white/8"
 		>
 			<button
 				type="button"
 				onclick={() => (drawerOpen = true)}
-				class="-ml-1 rounded-md p-1.5 text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+				class="-ml-1 rounded-md p-1.5 text-neutral-600 transition-colors hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
 				aria-label="Open menu"
 			>
 				<Menu size={20} />
 			</button>
-			<span class="min-w-0 flex-1 truncate text-sm font-semibold">{barTitle}</span>
+			<span class="min-w-0 flex-1 truncate font-display text-[15px] font-semibold tracking-tight">{barTitle}</span>
 		</header>
 
 		<main class="min-w-0 flex-1 overflow-y-auto">

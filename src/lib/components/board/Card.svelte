@@ -13,14 +13,14 @@
 	tabindex="0"
 	onclick={() => onopen(ticket.id)}
 	onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onopen(ticket.id)}
-	class="cursor-pointer rounded-xl border border-black/5 bg-white p-3 shadow-[0_1px_2px_rgb(20_22_28/0.04),0_6px_16px_-8px_rgb(20_22_28/0.16)] transition duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_-12px_rgb(20_22_28/0.35)] dark:border-white/5 dark:bg-neutral-800 dark:shadow-[0_1px_2px_rgb(0_0_0/0.25),0_8px_20px_-12px_rgb(0_0_0/0.55)]"
+	class="cursor-pointer rounded-xl border border-black/5 bg-white p-3 shadow-[0_1px_2px_rgb(20_22_28/0.04),0_6px_16px_-8px_rgb(20_22_28/0.16)] transition duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_-12px_rgb(20_22_28/0.35)] dark:border-white/8 dark:bg-neutral-800 dark:shadow-[0_1px_2px_rgb(0_0_0/0.25),0_8px_20px_-12px_rgb(0_0_0/0.55)]"
 >
 	{#if ticket.labels.length || ticket.blocked}
 		<div class="mb-1.5 flex flex-wrap items-center gap-1">
 			{#if ticket.blocked}
 				<span
-					class="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400"
-					style="background:rgb(245 158 11 / 0.15)"
+					class="flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400"
+					style="background:color-mix(in oklab, #f59e0b 12%, transparent)"
 					title="Blocked by another ticket"
 				>
 					<Ban size={10} /> Blocked
@@ -28,8 +28,8 @@
 			{/if}
 			{#each ticket.labels as label (label.id)}
 				<span
-					class="rounded px-1.5 py-0.5 text-[10px] font-medium"
-					style={`background:${label.color}22; color:${label.color}`}
+					class="rounded-full px-2 py-0.5 text-[10px] font-medium"
+					style={`background:color-mix(in oklab, ${label.color} 12%, transparent);color:${label.color}`}
 				>
 					{label.name}
 				</span>
@@ -42,8 +42,8 @@
 	{#if ticket.milestone}
 		<div class="mt-1.5">
 			<span
-				class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-neutral-600 dark:text-neutral-300"
-				style="background:rgb(139 92 246 / 0.14)"
+				class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-violet-700 dark:text-violet-300"
+				style="background:color-mix(in oklab, #8b5cf6 12%, transparent)"
 				title={`Milestone: ${ticket.milestone.title}${ticket.milestone.state === 'closed' ? ' (closed)' : ''}`}
 			>
 				<Milestone size={10} />
@@ -60,9 +60,9 @@
 				title={PRIORITY_META[ticket.priority].label}
 			></span>
 		{/if}
-		<span class="font-mono">#{ticket.number}</span>
+		<span class="font-mono tabular-nums">#{ticket.number}</span>
 		{#if ticket.githubIssueNumber}
-			<span class="flex items-center gap-0.5" title="Linked GitHub issue">
+			<span class="flex items-center gap-0.5 font-mono tabular-nums" title="Linked GitHub issue">
 				<Link2 size={11} /> {ticket.githubIssueNumber}
 			</span>
 		{/if}
@@ -70,7 +70,7 @@
 			{@const merged = ticket.githubPrState === 'merged'}
 			{@const ci = ciMeta(ticket.githubCiStatus)}
 			<span
-				class="flex items-center gap-0.5 {merged ? 'text-violet-500' : ticket.githubPrState === 'closed' ? 'text-red-400' : 'text-green-500'}"
+				class="flex items-center gap-0.5 font-mono tabular-nums {merged ? 'text-violet-500' : ticket.githubPrState === 'closed' ? 'text-red-400' : 'text-green-500'}"
 				title={`Pull request #${ticket.githubPrNumber}${ticket.githubPrState ? ' — ' + ticket.githubPrState : ''}${ci ? ' · ' + ci.label : ''}`}
 			>
 				{#if merged}<GitMerge size={11} />{:else}<GitPullRequest size={11} />{/if} {ticket.githubPrNumber}
@@ -81,16 +81,16 @@
 			<AlignLeft size={12} title="Has description" />
 		{/if}
 		{#if ticket.relations > 0}
-			<span class="flex items-center gap-0.5" title={`${ticket.relations} linked ticket${ticket.relations === 1 ? '' : 's'}`}>
+			<span class="flex items-center gap-0.5 font-mono tabular-nums" title={`${ticket.relations} linked ticket${ticket.relations === 1 ? '' : 's'}`}>
 				<Link2 size={11} /> {ticket.relations}
 			</span>
 		{/if}
 		<span class="flex-1"></span>
 		{#if ticket.votes > 0}
-			<span class="flex items-center gap-0.5"><ChevronUp size={12} /> {ticket.votes}</span>
+			<span class="flex items-center gap-0.5 font-mono tabular-nums"><ChevronUp size={12} /> {ticket.votes}</span>
 		{/if}
 		{#if ticket.comments > 0}
-			<span class="flex items-center gap-0.5"><MessageSquare size={11} /> {ticket.comments}</span>
+			<span class="flex items-center gap-0.5 font-mono tabular-nums"><MessageSquare size={11} /> {ticket.comments}</span>
 		{/if}
 		{#if ticket.assignees.length}
 			<div class="flex -space-x-1.5">

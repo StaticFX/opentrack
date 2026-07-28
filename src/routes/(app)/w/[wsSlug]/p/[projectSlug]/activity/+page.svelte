@@ -47,24 +47,34 @@
 	<div class="min-h-0 flex-1 overflow-y-auto">
 		<div class="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
 			{#if data.activity.length}
-				<ul class="space-y-1">
-					{#each data.activity as a (a.id)}
+				<div class="mb-3 flex items-baseline justify-between gap-3">
+					<h2 class="pub-label">Project log</h2>
+					<span class="shrink-0 font-mono text-[11px] text-neutral-400">{data.activity.length} events</span>
+				</div>
+				<ol class="space-y-0.5">
+					{#each data.activity as a, i (a.id)}
 						{@const Icon = icon(a.type)}
-						<li class="flex items-start gap-3 rounded-lg px-2 py-2 hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
-							<div class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-neutral-100 text-neutral-500 dark:bg-neutral-800">
-								<Icon size={13} />
-							</div>
-							<p class="flex-1 text-sm">
+						<li
+							class="ot-rise flex items-start gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
+							style={`--rise-i:${i}`}
+						>
+							<span class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-black/5 text-neutral-400 dark:bg-white/10">
+								<Icon size={11} />
+							</span>
+							<p class="min-w-0 flex-1 text-[13px] leading-5">
 								<span class="font-medium">{a.actorName ?? 'Someone'}</span>
-								<span class="text-neutral-500">{verb(a)}</span>
-								<span>{subject(a)}</span>
-								<span class="ml-1 text-xs text-neutral-400">· {ago(a.createdAt)}</span>
+								<span class="text-neutral-500 dark:text-neutral-400">{verb(a)}</span>
+								<span class="text-neutral-600 dark:text-neutral-300">{subject(a)}</span>
 							</p>
+							<span class="shrink-0 font-mono text-[10px] leading-5 text-neutral-400">{ago(a.createdAt)}</span>
 						</li>
 					{/each}
-				</ul>
+				</ol>
 			{:else}
-				<div class="rounded-xl border border-dashed border-neutral-300 py-16 text-center text-sm text-neutral-400 dark:border-neutral-700">No activity yet.</div>
+				<div class="rounded-2xl bg-black/[0.03] py-16 text-center dark:bg-white/[0.04]">
+					<p class="text-sm text-neutral-400">No activity yet.</p>
+					<p class="mt-1 font-mono text-[11px] text-neutral-400 dark:text-neutral-500">Ticket moves, comments and releases land here.</p>
+				</div>
 			{/if}
 		</div>
 	</div>

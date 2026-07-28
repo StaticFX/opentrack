@@ -86,6 +86,16 @@
 			.join('')
 			.toUpperCase()
 	);
+
+	// One voice for every rail row: quiet idle, soft hover, accent-marked active.
+	const rowBase = 'relative flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors';
+	const rowIdle = 'text-neutral-300 hover:bg-white/5 hover:text-white';
+	const rowOn = 'bg-white/10 font-medium text-white';
+	// Quiet uppercase section label.
+	const railLabel = 'text-[10px] font-semibold tracking-wider text-neutral-400 uppercase';
+	// Popover surface (workspace switcher / user menu).
+	const pop = 'rounded-xl border border-white/10 bg-neutral-800 p-1.5 text-neutral-200 shadow-xl';
+	const popItem = 'flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/10';
 </script>
 
 {#snippet wsBadge(ws: WsRef | undefined, size: number)}
@@ -101,59 +111,60 @@
 	{/if}
 {/snippet}
 
+{#snippet activeBar()}
+	<!-- 2px accent bar marking the active row. -->
+	<span aria-hidden="true" class="absolute inset-y-1.5 left-0 w-0.5 rounded-full" style="background:var(--rail-accent)"></span>
+{/snippet}
+
+<!-- --rail-accent lifts the project accent toward white so it stays legible on
+     the always-dark rail regardless of theme or project colour. -->
 <aside
 	class={cn(
 		'ot-rail fixed inset-y-0 left-0 z-50 flex h-screen w-60 shrink-0 flex-col p-2 transition-transform duration-200 lg:static lg:z-auto lg:h-full lg:w-64 lg:translate-x-0 lg:rounded-2xl',
 		open ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:shadow-none lg:shadow-[var(--ot-shadow-rail)]'
 	)}
+	style="--rail-accent:color-mix(in oklab, var(--accent) 78%, white)"
 >
-	<!-- Workspace switcher -->
-	<div class="relative p-2">
+	<!-- Workspace identity + switcher -->
+	<div class="relative p-2 pb-1">
 		<button
 			type="button"
 			onclick={() => (wsMenuOpen = !wsMenuOpen)}
-			class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/10"
+			class="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/5"
 		>
-			{@render wsBadge(currentWs, 24)}
-			<span class="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+			{@render wsBadge(currentWs, 26)}
+			<span class="min-w-0 flex-1 truncate font-display text-sm font-semibold tracking-tight text-white">
 				{currentWs?.name ?? 'OpenTrack'}
 			</span>
-			<ChevronsUpDown size={14} class="shrink-0 text-neutral-400" />
+			<ChevronsUpDown size={14} class="shrink-0 text-neutral-500" />
 		</button>
 
 		{#if wsMenuOpen}
-			<div
-				use:clickOutside={() => (wsMenuOpen = false)}
-				class="absolute inset-x-2 top-full z-20 mt-1 rounded-lg border border-white/10 bg-neutral-800 p-1 text-neutral-200 shadow-xl"
-			>
-				<a
-					href="/dashboard"
-					onclick={() => (wsMenuOpen = false)}
-					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-white/10"
-				>
+			<div use:clickOutside={() => (wsMenuOpen = false)} class={cn(pop, 'absolute inset-x-2 top-full z-20 mt-1')}>
+				<a href="/dashboard" onclick={() => (wsMenuOpen = false)} class={popItem}>
 					<LayoutDashboard size={15} class="text-neutral-400" /> Dashboard
 				</a>
 				{#if workspaces.length}
-					<div class="my-1 border-t border-white/10"></div>
+					<div class="my-1 border-t border-white/8"></div>
 					{#each workspaces as ws (ws.id)}
 						<a
 							href={`/w/${ws.slug}`}
 							onclick={() => (wsMenuOpen = false)}
-							class={cn(
-								'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-white/10',
-								currentWs?.id === ws.id && 'font-medium text-white'
-							)}
+							class={cn(popItem, currentWs?.id === ws.id && 'font-medium text-white')}
 						>
 							{@render wsBadge(ws, 18)}
-							<span class="truncate">{ws.name}</span>
+							<span class="min-w-0 flex-1 truncate">{ws.name}</span>
+							{#if currentWs?.id === ws.id}
+								<span aria-hidden="true" class="size-1.5 shrink-0 rounded-full bg-white/40"></span>
+							{/if}
 						</a>
 					{/each}
 				{/if}
-				<div class="my-1 border-t border-white/10"></div>
+				<div class="my-1 border-t border-white/8"></div>
 				<a
 					href="/w/new"
 					onclick={() => (wsMenuOpen = false)}
-					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-400 hover:bg-white/10 hover:text-neutral-200"
+					class={cn(popItem, 'text-neutral-400 hover:text-neutral-200')}
 				>
 					<Plus size={15} /> New workspace
 				</a>
@@ -161,122 +172,106 @@
 		{/if}
 	</div>
 
+	<div class="mx-2 border-t border-white/8"></div>
+
 	<!-- Search (⌘K) -->
-	<div class="px-2">
+	<div class="mt-2 px-2">
 		<button
 			type="button"
 			onclick={() => { onnavigate?.(); window.dispatchEvent(new CustomEvent('command-palette')); }}
-			class="flex w-full items-center gap-2 rounded-lg border border-white/5 bg-white/5 px-2 py-1.5 text-left text-sm text-neutral-400 hover:bg-white/10 hover:text-neutral-200"
+			class="flex w-full items-center gap-2 rounded-lg border border-white/8 bg-white/[0.06] px-2 py-1.5 text-left text-sm text-neutral-400 transition-colors hover:bg-white/10 hover:text-neutral-200"
 		>
-			<Search size={15} class="text-neutral-400" />
+			<Search size={15} class="text-neutral-500" />
 			<span class="min-w-0 flex-1 truncate">Search…</span>
-			<kbd class="shrink-0 rounded border border-white/10 bg-white/5 px-1 text-[10px] text-neutral-400">⌘K</kbd>
+			<kbd class="shrink-0 rounded border border-white/10 bg-white/5 px-1 font-mono text-[10px] text-neutral-400">⌘K</kbd>
 		</button>
 	</div>
 
 	<!-- My Work -->
-	<div class="px-2">
-		<a
-			href="/my"
-			class={cn(
-				'flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm',
-				page.url.pathname === '/my'
-					? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
-					: 'text-neutral-300 hover:bg-white/10 hover:text-white'
-			)}
-		>
+	<div class="mt-2 px-2">
+		<a href="/my" class={cn(rowBase, page.url.pathname === '/my' ? rowOn : rowIdle)}>
+			{#if page.url.pathname === '/my'}{@render activeBar()}{/if}
 			<CircleUser size={15} class="text-neutral-400" /> My Work
 		</a>
 	</div>
 
 	<!-- Notifications -->
-	<div class="px-2">
+	<div class="mt-0.5 px-2">
 		<NotificationBell />
 	</div>
 
 	<!-- Nav -->
-	<nav class="flex-1 overflow-y-auto px-2 py-1">
+	<nav class="mt-1 flex-1 overflow-y-auto px-2 py-1">
 		{#if project && currentWs}
 			{@const navBase = `/w/${currentWs.slug}/p/${project.slug}`}
+			{@const projColor = project.color ?? 'var(--color-brand-600)'}
 			<!-- Back to the workspace's project list -->
 			<a
 				href={`/w/${currentWs.slug}`}
-				class="mt-1 flex items-center gap-1.5 px-2 py-1 text-xs text-neutral-400 hover:text-white"
+				class="mt-1 flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-neutral-400 transition-colors hover:text-white"
 			>
-				<ChevronLeft size={13} /> {currentWs.name}
+				<ChevronLeft size={12} /> {currentWs.name}
 			</a>
-			<!-- Current project badge -->
-			<div class="mb-1 flex items-center gap-2 px-2 py-1.5">
-				<span class="grid size-5 shrink-0 place-items-center rounded text-[11px] font-bold text-white" style={`background:${project.color ?? 'var(--color-brand-600)'}`}>
+			<!-- Current project identity -->
+			<div class="mb-1.5 flex items-center gap-2.5 px-2 py-1.5">
+				<span
+					class="grid size-6 shrink-0 place-items-center rounded-lg text-xs font-bold text-white shadow-sm"
+					style={`background:linear-gradient(140deg, color-mix(in oklab, ${projColor} 86%, white), ${projColor})`}
+				>
 					{#if project.icon}{project.icon}{:else}{project.name.slice(0, 1).toUpperCase()}{/if}
 				</span>
-				<span class="min-w-0 flex-1 truncate text-sm font-semibold">{project.name}</span>
+				<span class="min-w-0 flex-1 truncate font-display text-sm font-semibold tracking-tight text-white">{project.name}</span>
 			</div>
 			<!-- Overview -->
 			{@const overviewItem = projNav.find((i) => i.key === 'overview')}
 			{#if overviewItem}
 				{@const OIcon = overviewItem.icon}
-				<a
-					href={navBase}
-					class={cn(
-						'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
-						page.url.pathname === navBase
-							? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
-							: 'text-neutral-300 hover:bg-white/10 hover:text-white'
-					)}
-				>
+				{@const active = page.url.pathname === navBase}
+				<a href={navBase} class={cn(rowBase, active ? rowOn : rowIdle)}>
+					{#if active}{@render activeBar()}{/if}
 					<OIcon size={15} class="text-neutral-400" /> Overview
 				</a>
 			{/if}
 			<!-- Boards: only show the section header once there's more than one. -->
 			{#if boards.length > 1}
-				<div class="px-2 pt-2 pb-1 text-[11px] font-medium tracking-wide text-neutral-400 uppercase">Boards</div>
+				<div class={cn('px-2 pt-3 pb-1', railLabel)}>Boards</div>
 			{/if}
 			{#each boards as b (b.id)}
 				{@const href = `${navBase}/b/${b.id}`}
-				<a
-					{href}
-					class={cn(
-						'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
-						page.url.pathname === href
-							? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
-							: 'text-neutral-300 hover:bg-white/10 hover:text-white'
-					)}
-				>
-					<Hash size={14} class="shrink-0 text-neutral-400" />
+				{@const active = page.url.pathname === href}
+				<a {href} class={cn(rowBase, active ? rowOn : rowIdle)}>
+					{#if active}{@render activeBar()}{/if}
+					<Hash size={14} class="shrink-0 text-neutral-500" />
 					<span class="truncate">{b.name}</span>
 				</a>
 			{/each}
 			<!-- Other project sections -->
-			<div class="mt-2 border-t border-white/10 pt-2">
+			<div class="mt-2 border-t border-white/8 pt-2">
 				{#each projNav.filter((i) => i.key !== 'overview') as item (item.key)}
 					{@const href = item.href(currentWs.slug, project.slug)}
 					{@const Icon = item.icon}
-					<a
-						{href}
-						class={cn(
-							'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
-							!item.external && isProjectNavActive(item, page.url.pathname, currentWs.slug, project.slug)
-								? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
-								: 'text-neutral-300 hover:bg-white/10 hover:text-white'
-						)}
-					>
+					{@const active = !item.external && isProjectNavActive(item, page.url.pathname, currentWs.slug, project.slug)}
+					<a {href} class={cn(rowBase, active ? rowOn : rowIdle)}>
+						{#if active}{@render activeBar()}{/if}
 						<Icon size={15} class="text-neutral-400" />
 						<span class="flex-1 truncate">{item.label}</span>
 						{#if item.key === 'inbox' && inboxOpenCount > 0}
-							<span class="min-w-4 shrink-0 rounded-full bg-brand-600 px-1.5 text-center text-[11px] font-semibold text-white tabular-nums">{inboxOpenCount > 99 ? '99+' : inboxOpenCount}</span>
+							<span
+								class="min-w-4 shrink-0 rounded-full px-1.5 text-center font-mono text-[10px] font-semibold text-white tabular-nums"
+								style="background:var(--accent-solid)"
+							>{inboxOpenCount > 99 ? '99+' : inboxOpenCount}</span>
 						{/if}
-						{#if item.external}<ExternalLink size={12} class="text-neutral-400" />{/if}
+						{#if item.external}<ExternalLink size={12} class="text-neutral-500" />{/if}
 					</a>
 				{/each}
 			</div>
 		{:else if currentWs}
 			<div class="flex items-center justify-between px-2 pt-2 pb-1">
-				<span class="text-xs font-medium tracking-wide text-neutral-400 uppercase">Projects</span>
+				<span class={railLabel}>Projects</span>
 				{#if canCreateProject}
 					<a
 						href={`/w/${currentWs.slug}/p/new`}
-						class="rounded p-0.5 text-neutral-400 hover:bg-white/10 hover:text-white"
+						class="rounded-md p-0.5 text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
 						aria-label="New project"
 					>
 						<Plus size={14} />
@@ -285,17 +280,11 @@
 			</div>
 			{#each projects as p (p.slug)}
 				{@const href = `/w/${currentWs.slug}/p/${p.slug}`}
-				<a
-					{href}
-					class={cn(
-						'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
-						page.url.pathname.startsWith(href)
-							? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
-							: 'text-neutral-300 hover:bg-white/10 hover:text-white'
-					)}
-				>
+				{@const active = page.url.pathname.startsWith(href)}
+				<a {href} class={cn(rowBase, active ? rowOn : rowIdle)}>
+					{#if active}{@render activeBar()}{/if}
 					<span
-						class="size-2.5 shrink-0 rounded-full"
+						class="size-2.5 shrink-0 rounded-full ring-1 ring-white/10"
 						style={`background:${p.color ?? '#9ca3af'}`}
 					></span>
 					<span class="truncate">{p.name}</span>
@@ -305,28 +294,21 @@
 			{/each}
 
 			{#if canManageWorkspace}
-				<div class="mt-2 border-t border-white/10 pt-2">
+				<div class="mt-2 border-t border-white/8 pt-2">
 					<a
 						href={`/w/${currentWs.slug}/settings`}
-						class={cn(
-							'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
-							isActive(`/w/${currentWs.slug}/settings`)
-								? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
-								: 'text-neutral-300 hover:bg-white/10 hover:text-white'
-						)}
+						class={cn(rowBase, isActive(`/w/${currentWs.slug}/settings`) ? rowOn : rowIdle)}
 					>
+						{#if isActive(`/w/${currentWs.slug}/settings`)}{@render activeBar()}{/if}
 						<Settings size={15} class="text-neutral-400" /> Workspace settings
 					</a>
 				</div>
 			{/if}
 		{:else}
-			<span class="px-2 pt-2 pb-1 text-xs font-medium tracking-wide text-neutral-400 uppercase">Workspaces</span>
+			<span class={cn('block px-2 pt-2 pb-1', railLabel)}>Workspaces</span>
 			{#each workspaces as ws (ws.id)}
-				<a
-					href={`/w/${ws.slug}`}
-					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-white/10 hover:text-white"
-				>
-					<Hash size={14} class="text-neutral-400" />
+				<a href={`/w/${ws.slug}`} class={cn(rowBase, rowIdle)}>
+					<Hash size={14} class="text-neutral-500" />
 					<span class="truncate">{ws.name}</span>
 				</a>
 			{:else}
@@ -338,47 +320,37 @@
 	<!-- Admin (visible to admins, always reachable) -->
 	{#if user.isAdmin}
 		<div class="px-2 pb-1">
-			<a
-				href="/admin"
-				class={cn(
-					'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
-					page.url.pathname === '/admin'
-						? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
-						: 'text-neutral-300 hover:bg-white/10 hover:text-white'
-				)}
-			>
+			<a href="/admin" class={cn(rowBase, page.url.pathname === '/admin' ? rowOn : rowIdle)}>
+				{#if page.url.pathname === '/admin'}{@render activeBar()}{/if}
 				<Shield size={15} class="text-neutral-400" /> Admin
 			</a>
 		</div>
 	{/if}
 
 	<!-- User menu -->
-	<div class="relative mt-1 border-t border-white/10 p-2">
+	<div class="relative mt-1 border-t border-white/8 p-2">
 		<button
 			type="button"
 			onclick={() => (userMenuOpen = !userMenuOpen)}
-			class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/10"
+			class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5"
 		>
 			{#if user.avatarUrl}
-				<img src={user.avatarUrl} alt="" class="size-6 rounded-full" />
+				<img src={user.avatarUrl} alt="" class="size-6 shrink-0 rounded-full ring-1 ring-white/15" />
 			{:else}
-				<div class="grid size-6 place-items-center rounded-full bg-neutral-600 text-[10px] font-semibold text-neutral-100">
+				<div class="grid size-6 shrink-0 place-items-center rounded-full bg-neutral-600 text-[10px] font-semibold text-neutral-100 ring-1 ring-white/15">
 					{initials}
 				</div>
 			{/if}
 			<span class="min-w-0 flex-1 truncate text-left text-sm text-neutral-100">{user.displayName}</span>
-			<ChevronsUpDown size={14} class="shrink-0 text-neutral-400" />
+			<ChevronsUpDown size={14} class="shrink-0 text-neutral-500" />
 		</button>
 
 		{#if userMenuOpen}
-			<div
-				use:clickOutside={() => (userMenuOpen = false)}
-				class="absolute inset-x-2 bottom-full z-20 mb-1 rounded-lg border border-white/10 bg-neutral-800 p-1 text-neutral-200 shadow-xl"
-			>
+			<div use:clickOutside={() => (userMenuOpen = false)} class={cn(pop, 'absolute inset-x-2 bottom-full z-20 mb-1')}>
 				<!-- Theme -->
 				<div class="px-1 pt-0.5 pb-1">
-					<span class="px-1 text-[11px] font-medium tracking-wide text-neutral-400 uppercase">Theme</span>
-					<div class="mt-1 flex gap-0.5 rounded-md bg-white/5 p-0.5">
+					<span class={cn('px-1', railLabel)}>Theme</span>
+					<div class="mt-1.5 flex gap-0.5 rounded-lg bg-white/5 p-0.5">
 						{#each THEME_OPTIONS as opt (opt.value)}
 							{@const Icon = opt.icon}
 							<button
@@ -387,9 +359,9 @@
 								aria-pressed={themePref === opt.value}
 								title={opt.label}
 								class={cn(
-									'flex flex-1 items-center justify-center gap-1 rounded px-1.5 py-1 text-xs',
+									'flex flex-1 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-xs transition-colors',
 									themePref === opt.value
-										? 'bg-white/10 font-medium text-white'
+										? 'bg-white/15 font-medium text-white shadow-sm'
 										: 'text-neutral-400 hover:text-neutral-200'
 								)}
 							>
@@ -398,18 +370,18 @@
 						{/each}
 					</div>
 				</div>
-				<div class="my-1 border-t border-white/10"></div>
+				<div class="my-1 border-t border-white/8"></div>
 				<a
 					href="/account"
 					onclick={() => (userMenuOpen = false)}
-					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-white/10 hover:text-white"
+					class={cn(popItem, 'text-neutral-300 hover:text-white')}
 				>
 					<UserRound size={15} class="text-neutral-400" /> Account
 				</a>
-				<div class="my-1 border-t border-white/10"></div>
+				<div class="my-1 border-t border-white/8"></div>
 				<form method="POST" action="/auth/logout">
 					<button
-						class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-400 hover:bg-red-500/15"
+						class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-red-400 transition-colors hover:bg-red-500/15"
 					>
 						<LogOut size={15} /> Sign out
 					</button>

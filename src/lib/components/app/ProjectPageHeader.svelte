@@ -18,18 +18,21 @@
 </script>
 
 <header
-	class="flex items-center justify-between gap-3 border-b border-neutral-200 px-5 py-2.5 dark:border-neutral-800"
+	class="flex items-center justify-between gap-3 border-b border-black/5 px-5 py-3 dark:border-white/8"
 >
-	<div class="flex min-w-0 items-center gap-2">
-		<span class="size-3 shrink-0 rounded-full" style={`background:${project?.color ?? '#9ca3af'}`}></span>
-		<h1 class="truncate text-sm font-semibold">{project?.name ?? ''}</h1>
+	<div class="flex min-w-0 items-center gap-2.5">
+		<span
+			class="size-2.5 shrink-0 rounded-full"
+			style={`background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft), 0 0 10px var(--accent-glow)`}
+		></span>
+		<h1 class="truncate font-display text-[15px] font-semibold tracking-tight">{project?.name ?? ''}</h1>
 		{#if project?.visibility === 'private'}
 			<Lock size={13} class="shrink-0 text-neutral-400" />
 		{:else if project?.visibility === 'public'}
 			<Globe size={13} class="shrink-0 text-neutral-400" />
 		{/if}
-		<span class="text-neutral-300 dark:text-neutral-700">/</span>
-		<span class="truncate text-sm text-neutral-500">{section}</span>
+		<span class="text-neutral-300 dark:text-neutral-600">/</span>
+		<span class="truncate text-sm text-neutral-500 dark:text-neutral-400">{section}</span>
 	</div>
 	{#if action}
 		<div class="flex shrink-0 items-center gap-2">{@render action()}</div>

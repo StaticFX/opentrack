@@ -13,7 +13,8 @@
 	<ProjectPageHeader section={data.board.name}>
 		{#snippet action()}
 			{#if data.canEditContent}
-				<Button variant="primary" size="sm" onclick={() => window.dispatchEvent(new CustomEvent('new-ticket'))}>
+				<!-- Accent CTA: takes the project colour inside an .accent-scope, brand orange otherwise. -->
+				<Button variant="accent" size="sm" onclick={() => window.dispatchEvent(new CustomEvent('new-ticket'))}>
 					<Plus size={15} /> New ticket
 				</Button>
 			{/if}
