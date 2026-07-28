@@ -1,5 +1,9 @@
 <script lang="ts">
 	import { ChevronUp, Lightbulb } from '@lucide/svelte';
+	import EmptyState from '$lib/components/public/EmptyState.svelte';
+	import PublicMeta from '$lib/components/public/PublicMeta.svelte';
+	import StatTile from '$lib/components/public/StatTile.svelte';
+	import BlurText from '$lib/components/vendor/BlurText.svelte';
 	import { SUGGESTION_STATUS_META } from '$lib/suggestionStatus';
 
 	let { data } = $props();
@@ -7,50 +11,78 @@
 	const initials = $derived(
 		p.displayName.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
 	);
+	const joined = $derived(
+		new Date(p.memberSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+	);
+	const statusMeta = (s: string) =>
+		SUGGESTION_STATUS_META[s as keyof typeof SUGGESTION_STATUS_META] ?? { label: s, color: '#9ca3af' };
 </script>
 
-<svelte:head><title>{p.displayName} — OpenTrack</title></svelte:head>
+<PublicMeta
+	title={`${p.displayName} — ${data.siteName}`}
+	description={`${p.stats.submitted} pieces of feedback shared · ${p.stats.accepted} accepted or shipped. ${p.displayName} contributes to ${data.siteName} in the open.`}
+	type="profile"
+/>
 
-<div class="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
-	<div class="flex items-center gap-4">
+<main class="mx-auto max-w-3xl px-4 pt-10 pb-4 sm:px-6 sm:pt-12">
+	<!-- Hero: the person, poster-sized. -->
+	<section class="ot-rise flex items-center gap-4 sm:gap-5" style="--rise-i:0">
 		{#if p.avatarUrl}
-			<img src={p.avatarUrl} alt="" class="size-16 rounded-full object-cover" />
+			<img src={p.avatarUrl} alt="" class="size-16 shrink-0 rounded-full object-cover shadow-lg ring-2 ring-white dark:ring-neutral-700" />
 		{:else}
-			<div class="grid size-16 place-items-center rounded-full bg-neutral-200 text-xl font-semibold text-neutral-600 dark:bg-neutral-700 dark:text-neutral-200">{initials}</div>
+			<span
+				class="grid size-16 shrink-0 place-items-center rounded-full text-xl font-bold text-white shadow-lg"
+				style="background:linear-gradient(140deg, color-mix(in oklab, var(--accent) 86%, white), var(--accent))"
+			>{initials}</span>
 		{/if}
-		<div>
-			<h1 class="text-2xl font-bold tracking-tight">{p.displayName}</h1>
-			<p class="text-sm text-neutral-500">@{p.username} · joined {new Date(p.memberSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
+		<div class="min-w-0">
+			<h1 class="type-poster text-3xl sm:text-4xl"><BlurText text={p.displayName} animateBy="words" direction="top" delay={70} /></h1>
+			<p class="mt-1.5 font-mono text-[12px] text-neutral-400 dark:text-neutral-500">@{p.username} · joined {joined}</p>
+		</div>
+	</section>
+
+	<!-- Scoreboard -->
+	<div class="mt-7 grid grid-cols-2 gap-4">
+		<div class="ot-rise" style="--rise-i:1">
+			<StatTile value={p.stats.submitted} label="Feedback shared" accent />
+		</div>
+		<div class="ot-rise" style="--rise-i:2">
+			<StatTile value={p.stats.accepted} label="Accepted or shipped" />
 		</div>
 	</div>
 
-	<div class="mt-6 grid grid-cols-2 gap-3">
-		<div class="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-			<div class="text-2xl font-bold">{p.stats.submitted}</div>
-			<div class="text-xs text-neutral-500">Feedback submitted</div>
-		</div>
-		<div class="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-			<div class="text-2xl font-bold text-green-600 dark:text-green-400">{p.stats.accepted}</div>
-			<div class="text-xs text-neutral-500">Accepted or shipped</div>
-		</div>
-	</div>
-
-	<h2 class="mt-8 mb-3 text-sm font-semibold text-neutral-500">Recent suggestions</h2>
-	{#if p.recent.length}
-		<div class="space-y-2">
-			{#each p.recent as s (s.id)}
-				<a
-					href={`/${s.wsSlug}/${s.projSlug}/suggestions/${s.id}`}
-					class="flex items-center gap-3 rounded-xl border border-neutral-200 p-3 hover:border-neutral-300 dark:border-neutral-800 dark:hover:border-neutral-700"
-				>
-					<span class="flex items-center gap-1 text-xs text-neutral-400"><ChevronUp size={14} /> {s.votes}</span>
-					<span class="min-w-0 flex-1 truncate text-sm font-medium">{s.title}</span>
-					<span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={`background:${SUGGESTION_STATUS_META[s.status as keyof typeof SUGGESTION_STATUS_META]?.color ?? '#9ca3af'}22;color:${SUGGESTION_STATUS_META[s.status as keyof typeof SUGGESTION_STATUS_META]?.color ?? '#6b7280'}`}>{SUGGESTION_STATUS_META[s.status as keyof typeof SUGGESTION_STATUS_META]?.label ?? s.status}</span>
-					<span class="hidden shrink-0 text-xs text-neutral-400 sm:block">{s.projName}</span>
-				</a>
-			{/each}
-		</div>
-	{:else}
-		<p class="flex items-center gap-2 rounded-xl border border-dashed border-neutral-200 px-4 py-8 text-sm text-neutral-400 dark:border-neutral-800"><Lightbulb size={15} /> No public suggestions yet.</p>
-	{/if}
-</div>
+	<!-- Recent suggestions -->
+	<section class="mt-10">
+		<h2 class="type-poster flex items-center gap-2 text-xl">
+			<Lightbulb size={18} class="text-[var(--accent-fg)]" /> Recent suggestions
+		</h2>
+		{#if p.recent.length}
+			<div class="mt-3 space-y-2.5">
+				{#each p.recent as s, i (s.id)}
+					{@const meta = statusMeta(s.status)}
+					<a
+						href={`/${s.wsSlug}/${s.projSlug}/suggestions/${s.id}`}
+						class="pub-card ot-rise group flex items-center gap-3 p-3.5 transition duration-150 hover:-translate-y-0.5"
+						style={`--rise-i:${i + 3}`}
+					>
+						<span class="flex shrink-0 items-center gap-1 font-mono text-xs text-neutral-400"><ChevronUp size={14} /> {s.votes}</span>
+						<span class="min-w-0 flex-1 truncate text-sm font-medium group-hover:text-[var(--accent-fg)]">{s.title}</span>
+						<span
+							class="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+							style={`background:color-mix(in oklab, ${meta.color} 12%, transparent);color:${meta.color}`}
+						>{meta.label}</span>
+						<span class="hidden shrink-0 font-mono text-[11px] text-neutral-400 sm:block">{s.projName}</span>
+					</a>
+				{/each}
+			</div>
+		{:else}
+			<div class="pub-card mt-3 rounded-3xl">
+				<EmptyState
+					icon={Lightbulb}
+					title="Nothing on the wall yet"
+					body={`When ${p.displayName} shares an idea or reports a bug in public, it lands here.`}
+				/>
+			</div>
+		{/if}
+	</section>
+</main>
