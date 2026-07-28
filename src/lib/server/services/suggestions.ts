@@ -14,6 +14,8 @@ export interface SuggestionCard {
 	kind: SuggestionKind;
 	status: SuggestionStatus;
 	authorName: string | null;
+	authorUsername: string | null;
+	authorAvatar: string | null;
 	createdAt: Date;
 	votes: number;
 	comments: number;
@@ -29,6 +31,8 @@ export interface ListOptions {
 	/** Archived-item handling. Defaults to 'exclude'. publicOnly always excludes. */
 	archived?: 'exclude' | 'only' | 'all';
 	voter?: VoterKey;
+	/** Only suggestions authored by this user (the public "Mine" filter). */
+	authorId?: string;
 }
 
 /** List suggestions for a project with vote/comment counts, sorted & filtered. */
@@ -40,13 +44,19 @@ export async function listSuggestions(
 	if (opts.publicOnly) filters.push(eq(schema.suggestions.isPublic, true));
 	if (opts.status && opts.status !== 'all') filters.push(eq(schema.suggestions.status, opts.status));
 	if (opts.kind) filters.push(eq(schema.suggestions.kind, opts.kind));
+	if (opts.authorId) filters.push(eq(schema.suggestions.authorId, opts.authorId));
 	// The public page never shows archived items; internally it's an explicit filter.
 	const archived = opts.publicOnly ? 'exclude' : (opts.archived ?? 'exclude');
 	if (archived === 'exclude') filters.push(isNull(schema.suggestions.archivedAt));
 	else if (archived === 'only') filters.push(isNotNull(schema.suggestions.archivedAt));
 
 	const rows = await db
-		.select({ suggestion: schema.suggestions, authorName: schema.users.displayName })
+		.select({
+			suggestion: schema.suggestions,
+			authorName: schema.users.displayName,
+			authorUsername: schema.users.username,
+			authorAvatar: schema.users.avatarUrl
+		})
 		.from(schema.suggestions)
 		.leftJoin(schema.users, eq(schema.suggestions.authorId, schema.users.id))
 		.where(and(...filters));
@@ -75,6 +85,8 @@ export async function listSuggestions(
 		kind: r.suggestion.kind,
 		status: r.suggestion.status,
 		authorName: r.authorName,
+		authorUsername: r.authorUsername,
+		authorAvatar: r.authorAvatar,
 		createdAt: r.suggestion.createdAt,
 		votes: votesById.get(r.suggestion.id) ?? 0,
 		comments: commentsById.get(r.suggestion.id) ?? 0,

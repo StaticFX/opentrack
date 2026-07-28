@@ -2,14 +2,17 @@ import { json } from '@sveltejs/kit';
 import { and, desc, eq, ne, or, sql } from 'drizzle-orm';
 import { requireProjectAccess } from '$lib/server/access';
 import { db, schema } from '$lib/server/db';
+import { ACCESS } from '$lib/server/permissions';
 import type { RequestHandler } from './$types';
 
 /**
  * Search tickets within a project by number or title (for the relation picker).
  * Portable case-insensitive match via `lower(title) like ?` — no pg-only ilike.
+ * Collaborator-gated: results include private tickets, and only collaborators
+ * can edit relations anyway. Public visitors use /api/public/.../search.
  */
 export const GET: RequestHandler = async ({ params, locals, url }) => {
-	await requireProjectAccess(locals.user, params.projectId);
+	await requireProjectAccess(locals.user, params.projectId, ACCESS.COLLABORATOR);
 
 	const q = (url.searchParams.get('q') ?? '').trim();
 	const exclude = url.searchParams.get('exclude') ?? '';

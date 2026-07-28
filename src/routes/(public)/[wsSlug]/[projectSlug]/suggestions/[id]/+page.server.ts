@@ -11,10 +11,22 @@ import {
 } from '$lib/server/services/notifications';
 import { getBySlugs } from '$lib/server/services/projects';
 import { reactionsFor, summarize } from '$lib/server/services/reactions';
+import { releaseForTicket } from '$lib/server/services/releases';
 import { getSuggestion } from '$lib/server/services/suggestions';
+import { getConvertedTicketSummary } from '$lib/server/services/tickets';
 import { countVotes, hasVoted } from '$lib/server/services/votes';
 import { resolveVoter } from '$lib/server/util/anon';
 import type { Actions, PageServerLoad } from './$types';
+
+type JourneyStage =
+	| 'open'
+	| 'accepted'
+	| 'declined'
+	| 'merged'
+	| 'queued'
+	| 'building'
+	| 'shipped'
+	| 'closed';
 
 export const load: PageServerLoad = async ({ parent, params, locals, cookies, getClientAddress }) => {
 	const p = await parent();
@@ -39,9 +51,64 @@ export const load: PageServerLoad = async ({ parent, params, locals, cookies, ge
 	]);
 	const commentsWithReactions = comments.map((c) => ({ ...c, reactions: commentReactions.get(c.id) ?? [] }));
 
+	// ---- The Journey: where this idea sits on the track. Stage is derived
+	// HERE (single source of truth); the linked ticket's details are withheld
+	// when it isn't publicly visible (stage alone reveals only progress).
+	const base = `/${params.wsSlug}/${params.projectSlug}`;
+	let stage: JourneyStage = 'open';
+	if (s.status === 'accepted') stage = 'accepted';
+	else if (s.status === 'declined') stage = 'declined';
+	else if (s.status === 'duplicate') stage = 'merged';
+	else if (s.status === 'converted') stage = 'queued';
+
+	let journeyTicket = null;
+	if (s.status === 'converted' && s.convertedTicketId) {
+		const t = await getConvertedTicketSummary(s.convertedTicketId);
+		if (t) {
+			if (t.columnCategory === 'canceled') stage = 'closed';
+			else if (t.closedAt || t.columnCategory === 'done') stage = 'shipped';
+			else if (t.columnCategory === 'in_progress') stage = 'building';
+			else stage = 'queued';
+
+			const ticketVisible =
+				(p.effectiveVisibility === 'public' && t.visibility !== 'private' && !t.archived) ||
+				p.level >= ACCESS.VIEWER;
+			if (ticketVisible) {
+				const rel = stage === 'shipped' ? await releaseForTicket(t.id) : null;
+				journeyTicket = {
+					number: t.number,
+					url: `${base}/t/${t.number}`,
+					columnName: t.columnName,
+					assignees: t.assignees.map((a) => ({ displayName: a.displayName, avatarUrl: a.avatarUrl })),
+					pr:
+						t.githubPrNumber && t.githubRepo
+							? {
+									number: t.githubPrNumber,
+									state: t.githubPrState ?? 'open',
+									url: `https://github.com/${t.githubRepo}/pull/${t.githubPrNumber}`
+								}
+							: null,
+					release: rel ? { version: rel.version, url: `${base}/releases` } : null
+				};
+			}
+		}
+	}
+	const journey = {
+		stage,
+		postedAt: s.createdAt,
+		votes,
+		kind: s.kind,
+		duplicateOf:
+			s.duplicateOfId && s.duplicateOfTitle
+				? { id: s.duplicateOfId, title: s.duplicateOfTitle, url: `${base}/suggestions/${s.duplicateOfId}` }
+				: null,
+		ticket: journeyTicket
+	};
+
 	const interactionsLocked = publicInteractionLocked(s.status !== 'open', p.level);
 	return {
 		suggestion: s,
+		journey,
 		suggestionReactions,
 		comments: commentsWithReactions,
 		votes,

@@ -34,7 +34,11 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const { site } = await getConfig();
 	return {
 		user: locals.user
-			? { displayName: locals.user.displayName, avatarUrl: locals.user.avatarUrl }
+			? {
+					displayName: locals.user.displayName,
+					avatarUrl: locals.user.avatarUrl,
+					username: locals.user.username
+				}
 			: null,
 		brand,
 		siteName: site.name

@@ -415,7 +415,7 @@
 		{#each cols as col (col.id)}
 			{@const items = display(col)}
 			{@const over = col.wipLimit != null && items.length > col.wipLimit}
-			<section class="group/col flex h-full min-h-0 w-72 flex-col rounded-xl bg-neutral-50 dark:bg-neutral-900/40">
+			<section class="group/col flex h-full min-h-0 w-72 flex-col rounded-2xl bg-white/55 ring-1 ring-black/[0.04] backdrop-blur-sm dark:bg-white/[0.035] dark:ring-white/5">
 				<div class="flex items-center justify-between px-3 py-2.5">
 					<div class="flex min-w-0 items-center gap-2">
 						<ColumnIcon icon={col.icon} color={col.color} />
@@ -464,7 +464,7 @@
 				>
 					{#each items as item (item.id)}
 						<div class="shrink-0 {item.archived ? 'opacity-60' : ''}">
-							<div class={selectMode && selectedIds.includes(item.id) ? 'rounded-xl ring-2 ring-brand-500 ring-offset-1 dark:ring-offset-neutral-900' : ''}>
+							<div class={selectMode && selectedIds.includes(item.id) ? 'rounded-xl ring-2 ring-brand-500 ring-offset-1 dark:ring-offset-neutral-800' : ''}>
 								<Card ticket={item} onopen={cardClick} />
 							</div>
 						</div>
@@ -483,7 +483,7 @@
 		</section>
 
 		{#if canManage}
-			<button onclick={addColumn} class="mt-0 flex w-56 items-center gap-2 rounded-xl border border-dashed border-neutral-300 px-3 py-2.5 text-sm text-neutral-500 hover:border-neutral-400 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-900">
+			<button onclick={addColumn} class="mt-0 flex w-56 items-center gap-2 rounded-2xl border border-dashed border-neutral-300 px-3 py-2.5 text-sm text-neutral-500 hover:border-brand-400 hover:bg-neutral-50 hover:text-brand-600 dark:border-neutral-700 dark:hover:bg-neutral-800/60">
 				<Plus size={15} /> Add column
 			</button>
 		{/if}

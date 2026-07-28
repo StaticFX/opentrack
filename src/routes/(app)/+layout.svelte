@@ -17,7 +17,7 @@
 	const barTitle = $derived(proj?.name ?? ws?.name ?? 'OpenTrack');
 </script>
 
-<div class="flex h-screen overflow-hidden bg-white dark:bg-neutral-950">
+<div class="flex h-screen overflow-hidden lg:gap-3 lg:p-3" style="background:var(--ot-ground)">
 	<!-- Mobile drawer backdrop -->
 	{#if drawerOpen}
 		<button
@@ -29,7 +29,10 @@
 
 	<Sidebar open={drawerOpen} onnavigate={() => (drawerOpen = false)} />
 
-	<div class="flex min-w-0 flex-1 flex-col">
+	<!-- Content panel floats on the ground as a rounded surface (desktop). -->
+	<div
+		class="flex min-w-0 flex-1 flex-col overflow-hidden bg-neutral-100 lg:rounded-2xl lg:shadow-[var(--ot-shadow-float)] lg:ring-1 lg:ring-black/5 dark:bg-neutral-900 dark:lg:ring-white/5"
+	>
 		<!-- Mobile top bar (hidden on lg where the sidebar is always visible) -->
 		<header
 			class="flex h-12 shrink-0 items-center gap-2 border-b border-neutral-200 px-3 lg:hidden dark:border-neutral-800"

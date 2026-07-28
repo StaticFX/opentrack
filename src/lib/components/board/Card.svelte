@@ -13,7 +13,7 @@
 	tabindex="0"
 	onclick={() => onopen(ticket.id)}
 	onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onopen(ticket.id)}
-	class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-2.5 shadow-sm transition hover:border-neutral-300 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-700"
+	class="cursor-pointer rounded-xl border border-black/5 bg-white p-3 shadow-[0_1px_2px_rgb(20_22_28/0.04),0_6px_16px_-8px_rgb(20_22_28/0.16)] transition duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_-12px_rgb(20_22_28/0.35)] dark:border-white/5 dark:bg-neutral-800 dark:shadow-[0_1px_2px_rgb(0_0_0/0.25),0_8px_20px_-12px_rgb(0_0_0/0.55)]"
 >
 	{#if ticket.labels.length || ticket.blocked}
 		<div class="mb-1.5 flex flex-wrap items-center gap-1">
@@ -97,10 +97,10 @@
 				{#each ticket.assignees.slice(0, 3) as a (a.userId ?? a.githubLogin)}
 					{@const label = a.githubLogin ? `${a.displayName} (@${a.githubLogin})` : a.displayName}
 					{#if a.avatarUrl}
-						<img src={a.avatarUrl} alt={a.displayName} title={label} class="size-4 rounded-full ring-1 ring-white dark:ring-neutral-900" />
+						<img src={a.avatarUrl} alt={a.displayName} title={label} class="size-4 rounded-full ring-1 ring-white dark:ring-neutral-800" />
 					{:else}
 						<span
-							class="grid size-4 place-items-center rounded-full bg-neutral-300 text-[8px] font-semibold text-neutral-700 ring-1 ring-white dark:bg-neutral-600 dark:text-neutral-100 dark:ring-neutral-900"
+							class="grid size-4 place-items-center rounded-full bg-neutral-300 text-[8px] font-semibold text-neutral-700 ring-1 ring-white dark:bg-neutral-600 dark:text-neutral-100 dark:ring-neutral-800"
 							title={label}
 						>{a.displayName.slice(0, 1).toUpperCase()}</span>
 					{/if}

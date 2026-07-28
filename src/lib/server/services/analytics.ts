@@ -19,6 +19,36 @@ const DAY = 86_400_000;
 const PRIORITY_ORDER = ['urgent', 'high', 'medium', 'low', 'none'];
 
 /**
+ * Bucket created/closed timestamps into weekly bins ending at `now`, oldest
+ * first. Pure so the public pulse and internal analytics share one definition.
+ */
+export function bucketWeekly(
+	rows: Array<{ createdAt: Date; closedAt: Date | null }>,
+	now: Date,
+	weeks: number
+): WeeklyPoint[] {
+	const end = now.getTime();
+	const bins: WeeklyPoint[] = [];
+	for (let i = weeks - 1; i >= 0; i--) {
+		const start = end - (i + 1) * 7 * DAY;
+		const stop = end - i * 7 * DAY;
+		let opened = 0;
+		let closedCount = 0;
+		for (const r of rows) {
+			const c = new Date(r.createdAt).getTime();
+			if (c > start && c <= stop) opened++;
+			if (r.closedAt) {
+				const cl = new Date(r.closedAt).getTime();
+				if (cl > start && cl <= stop) closedCount++;
+			}
+		}
+		const d = new Date(stop);
+		bins.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, opened, closed: closedCount });
+	}
+	return bins;
+}
+
+/**
  * Project metrics computed in JS from raw timestamps so the queries stay portable
  * across Postgres & SQLite (no dialect-specific date bucketing in SQL).
  */
@@ -46,25 +76,7 @@ export async function getProjectAnalytics(
 			DAY
 		: null;
 
-	// Weekly bins ending at `now`, oldest first.
-	const end = now.getTime();
-	const bins: WeeklyPoint[] = [];
-	for (let i = weeks - 1; i >= 0; i--) {
-		const start = end - (i + 1) * 7 * DAY;
-		const stop = end - i * 7 * DAY;
-		let opened = 0;
-		let closedCount = 0;
-		for (const r of rows) {
-			const c = new Date(r.createdAt).getTime();
-			if (c > start && c <= stop) opened++;
-			if (r.closedAt) {
-				const cl = new Date(r.closedAt).getTime();
-				if (cl > start && cl <= stop) closedCount++;
-			}
-		}
-		const d = new Date(stop);
-		bins.push({ label: `${d.getMonth() + 1}/${d.getDate()}`, opened, closed: closedCount });
-	}
+	const bins = bucketWeekly(rows, now, weeks);
 
 	const priCount = new Map<string, number>();
 	for (const r of rows) priCount.set(r.priority, (priCount.get(r.priority) ?? 0) + 1);

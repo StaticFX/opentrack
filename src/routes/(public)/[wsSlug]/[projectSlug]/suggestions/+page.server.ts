@@ -22,21 +22,32 @@ export const load: PageServerLoad = async ({ parent, url, locals, cookies, getCl
 		| SuggestionKind
 		| null;
 
+	const mine = url.searchParams.get('mine') === '1' && !!locals.user;
 	const voter = resolveVoter(locals.user, cookies, getClientAddress);
-	const { cards, votedIds } = await listSuggestions(p.project.id, {
-		sort,
-		status,
-		kind: kind ?? undefined,
-		publicOnly: p.level < ACCESS.VIEWER,
-		voter
-	});
+	const publicOnly = p.level < ACCESS.VIEWER;
+	const [{ cards, votedIds }, topList] = await Promise.all([
+		listSuggestions(p.project.id, {
+			sort,
+			status,
+			kind: kind ?? undefined,
+			publicOnly,
+			voter,
+			authorId: mine ? locals.user!.id : undefined
+		}),
+		// Stable "#1 requested" badges regardless of the active view.
+		listSuggestions(p.project.id, { sort: 'top', status: 'open', publicOnly })
+	]);
 
 	return {
 		suggestions: cards.map((c) => ({ ...c, voted: votedIds.has(c.id) })),
+		topIds: topList.cards.filter((c) => c.votes > 0).slice(0, 3).map((c) => c.id),
 		sort,
 		status,
 		kind,
+		mine,
 		canSubmit: p.signedIn,
+		// Prefill from the palette's "post it as feedback" handoff.
+		initialTitle: url.searchParams.get('title') ?? '',
 		// Members keep interacting with resolved suggestions; the public does not.
 		isMember: p.level >= ACCESS.VIEWER
 	};
@@ -62,6 +73,8 @@ export const actions: Actions = {
 		const id = await createSuggestion(locals.user, ctx.project.id, { title, body, kind });
 		const { logActivity } = await import('$lib/server/services/activity');
 		await logActivity({ projectId: ctx.project.id, subjectType: 'suggestion', subjectId: id, actorId: locals.user.id, type: 'suggestion.created' });
+		const { projectEvent } = await import('$lib/server/realtime/project');
+		void projectEvent(ctx.project.id, 'suggestion.created', { suggestionId: id }, locals.user.id).catch(() => {});
 
 		// The author follows their own suggestion; maintainers get a triage alert.
 		const { watch, notifyUsers, listProjectMaintainerIds } = await import(
@@ -84,6 +97,6 @@ export const actions: Actions = {
 			actor: locals.user.displayName,
 			description: body
 		});
-		throw redirect(303, `/${params.wsSlug}/${params.projectSlug}/suggestions/${id}`);
+		throw redirect(303, `/${params.wsSlug}/${params.projectSlug}/suggestions/${id}?posted=1`);
 	}
 };

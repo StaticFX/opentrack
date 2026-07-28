@@ -503,6 +503,80 @@ export async function getTicketDetail(ticketId: string) {
 	};
 }
 
+export interface ConvertedTicketSummary {
+	id: string;
+	number: number;
+	title: string;
+	visibility: string;
+	archived: boolean;
+	closedAt: Date | null;
+	columnName: string | null;
+	columnCategory: string | null;
+	assignees: CardAssignee[];
+	githubPrNumber: number | null;
+	githubPrState: string | null;
+	githubRepo: string | null;
+}
+
+/**
+ * Compact ticket state for the public suggestion "journey" (where a converted
+ * idea currently sits: queued / being built / shipped) and the public ticket
+ * facts row. Includes the resolved column so callers get the stage for free.
+ */
+export async function getConvertedTicketSummary(
+	ticketId: string
+): Promise<ConvertedTicketSummary | null> {
+	const [row] = await db
+		.select({
+			ticket: schema.tickets,
+			columnName: schema.boardColumns.name,
+			columnCategory: schema.boardColumns.category,
+			githubRepo: schema.projects.githubRepo
+		})
+		.from(schema.tickets)
+		.leftJoin(schema.boardColumns, eq(schema.tickets.columnId, schema.boardColumns.id))
+		.leftJoin(schema.projects, eq(schema.tickets.projectId, schema.projects.id))
+		.where(eq(schema.tickets.id, ticketId))
+		.limit(1);
+	if (!row) return null;
+
+	const assigneeRows = await db
+		.select({
+			userId: schema.users.id,
+			displayName: schema.users.displayName,
+			avatarUrl: schema.users.avatarUrl,
+			githubLogin: schema.oauthAccounts.providerUsername
+		})
+		.from(schema.ticketAssignees)
+		.innerJoin(schema.users, eq(schema.ticketAssignees.userId, schema.users.id))
+		.leftJoin(
+			schema.oauthAccounts,
+			and(
+				eq(schema.oauthAccounts.userId, schema.users.id),
+				eq(schema.oauthAccounts.provider, 'github')
+			)
+		)
+		.where(eq(schema.ticketAssignees.ticketId, ticketId));
+
+	return {
+		id: row.ticket.id,
+		number: row.ticket.number,
+		title: row.ticket.title,
+		visibility: row.ticket.visibility,
+		archived: row.ticket.archivedAt != null,
+		closedAt: row.ticket.closedAt,
+		columnName: row.columnName,
+		columnCategory: row.columnCategory,
+		assignees: mergeAssignees(
+			assigneeRows,
+			row.ticket.githubAssignees as GhAssigneeSnapshot | null
+		).slice(0, 3),
+		githubPrNumber: row.ticket.githubPrNumber,
+		githubPrState: row.ticket.githubPrState,
+		githubRepo: row.githubRepo
+	};
+}
+
 /** Count open (not-yet-closed) tickets assigned to a user, across all projects. */
 export async function countOpenAssignedTo(userId: string): Promise<number> {
 	const rows = await db

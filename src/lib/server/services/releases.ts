@@ -40,6 +40,25 @@ export async function getReleaseDetail(id: string): Promise<ReleaseDetail | null
 	return { release, links, tickets };
 }
 
+/** The published release (if any) that shipped a given ticket — newest wins. */
+export async function releaseForTicket(
+	ticketId: string
+): Promise<{ id: string; version: string; name: string | null; releasedAt: Date | null } | null> {
+	const [row] = await db
+		.select({
+			id: schema.releases.id,
+			version: schema.releases.version,
+			name: schema.releases.name,
+			releasedAt: schema.releases.releasedAt
+		})
+		.from(schema.releaseTickets)
+		.innerJoin(schema.releases, eq(schema.releaseTickets.releaseId, schema.releases.id))
+		.where(and(eq(schema.releaseTickets.ticketId, ticketId), eq(schema.releases.status, 'published')))
+		.orderBy(desc(schema.releases.releasedAt))
+		.limit(1);
+	return row ?? null;
+}
+
 /**
  * Draft changelog markdown from tickets closed since the previous published
  * release, grouped by their first label. Empty string when nothing qualifies.

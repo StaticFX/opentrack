@@ -16,5 +16,8 @@ export const POST: RequestHandler = async ({ params, locals, cookies, getClientA
 	const voter = resolveVoter(locals.user, cookies, getClientAddress);
 	if (!rateLimit(`vote:${voter.userId ?? voter.anonKey}`, 40, 60_000)) throw error(429, 'Slow down');
 	const result = await toggleVote('suggestion', params.id, voter);
+	// Best-effort live signal — a publish failure must not 500 a committed vote.
+	const { projectEvent } = await import('$lib/server/realtime/project');
+	void projectEvent(access.project.id, 'suggestion.voted', { suggestionId: params.id }, locals.user?.id).catch(() => {});
 	return json(result);
 };

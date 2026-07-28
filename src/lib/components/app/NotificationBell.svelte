@@ -56,7 +56,7 @@
 	<button
 		type="button"
 		onclick={() => { open = !open; if (open) void refresh(); }}
-		class="relative flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-neutral-600 hover:bg-neutral-200/60 dark:text-neutral-300 dark:hover:bg-neutral-800"
+		class="relative flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-neutral-300 hover:bg-white/10 hover:text-white"
 		aria-label="Notifications"
 	>
 		<Bell size={15} class="text-neutral-400" />

@@ -12,11 +12,29 @@
 		CircleUser,
 		Search
 	} from '@lucide/svelte';
-	import { ChevronLeft, ExternalLink } from '@lucide/svelte';
+	import { ChevronLeft, ExternalLink, Sun, Moon, Monitor } from '@lucide/svelte';
+	import { onMount } from 'svelte';
 	import { clickOutside } from '$lib/utils/clickOutside';
 	import { cn } from '$lib/utils/cn';
 	import { PROJECT_NAV, isProjectNavActive } from '$lib/projectNav';
+	import { getThemePref, setThemePref, watchSystemTheme, type ThemePref } from '$lib/theme';
 	import NotificationBell from './NotificationBell.svelte';
+
+	// Theme toggle (Light / System / Dark), persisted per browser.
+	let themePref = $state<ThemePref>('system');
+	onMount(() => {
+		themePref = getThemePref();
+		return watchSystemTheme();
+	});
+	function setTheme(p: ThemePref) {
+		themePref = p;
+		setThemePref(p);
+	}
+	const THEME_OPTIONS: Array<{ value: ThemePref; label: string; icon: typeof Sun }> = [
+		{ value: 'light', label: 'Light', icon: Sun },
+		{ value: 'system', label: 'System', icon: Monitor },
+		{ value: 'dark', label: 'Dark', icon: Moon }
+	];
 
 	// `open` toggles the off-canvas drawer on mobile; `onnavigate` lets the parent
 	// close the drawer when a non-link action (e.g. search) is triggered.
@@ -85,8 +103,8 @@
 
 <aside
 	class={cn(
-		'fixed inset-y-0 left-0 z-50 flex h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-neutral-50 transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0 dark:border-neutral-800 dark:bg-neutral-900/40',
-		open ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:shadow-none'
+		'ot-rail fixed inset-y-0 left-0 z-50 flex h-screen w-60 shrink-0 flex-col p-2 transition-transform duration-200 lg:static lg:z-auto lg:h-full lg:w-64 lg:translate-x-0 lg:rounded-2xl',
+		open ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:shadow-none lg:shadow-[var(--ot-shadow-rail)]'
 	)}
 >
 	<!-- Workspace switcher -->
@@ -94,10 +112,10 @@
 		<button
 			type="button"
 			onclick={() => (wsMenuOpen = !wsMenuOpen)}
-			class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-neutral-200/60 dark:hover:bg-neutral-800"
+			class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/10"
 		>
 			{@render wsBadge(currentWs, 24)}
-			<span class="min-w-0 flex-1 truncate text-sm font-semibold">
+			<span class="min-w-0 flex-1 truncate text-sm font-semibold text-white">
 				{currentWs?.name ?? 'OpenTrack'}
 			</span>
 			<ChevronsUpDown size={14} class="shrink-0 text-neutral-400" />
@@ -106,24 +124,24 @@
 		{#if wsMenuOpen}
 			<div
 				use:clickOutside={() => (wsMenuOpen = false)}
-				class="absolute inset-x-2 top-full z-20 mt-1 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-900"
+				class="absolute inset-x-2 top-full z-20 mt-1 rounded-lg border border-white/10 bg-neutral-800 p-1 text-neutral-200 shadow-xl"
 			>
 				<a
 					href="/dashboard"
 					onclick={() => (wsMenuOpen = false)}
-					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-white/10"
 				>
 					<LayoutDashboard size={15} class="text-neutral-400" /> Dashboard
 				</a>
 				{#if workspaces.length}
-					<div class="my-1 border-t border-neutral-100 dark:border-neutral-800"></div>
+					<div class="my-1 border-t border-white/10"></div>
 					{#each workspaces as ws (ws.id)}
 						<a
 							href={`/w/${ws.slug}`}
 							onclick={() => (wsMenuOpen = false)}
 							class={cn(
-								'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800',
-								currentWs?.id === ws.id && 'font-medium'
+								'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-white/10',
+								currentWs?.id === ws.id && 'font-medium text-white'
 							)}
 						>
 							{@render wsBadge(ws, 18)}
@@ -131,11 +149,11 @@
 						</a>
 					{/each}
 				{/if}
-				<div class="my-1 border-t border-neutral-100 dark:border-neutral-800"></div>
+				<div class="my-1 border-t border-white/10"></div>
 				<a
 					href="/w/new"
 					onclick={() => (wsMenuOpen = false)}
-					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-400 hover:bg-white/10 hover:text-neutral-200"
 				>
 					<Plus size={15} /> New workspace
 				</a>
@@ -148,11 +166,11 @@
 		<button
 			type="button"
 			onclick={() => { onnavigate?.(); window.dispatchEvent(new CustomEvent('command-palette')); }}
-			class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-neutral-500 hover:bg-neutral-200/60 dark:text-neutral-400 dark:hover:bg-neutral-800"
+			class="flex w-full items-center gap-2 rounded-lg border border-white/5 bg-white/5 px-2 py-1.5 text-left text-sm text-neutral-400 hover:bg-white/10 hover:text-neutral-200"
 		>
 			<Search size={15} class="text-neutral-400" />
 			<span class="min-w-0 flex-1 truncate">Search…</span>
-			<kbd class="shrink-0 rounded border border-neutral-200 px-1 text-[10px] text-neutral-400 dark:border-neutral-700">⌘K</kbd>
+			<kbd class="shrink-0 rounded border border-white/10 bg-white/5 px-1 text-[10px] text-neutral-400">⌘K</kbd>
 		</button>
 	</div>
 
@@ -163,8 +181,8 @@
 			class={cn(
 				'flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm',
 				page.url.pathname === '/my'
-					? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
-					: 'text-neutral-600 hover:bg-neutral-200/60 dark:text-neutral-400 dark:hover:bg-neutral-800'
+					? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
+					: 'text-neutral-300 hover:bg-white/10 hover:text-white'
 			)}
 		>
 			<CircleUser size={15} class="text-neutral-400" /> My Work
@@ -183,7 +201,7 @@
 			<!-- Back to the workspace's project list -->
 			<a
 				href={`/w/${currentWs.slug}`}
-				class="mt-1 flex items-center gap-1.5 px-2 py-1 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+				class="mt-1 flex items-center gap-1.5 px-2 py-1 text-xs text-neutral-400 hover:text-white"
 			>
 				<ChevronLeft size={13} /> {currentWs.name}
 			</a>
@@ -203,8 +221,8 @@
 					class={cn(
 						'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
 						page.url.pathname === navBase
-							? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
-							: 'text-neutral-600 hover:bg-neutral-200/50 dark:text-neutral-400 dark:hover:bg-neutral-800/60'
+							? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
+							: 'text-neutral-300 hover:bg-white/10 hover:text-white'
 					)}
 				>
 					<OIcon size={15} class="text-neutral-400" /> Overview
@@ -221,8 +239,8 @@
 					class={cn(
 						'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
 						page.url.pathname === href
-							? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
-							: 'text-neutral-600 hover:bg-neutral-200/50 dark:text-neutral-400 dark:hover:bg-neutral-800/60'
+							? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
+							: 'text-neutral-300 hover:bg-white/10 hover:text-white'
 					)}
 				>
 					<Hash size={14} class="shrink-0 text-neutral-400" />
@@ -230,7 +248,7 @@
 				</a>
 			{/each}
 			<!-- Other project sections -->
-			<div class="mt-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
+			<div class="mt-2 border-t border-white/10 pt-2">
 				{#each projNav.filter((i) => i.key !== 'overview') as item (item.key)}
 					{@const href = item.href(currentWs.slug, project.slug)}
 					{@const Icon = item.icon}
@@ -239,8 +257,8 @@
 						class={cn(
 							'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
 							!item.external && isProjectNavActive(item, page.url.pathname, currentWs.slug, project.slug)
-								? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
-								: 'text-neutral-600 hover:bg-neutral-200/50 dark:text-neutral-400 dark:hover:bg-neutral-800/60'
+								? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
+								: 'text-neutral-300 hover:bg-white/10 hover:text-white'
 						)}
 					>
 						<Icon size={15} class="text-neutral-400" />
@@ -258,7 +276,7 @@
 				{#if canCreateProject}
 					<a
 						href={`/w/${currentWs.slug}/p/new`}
-						class="rounded p-0.5 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700 dark:hover:bg-neutral-800"
+						class="rounded p-0.5 text-neutral-400 hover:bg-white/10 hover:text-white"
 						aria-label="New project"
 					>
 						<Plus size={14} />
@@ -272,8 +290,8 @@
 					class={cn(
 						'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
 						page.url.pathname.startsWith(href)
-							? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
-							: 'text-neutral-600 hover:bg-neutral-200/50 dark:text-neutral-400 dark:hover:bg-neutral-800/60'
+							? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
+							: 'text-neutral-300 hover:bg-white/10 hover:text-white'
 					)}
 				>
 					<span
@@ -287,14 +305,14 @@
 			{/each}
 
 			{#if canManageWorkspace}
-				<div class="mt-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
+				<div class="mt-2 border-t border-white/10 pt-2">
 					<a
 						href={`/w/${currentWs.slug}/settings`}
 						class={cn(
 							'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
 							isActive(`/w/${currentWs.slug}/settings`)
-								? 'bg-neutral-200/70 dark:bg-neutral-800'
-								: 'text-neutral-600 hover:bg-neutral-200/50 dark:text-neutral-400 dark:hover:bg-neutral-800/60'
+								? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
+								: 'text-neutral-300 hover:bg-white/10 hover:text-white'
 						)}
 					>
 						<Settings size={15} class="text-neutral-400" /> Workspace settings
@@ -306,7 +324,7 @@
 			{#each workspaces as ws (ws.id)}
 				<a
 					href={`/w/${ws.slug}`}
-					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-600 hover:bg-neutral-200/50 dark:text-neutral-400 dark:hover:bg-neutral-800/60"
+					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-white/10 hover:text-white"
 				>
 					<Hash size={14} class="text-neutral-400" />
 					<span class="truncate">{ws.name}</span>
@@ -325,8 +343,8 @@
 				class={cn(
 					'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm',
 					page.url.pathname === '/admin'
-						? 'bg-neutral-200/70 font-medium text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100'
-						: 'text-neutral-600 hover:bg-neutral-200/50 dark:text-neutral-400 dark:hover:bg-neutral-800/60'
+						? 'bg-white/10 font-medium text-white shadow-[inset_2px_0_0_0_var(--color-brand-500)]'
+						: 'text-neutral-300 hover:bg-white/10 hover:text-white'
 				)}
 			>
 				<Shield size={15} class="text-neutral-400" /> Admin
@@ -335,39 +353,63 @@
 	{/if}
 
 	<!-- User menu -->
-	<div class="relative border-t border-neutral-200 p-2 dark:border-neutral-800">
+	<div class="relative mt-1 border-t border-white/10 p-2">
 		<button
 			type="button"
 			onclick={() => (userMenuOpen = !userMenuOpen)}
-			class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-neutral-200/60 dark:hover:bg-neutral-800"
+			class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/10"
 		>
 			{#if user.avatarUrl}
 				<img src={user.avatarUrl} alt="" class="size-6 rounded-full" />
 			{:else}
-				<div class="grid size-6 place-items-center rounded-full bg-neutral-300 text-[10px] font-semibold text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">
+				<div class="grid size-6 place-items-center rounded-full bg-neutral-600 text-[10px] font-semibold text-neutral-100">
 					{initials}
 				</div>
 			{/if}
-			<span class="min-w-0 flex-1 truncate text-left text-sm">{user.displayName}</span>
+			<span class="min-w-0 flex-1 truncate text-left text-sm text-neutral-100">{user.displayName}</span>
 			<ChevronsUpDown size={14} class="shrink-0 text-neutral-400" />
 		</button>
 
 		{#if userMenuOpen}
 			<div
 				use:clickOutside={() => (userMenuOpen = false)}
-				class="absolute inset-x-2 bottom-full z-20 mb-1 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-800 dark:bg-neutral-900"
+				class="absolute inset-x-2 bottom-full z-20 mb-1 rounded-lg border border-white/10 bg-neutral-800 p-1 text-neutral-200 shadow-xl"
 			>
+				<!-- Theme -->
+				<div class="px-1 pt-0.5 pb-1">
+					<span class="px-1 text-[11px] font-medium tracking-wide text-neutral-400 uppercase">Theme</span>
+					<div class="mt-1 flex gap-0.5 rounded-md bg-white/5 p-0.5">
+						{#each THEME_OPTIONS as opt (opt.value)}
+							{@const Icon = opt.icon}
+							<button
+								type="button"
+								onclick={() => setTheme(opt.value)}
+								aria-pressed={themePref === opt.value}
+								title={opt.label}
+								class={cn(
+									'flex flex-1 items-center justify-center gap-1 rounded px-1.5 py-1 text-xs',
+									themePref === opt.value
+										? 'bg-white/10 font-medium text-white'
+										: 'text-neutral-400 hover:text-neutral-200'
+								)}
+							>
+								<Icon size={13} /> {opt.label}
+							</button>
+						{/each}
+					</div>
+				</div>
+				<div class="my-1 border-t border-white/10"></div>
 				<a
 					href="/account"
 					onclick={() => (userMenuOpen = false)}
-					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+					class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-neutral-300 hover:bg-white/10 hover:text-white"
 				>
 					<UserRound size={15} class="text-neutral-400" /> Account
 				</a>
-				<div class="my-1 border-t border-neutral-100 dark:border-neutral-800"></div>
+				<div class="my-1 border-t border-white/10"></div>
 				<form method="POST" action="/auth/logout">
 					<button
-						class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+						class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-400 hover:bg-red-500/15"
 					>
 						<LogOut size={15} /> Sign out
 					</button>

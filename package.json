@@ -45,7 +45,8 @@
 		"smoke:workflow": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-workflow.ts",
 		"smoke:qol": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-qol.ts",
 		"smoke:watch-notify": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-watch-notify.ts",
-		"smoke:mcp": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-mcp.ts"
+		"smoke:mcp": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-mcp.ts",
+		"smoke:public": "tsx --tsconfig tsconfig.scripts.json scripts/smoke-public.ts"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^5.5.7",
@@ -68,6 +69,9 @@
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.1081.0",
 		"@aws-sdk/s3-request-presigner": "^3.1081.0",
+		"@fontsource-variable/bricolage-grotesque": "^5.3.0",
+		"@fontsource-variable/instrument-sans": "^5.3.0",
+		"@fontsource-variable/jetbrains-mono": "^5.3.0",
 		"@libsql/client": "^0.15.0",
 		"@lucide/svelte": "^1.23.0",
 		"@node-rs/argon2": "^2.0.2",

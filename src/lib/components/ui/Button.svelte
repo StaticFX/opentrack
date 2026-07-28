@@ -3,7 +3,7 @@
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
 	import { cn } from '$lib/utils/cn';
 
-	type Variant = 'primary' | 'default' | 'ghost' | 'danger';
+	type Variant = 'primary' | 'accent' | 'default' | 'ghost' | 'danger';
 	type Size = 'sm' | 'md' | 'icon';
 
 	type Props = {
@@ -29,6 +29,8 @@
 
 	const variants: Record<Variant, string> = {
 		primary: 'bg-brand-600 text-white hover:bg-brand-700',
+		/* Project-accent CTA for public pages (driven by the .accent-scope vars). */
+		accent: 'bg-[var(--accent-solid)] text-white hover:bg-[var(--accent-solid-hover)]',
 		default:
 			'border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800',
 		ghost:

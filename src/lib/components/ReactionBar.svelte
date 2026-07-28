@@ -9,8 +9,10 @@
 		reactions?: ReactionSummary[];
 		canReact?: boolean;
 		size?: 'sm' | 'md';
+		/** When empty and reactable, show the first emoji as ghost one-tap buttons. */
+		seed?: boolean;
 	};
-	let { subjectType, subjectId, reactions = [], canReact = true, size = 'md' }: Props = $props();
+	let { subjectType, subjectId, reactions = [], canReact = true, size = 'md', seed = false }: Props = $props();
 
 	let items = $state<ReactionSummary[]>(reactions);
 	let pickerOpen = $state(false);
@@ -31,6 +33,18 @@
 </script>
 
 <div class="flex flex-wrap items-center gap-1">
+	{#if seed && canReact && items.length === 0}
+		{#each REACTION_EMOJI.slice(0, 3) as e (e)}
+			<button
+				onclick={() => react(e)}
+				class="flex min-h-7 items-center rounded-full border border-dashed border-neutral-300 px-2.5 py-1 text-neutral-400 opacity-70 transition hover:border-neutral-400 hover:opacity-100 dark:border-neutral-600"
+				title={`React with ${e}`}
+				aria-label={`React with ${e}`}
+			>
+				<span>{e}</span>
+			</button>
+		{/each}
+	{/if}
 	{#each items as r (r.emoji)}
 		<button
 			onclick={() => react(r.emoji)}
