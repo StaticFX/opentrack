@@ -100,6 +100,35 @@ export async function getPublicPulse(
 	};
 }
 
+export interface ProjectHeartbeat {
+	open: number;
+	shipped: number;
+	weekly: WeeklyPoint[];
+	lastActivityAt: Date | null;
+}
+
+/** Lean per-project pulse for the landing directories (2 queries per project). */
+export async function getProjectHeartbeat(
+	projectId: string,
+	isPublic: boolean,
+	now = new Date()
+): Promise<ProjectHeartbeat> {
+	const rows = isPublic
+		? await db
+				.select({ createdAt: schema.tickets.createdAt, closedAt: schema.tickets.closedAt })
+				.from(schema.tickets)
+				.where(publicTicketFilter(projectId))
+		: [];
+	const shipped = rows.filter((r) => r.closedAt != null).length;
+	const [latest] = await listPublicActivity(projectId, isPublic, 1);
+	return {
+		open: rows.length - shipped,
+		shipped,
+		weekly: bucketWeekly(rows, now, 8),
+		lastActivityAt: latest?.createdAt ?? null
+	};
+}
+
 export interface ShippedItem {
 	id: string;
 	number: number;
