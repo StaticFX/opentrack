@@ -7,21 +7,21 @@
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 /* OpenTrack design tokens — theme-aware (light/dark).
-   Accent is a warm orange; the app chrome uses a soft, faintly-warm neutral
+   Accent is a cool cobalt; the app chrome uses a soft, faintly-cool neutral
    ground with floating rounded surfaces (rail + content panel). */
 @theme {
-	--color-brand-50: oklch(0.96 0.03 45);
-	--color-brand-100: oklch(0.92 0.06 45);
-	--color-brand-400: oklch(0.75 0.15 44);
-	--color-brand-500: oklch(0.7 0.17 42);
-	--color-brand-600: oklch(0.63 0.18 40);
-	--color-brand-700: oklch(0.55 0.16 38);
+	--color-brand-50: oklch(0.96 0.02 262);
+	--color-brand-100: oklch(0.92 0.05 262);
+	--color-brand-400: oklch(0.7 0.15 262);
+	--color-brand-500: oklch(0.63 0.18 262);
+	--color-brand-600: oklch(0.55 0.2 262);
+	--color-brand-700: oklch(0.48 0.18 262);
 
 	/* Semantic surface tokens (referenced via var() in the app chrome). */
-	--color-ground-1: oklch(0.96 0.004 60);
-	--color-ground-2: oklch(0.93 0.005 60);
-	--color-rail: oklch(0.31 0.008 62);
-	--color-rail-2: oklch(0.27 0.008 62);
+	--color-ground-1: oklch(0.965 0.005 255);
+	--color-ground-2: oklch(0.935 0.006 255);
+	--color-rail: oklch(0.3 0.022 260);
+	--color-rail-2: oklch(0.26 0.022 261);
 
 	/* Typography — three voices: display (poster/headings), sans (UI), mono
 	   (data: #numbers, versions, counts, dates). Faces are LOADED only by the
@@ -41,7 +41,7 @@
 :root {
 	color-scheme: light;
 	/* Soft gradient ground the floating rail + content panel sit on. */
-	--ot-ground: radial-gradient(1100px 560px at 82% -12%, oklch(0.7 0.17 42 / 0.08), transparent 60%),
+	--ot-ground: radial-gradient(1100px 560px at 82% -12%, oklch(0.63 0.18 262 / 0.08), transparent 60%),
 		linear-gradient(160deg, var(--color-ground-1), var(--color-ground-2));
 	--ot-rail: linear-gradient(180deg, var(--color-rail), var(--color-rail-2));
 	--ot-shadow-float: 0 8px 30px -12px rgb(20 22 28 / 0.28);
@@ -51,9 +51,9 @@
 :root[data-theme='dark'] {
 	color-scheme: dark;
 	/* Soft, faintly-warm charcoal — not harsh near-black. */
-	--color-ground-1: oklch(0.26 0.006 65);
-	--color-ground-2: oklch(0.22 0.006 65);
-	--ot-ground: radial-gradient(1100px 560px at 82% -12%, oklch(0.7 0.17 42 / 0.12), transparent 60%),
+	--color-ground-1: oklch(0.25 0.012 258);
+	--color-ground-2: oklch(0.21 0.012 258);
+	--ot-ground: radial-gradient(1100px 560px at 82% -12%, oklch(0.63 0.18 262 / 0.14), transparent 60%),
 		linear-gradient(160deg, var(--color-ground-1), var(--color-ground-2));
 	--ot-shadow-float: 0 12px 36px -16px rgb(0 0 0 / 0.6);
 	--ot-shadow-rail: 0 24px 60px -26px rgb(0 0 0 / 0.7);
@@ -103,7 +103,7 @@
 }
 
 /* Inside a project scope, form focus rings take the project accent (the shared
-   Input/Textarea components carry brand-orange utilities; unlayered CSS wins). */
+   Input/Textarea components carry brand-accent utilities; unlayered CSS wins). */
 .accent-scope :is(input, textarea):focus-visible {
 	border-color: var(--accent);
 	--tw-ring-color: color-mix(in oklab, var(--accent) 40%, transparent);

@@ -12,4 +12,4 @@ export const PALETTE = [
 	'#6b7280' // gray
 ] as const;
 
-export const DEFAULT_COLOR = '#f97316';
+export const DEFAULT_COLOR = '#4263eb';

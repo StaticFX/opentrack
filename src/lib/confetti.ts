@@ -12,8 +12,8 @@ export function confettiFrom(el: HTMLElement | null): void {
 	const cy = rect.top + rect.height / 2;
 
 	const styles = getComputedStyle(el);
-	const accent = styles.getPropertyValue('--accent').trim() || '#f97316';
-	const colors = [accent, '#fb923c', '#ea580c', '#facc15', '#e5e5e5'];
+	const accent = styles.getPropertyValue('--accent').trim() || '#4263eb';
+	const colors = [accent, '#7e96f2', '#3b5bdb', '#facc15', '#e5e5e5'];
 
 	const canvas = document.createElement('canvas');
 	const dpr = Math.min(2, window.devicePixelRatio || 1);

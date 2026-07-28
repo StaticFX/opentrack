@@ -61,8 +61,8 @@
 			cursorRadius={240}
 			bulgeStrength={30}
 			glowColor="transparent"
-			gradientFrom="rgba(234, 88, 12, 0.32)"
-			gradientTo="rgba(251, 146, 60, 0.10)"
+			gradientFrom="rgba(64, 92, 222, 0.30)"
+			gradientTo="rgba(129, 150, 255, 0.10)"
 		/>
 	</div>
 
