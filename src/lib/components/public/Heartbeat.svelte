@@ -39,16 +39,18 @@
 			<path d={area} fill="var(--accent-soft)" />
 		{/if}
 		{#if line}
+			<!-- No non-scaling-stroke here: it makes Chromium compute the ot-draw
+			     dash pattern in screen space, so the pathLength-normalized dash
+			     only covers 1/scale of the line and repeats (gaps in the stroke). -->
 			<path
 				d={line}
 				pathLength="1"
 				class="ot-draw"
 				stroke="var(--accent)"
-				stroke-width="2"
+				stroke-width="1"
 				stroke-linecap="round"
 				stroke-linejoin="round"
 				fill="none"
-				vector-effect="non-scaling-stroke"
 			/>
 		{/if}
 		{#if tip}

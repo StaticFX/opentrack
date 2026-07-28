@@ -62,10 +62,12 @@
 		tabs={tabs.map((t) => ({ href: t.href, label: t.label }))}
 	/>
 
-	<!-- Identity band — accent-washed, present on every project page. -->
+	<!-- Identity band — accent-washed, present on every project page. Named so
+	     tab switches don't crossfade it with the root (identical snapshots are
+	     seamless; only the page content below fades). -->
 	<div
 		class="relative overflow-hidden"
-		style="background:
+		style="view-transition-name: project-band; background:
 			radial-gradient(760px 300px at 10% -50%, var(--accent-soft), transparent 70%),
 			radial-gradient(900px 340px at 90% -65%, var(--accent-wash), transparent 70%)"
 	>
@@ -103,8 +105,10 @@
 		</div>
 	</div>
 
-	<!-- Floating pill tab bar, sticky under the site header. -->
-	<div class="sticky top-14 z-20 pb-1">
+	<!-- Floating pill tab bar, sticky under the site header. Named for the same
+	     reason as the band: the bar itself must not blink during tab switches
+	     (the active pill keeps its own pub-tab-pill morph). -->
+	<div class="sticky top-14 z-20 pb-1" style="view-transition-name: project-tabs">
 		<div class="mx-auto max-w-6xl px-4 sm:px-6">
 			<div class="flex items-center gap-2">
 				<div

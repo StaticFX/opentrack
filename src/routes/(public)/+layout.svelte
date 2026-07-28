@@ -94,7 +94,7 @@
 		{@render children()}
 	</div>
 
-	<footer class="mt-12 border-t border-black/5 dark:border-white/5">
+	<footer class="mt-12 border-t border-black/5 dark:border-white/5" style="view-transition-name: pub-footer">
 		<div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 sm:px-6">
 			<div class="flex items-center gap-4 font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
 				{#if data.brand}<span>{data.brand.name}</span>{:else}<span>{data.siteName}</span>{/if}
