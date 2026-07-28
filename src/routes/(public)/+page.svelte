@@ -11,6 +11,7 @@
 	import EmptyState from '$lib/components/public/EmptyState.svelte';
 	import ProjectRow from '$lib/components/public/ProjectRow.svelte';
 	import PublicMeta from '$lib/components/public/PublicMeta.svelte';
+	import DotField from '$lib/components/vendor/DotField.svelte';
 	import { ago } from '$lib/time';
 
 	let { data } = $props();
@@ -46,9 +47,26 @@
 		: data.site.tagline}
 />
 
-<main class="mx-auto max-w-6xl px-4 pt-12 pb-4 sm:px-6 sm:pt-16">
+<main class="relative mx-auto max-w-6xl px-4 pt-12 pb-4 sm:px-6 sm:pt-16">
+	<!-- Pegboard: an interactive dot field behind the masthead — the workshop
+	     wall itself. Fades out before the directory starts. -->
+	<div
+		class="pointer-events-none absolute inset-x-0 -top-4 h-72 [mask-image:linear-gradient(to_bottom,black_30%,transparent),linear-gradient(to_right,transparent,black_15%,black_85%,transparent)] [mask-composite:intersect]"
+		aria-hidden="true"
+	>
+		<DotField
+			dotRadius={2}
+			dotSpacing={17}
+			cursorRadius={240}
+			bulgeStrength={30}
+			glowColor="transparent"
+			gradientFrom="rgba(234, 88, 12, 0.32)"
+			gradientTo="rgba(251, 146, 60, 0.10)"
+		/>
+	</div>
+
 	<!-- Masthead: the headline is the admin's words, the proof is real numbers. -->
-	<section class="max-w-3xl">
+	<section class="relative max-w-3xl">
 		<h1 class="type-poster text-4xl leading-[1.05] sm:text-6xl">{data.site.headline}</h1>
 		<p class="mt-4 max-w-xl text-lg text-neutral-500 dark:text-neutral-400">{data.site.tagline}</p>
 		{#if data.totals.projects > 0}

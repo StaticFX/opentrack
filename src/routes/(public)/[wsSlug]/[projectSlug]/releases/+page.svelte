@@ -3,6 +3,7 @@
 	import { renderMarkdown } from '$lib/markdown';
 	import EmptyState from '$lib/components/public/EmptyState.svelte';
 	import PublicMeta from '$lib/components/public/PublicMeta.svelte';
+	import ShinyText from '$lib/components/vendor/ShinyText.svelte';
 
 	let { data } = $props();
 	const base = $derived(`/${data.workspace.slug}/${data.project.slug}`);
@@ -44,7 +45,9 @@
 							<h2 class="type-poster text-xl">{r.version}</h2>
 							{#if r.name}<span class="text-sm text-neutral-500 dark:text-neutral-400">{r.name}</span>{/if}
 							{#if i === 0}
-								<span class="rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tracking-wide text-white uppercase" style="background:var(--accent-solid)">Latest</span>
+								<span class="rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tracking-wide uppercase" style="background:var(--accent-solid)">
+									<ShinyText text="Latest" speed={3.5} delay={2} color="rgba(255,255,255,0.88)" shineColor="#ffffff" />
+								</span>
 							{/if}
 							{#if r.releasedAt}<span class="ml-auto font-mono text-[11px] text-neutral-400">{fmtDate(r.releasedAt)}</span>{/if}
 						</div>
