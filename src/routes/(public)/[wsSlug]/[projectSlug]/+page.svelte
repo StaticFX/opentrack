@@ -18,6 +18,8 @@
 	import PublicMeta from '$lib/components/public/PublicMeta.svelte';
 	import StatTile from '$lib/components/public/StatTile.svelte';
 	import UpvoteButton from '$lib/components/UpvoteButton.svelte';
+	import SpotlightCard from '$lib/components/vendor/SpotlightCard.svelte';
+	import StarBorder from '$lib/components/vendor/StarBorder.svelte';
 	import { renderMarkdown } from '$lib/markdown';
 	import { ago } from '$lib/time';
 
@@ -88,18 +90,21 @@
 	{#if isEmpty}
 		<div class="pub-card mt-8 rounded-3xl">
 			<EmptyState icon={Sparkles} title="The workshop just opened" body="Nothing on the wall yet — but the front door is open. Ideas and bug reports shape what gets built first.">
-				<a
+				<StarBorder
+					as="a"
 					href={`${base}/suggestions#post`}
-					class="inline-flex items-center gap-1.5 rounded-full bg-[var(--accent-solid)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--accent-solid-hover)]"
+					class="inline-block shadow-sm"
+					radius="9999px"
+					innerClass="inline-flex items-center gap-1.5 bg-[var(--accent-solid)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-solid-hover)]"
 				>
 					<Lightbulb size={15} /> Share the first idea
-				</a>
+				</StarBorder>
 			</EmptyState>
 		</div>
 	{:else}
 		<!-- Pulse band -->
 		<section class="mt-5 grid gap-4 lg:grid-cols-12">
-			<div class="pub-card ot-rise rounded-3xl p-5 lg:col-span-7" style="--rise-i:0">
+			<SpotlightCard class="pub-card ot-rise rounded-3xl p-5 lg:col-span-7" style="--rise-i:0">
 				<div class="flex items-baseline justify-between gap-3">
 					<h2 class="pub-label flex items-center gap-1.5">
 						<span class="relative flex size-2">
@@ -118,7 +123,7 @@
 				<p class="mt-2 font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
 					{data.pulse.velocity.openedLast30d} opened · {data.pulse.velocity.closedLast30d} shipped in the last 30 days
 				</p>
-			</div>
+			</SpotlightCard>
 
 			<div class="grid grid-cols-2 gap-4 lg:col-span-5">
 				<StatTile value={s.openTickets} label="Open" accent />

@@ -3,6 +3,7 @@
 	import EmptyState from '$lib/components/public/EmptyState.svelte';
 	import ProjectRow from '$lib/components/public/ProjectRow.svelte';
 	import PublicMeta from '$lib/components/public/PublicMeta.svelte';
+	import BlurText from '$lib/components/vendor/BlurText.svelte';
 	import { ago } from '$lib/time';
 
 	let { data } = $props();
@@ -58,7 +59,7 @@
 			</span>
 		{/if}
 		<div class="min-w-0">
-			<h1 class="type-poster text-3xl leading-[1.05] sm:text-5xl">{headline}</h1>
+			<h1 class="type-poster text-3xl leading-[1.05] sm:text-5xl"><BlurText text={headline} animateBy="words" direction="top" delay={70} /></h1>
 			<p class="mt-3 max-w-xl text-lg text-neutral-500 dark:text-neutral-400">{tagline}</p>
 			{#if data.totals.projects > 0}
 				<p class="mt-4 font-mono text-[12px] text-neutral-400 dark:text-neutral-500">

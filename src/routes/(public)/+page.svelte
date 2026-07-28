@@ -11,6 +11,7 @@
 	import EmptyState from '$lib/components/public/EmptyState.svelte';
 	import ProjectRow from '$lib/components/public/ProjectRow.svelte';
 	import PublicMeta from '$lib/components/public/PublicMeta.svelte';
+	import BlurText from '$lib/components/vendor/BlurText.svelte';
 	import DotField from '$lib/components/vendor/DotField.svelte';
 	import { ago } from '$lib/time';
 
@@ -67,7 +68,7 @@
 
 	<!-- Masthead: the headline is the admin's words, the proof is real numbers. -->
 	<section class="relative max-w-3xl">
-		<h1 class="type-poster text-4xl leading-[1.05] sm:text-6xl">{data.site.headline}</h1>
+		<h1 class="type-poster text-4xl leading-[1.05] sm:text-6xl"><BlurText text={data.site.headline} animateBy="words" direction="top" delay={70} /></h1>
 		<p class="mt-4 max-w-xl text-lg text-neutral-500 dark:text-neutral-400">{data.site.tagline}</p>
 		{#if data.totals.projects > 0}
 			<p class="mt-5 flex flex-wrap items-center gap-x-2 font-mono text-[12px] text-neutral-400 dark:text-neutral-500">
