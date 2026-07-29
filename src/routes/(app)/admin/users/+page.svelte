@@ -4,6 +4,8 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import Field from '$lib/components/ui/Field.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
+	import Avatar from '$lib/components/ui/Avatar.svelte';
+	import Badge from '$lib/components/ui/Badge.svelte';
 
 	let { data, form } = $props();
 	const f = $derived(form as Record<string, any> | null);
@@ -18,122 +20,115 @@
 	function copy(text: string) {
 		navigator.clipboard?.writeText(text);
 	}
-
-	function initials(name: string) {
-		return name
-			.split(/\s+/)
-			.map((w) => w[0])
-			.slice(0, 2)
-			.join('')
-			.toUpperCase();
-	}
 </script>
 
 <svelte:head><title>Users · Admin · OpenTrack</title></svelte:head>
 
-<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
-	<header class="mb-6">
-		<h1 class="text-xl font-semibold tracking-tight">Users</h1>
-		<p class="mt-0.5 text-sm text-neutral-500">Manage accounts and internal access.</p>
-	</header>
+<header class="mb-6">
+	<h2 class="mono-display text-lg tracking-tight text-[var(--text)]">Users</h2>
+	<p class="mt-0.5 text-[13px] text-[var(--dim)]">Manage accounts and internal access.</p>
+</header>
 
-	<!-- Stats -->
-	<div class="mb-6 grid grid-cols-3 gap-3">
-		<div class="flex items-center gap-3 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-			<Users size={18} class="text-neutral-400" />
-			<div><p class="text-lg font-semibold">{data.stats.users}</p><p class="text-xs text-neutral-500">Users</p></div>
-		</div>
-		<div class="flex items-center gap-3 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-			<ShieldCheck size={18} class="text-neutral-400" />
-			<div><p class="text-lg font-semibold">{data.stats.internal}</p><p class="text-xs text-neutral-500">Internal</p></div>
-		</div>
-		<div class="flex items-center gap-3 rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-			<Boxes size={18} class="text-neutral-400" />
-			<div><p class="text-lg font-semibold">{data.stats.workspaces}</p><p class="text-xs text-neutral-500">Workspaces</p></div>
+<!-- Stats -->
+<div class="mb-8 grid grid-cols-3 divide-x divide-[var(--rule)] border-t border-b border-[var(--rule)]">
+	<div class="flex items-center gap-3 px-3 py-3">
+		<Users size={15} class="shrink-0 text-[var(--faint)]" aria-hidden="true" />
+		<div class="min-w-0">
+			<p class="mono-display text-lg text-[var(--text)]">{data.stats.users}</p>
+			<p class="truncate text-[11px] tracking-wide text-[var(--faint)] uppercase">Users</p>
 		</div>
 	</div>
+	<div class="flex items-center gap-3 px-3 py-3">
+		<ShieldCheck size={15} class="shrink-0 text-[var(--faint)]" aria-hidden="true" />
+		<div class="min-w-0">
+			<p class="mono-display text-lg text-[var(--text)]">{data.stats.internal}</p>
+			<p class="truncate text-[11px] tracking-wide text-[var(--faint)] uppercase">Internal</p>
+		</div>
+	</div>
+	<div class="flex items-center gap-3 px-3 py-3">
+		<Boxes size={15} class="shrink-0 text-[var(--faint)]" aria-hidden="true" />
+		<div class="min-w-0">
+			<p class="mono-display text-lg text-[var(--text)]">{data.stats.workspaces}</p>
+			<p class="truncate text-[11px] tracking-wide text-[var(--faint)] uppercase">Workspaces</p>
+		</div>
+	</div>
+</div>
 
-	<!-- Invite internal users -->
-	<section class="mb-6 rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
-		<h2 class="flex items-center gap-2 text-sm font-semibold"><Mail size={15} /> Invite internal users</h2>
-		<p class="mt-1 mb-4 text-sm text-neutral-500">
-			Generate a code that grants internal access. Share the link to let someone in.
-		</p>
-		<form method="POST" action="?/createInvite" use:enhance class="flex flex-wrap items-end gap-3">
-			<Field label="Uses"><Input name="maxUses" type="number" min="1" value="1" class="w-20" /></Field>
-			<Button variant="primary" type="submit">Create invite</Button>
-		</form>
-		{#if f?.inviteLink}
-			<div class="mt-4 flex items-center gap-2 rounded-lg bg-neutral-100 p-3 dark:bg-neutral-900">
-				<code class="min-w-0 flex-1 truncate text-sm">{f.inviteLink}</code>
-				<Button size="sm" variant="ghost" onclick={() => copy(f.inviteLink)}><Copy size={14} /> Copy</Button>
-			</div>
-		{/if}
-		{#if data.recentInvites.length}
-			<p class="mt-4 mb-1 text-xs font-medium tracking-wide text-neutral-400 uppercase">Recent codes</p>
-			<ul class="divide-y divide-neutral-100 text-sm dark:divide-neutral-800">
-				{#each data.recentInvites as inv (inv.id)}
-					<li class="flex items-center justify-between py-1.5 text-neutral-500">
-						<span>{new Date(inv.createdAt).toLocaleDateString()}</span>
-						<span>{inv.uses}/{inv.maxUses} used</span>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
-
-	<!-- User list -->
-	<section class="rounded-xl border border-neutral-200 dark:border-neutral-800">
-		{#if f?.error}
-			<p class="border-b border-red-100 bg-red-50 px-5 py-2 text-sm text-red-600 dark:border-red-900/40 dark:bg-red-950/30">{f.error}</p>
-		{/if}
-		<ul class="divide-y divide-neutral-100 dark:divide-neutral-800">
-			{#each data.users as u (u.id)}
-				<li class="flex items-center gap-3 px-5 py-3">
-					{#if u.avatarUrl}
-						<img src={u.avatarUrl} alt="" class="size-8 shrink-0 rounded-full" />
-					{:else}
-						<div class="grid size-8 shrink-0 place-items-center rounded-full bg-neutral-200 text-[11px] font-semibold text-neutral-600 dark:bg-neutral-700 dark:text-neutral-200">
-							{initials(u.displayName)}
-						</div>
-					{/if}
-
-					<div class="min-w-0 flex-1">
-						<div class="flex items-center gap-2">
-							<span class="truncate text-sm font-medium">{u.displayName}</span>
-							{#if u.isAdmin}
-								<span class="flex items-center gap-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"><Shield size={10} /> Admin</span>
-							{/if}
-							{#if u.internal}
-								<span class="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">Internal</span>
-							{:else}
-								<span class="rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500 dark:bg-neutral-800">External</span>
-							{/if}
-							{#if u.status === 'suspended'}
-								<span class="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900/40 dark:text-red-300">Disabled</span>
-							{/if}
-						</div>
-						<p class="truncate text-xs text-neutral-500">
-							@{u.username}{#if u.email} · {u.email}{/if}{#if u.providers.length} · {u.providers.map((p: string) => providerLabel[p] ?? p).join(', ')}{/if}
-						</p>
-					</div>
-
-					{#if u.id !== me.id}
-						<form method="POST" action="?/setStatus" use:enhance class="shrink-0">
-							<input type="hidden" name="userId" value={u.id} />
-							{#if u.status === 'suspended'}
-								<input type="hidden" name="status" value="active" />
-								<Button size="sm" variant="default" type="submit"><RotateCcw size={13} /> Enable</Button>
-							{:else}
-								<input type="hidden" name="status" value="suspended" />
-								<Button size="sm" variant="ghost" type="submit" class="text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"><Ban size={13} /> Disable</Button>
-							{/if}
-						</form>
-					{:else}
-						<span class="shrink-0 text-xs text-neutral-400">You</span>
-					{/if}
+<!-- Invite internal users -->
+<section class="mb-8 border-t border-[var(--rule)] pt-6">
+	<h3 class="mono-display flex items-center gap-2 text-[13px] text-[var(--text)]"><Mail size={14} class="text-[var(--faint)]" aria-hidden="true" /> Invite internal users</h3>
+	<p class="mt-1 mb-4 text-[13px] text-[var(--dim)]">
+		Generate a code that grants internal access. Share the link to let someone in.
+	</p>
+	<form method="POST" action="?/createInvite" use:enhance class="flex flex-wrap items-end gap-3">
+		<Field label="Uses"><Input name="maxUses" type="number" min="1" value="1" class="w-20" /></Field>
+		<Button variant="primary" type="submit">Create invite</Button>
+	</form>
+	{#if f?.inviteLink}
+		<div class="mt-4 flex items-center gap-2 border border-[var(--rule)] bg-[var(--raised)] p-3">
+			<code class="data-mono min-w-0 flex-1 truncate text-[13px] text-[var(--text)]">{f.inviteLink}</code>
+			<Button size="sm" variant="ghost" onclick={() => copy(f.inviteLink)}><Copy size={14} /> Copy</Button>
+		</div>
+	{/if}
+	{#if data.recentInvites.length}
+		<p class="mt-4 mb-1 text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase">// Recent codes</p>
+		<ul class="border-t border-[var(--rule)] text-[13px]">
+			{#each data.recentInvites as inv (inv.id)}
+				<li class="flex items-center justify-between border-b border-[var(--rule)] py-1.5 text-[var(--dim)]">
+					<span class="data-mono">{new Date(inv.createdAt).toLocaleDateString()}</span>
+					<span class="data-mono">{inv.uses}/{inv.maxUses} used</span>
 				</li>
 			{/each}
 		</ul>
-	</section>
-</div>
+	{/if}
+</section>
+
+<!-- User list -->
+<section class="border-t border-[var(--rule)] pt-6">
+	<p class="mb-3 text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase">// All users</p>
+	{#if f?.error}
+		<p class="mb-3 border border-[color-mix(in_srgb,#f85149_35%,transparent)] bg-[color-mix(in_srgb,#f85149_10%,transparent)] px-3 py-2 text-[13px] text-[#f85149]">{f.error}</p>
+	{/if}
+	<ul class="border-t border-[var(--rule)]">
+		{#each data.users as u (u.id)}
+			<li class="flex items-center gap-3 border-b border-[var(--rule)] py-3">
+				<Avatar src={u.avatarUrl} name={u.displayName} size={32} />
+
+				<div class="min-w-0 flex-1">
+					<div class="flex items-center gap-2">
+						<span class="truncate text-[13px] font-medium text-[var(--text)]">{u.displayName}</span>
+						{#if u.isAdmin}
+							<Badge tone="violet" icon={Shield}>Admin</Badge>
+						{/if}
+						{#if u.internal}
+							<Badge tone="green">Internal</Badge>
+						{:else}
+							<Badge>External</Badge>
+						{/if}
+						{#if u.status === 'suspended'}
+							<Badge tone="red">Disabled</Badge>
+						{/if}
+					</div>
+					<p class="truncate text-[12px] text-[var(--faint)]">
+						@{u.username}{#if u.email} · {u.email}{/if}{#if u.providers.length} · {u.providers.map((p: string) => providerLabel[p] ?? p).join(', ')}{/if}
+					</p>
+				</div>
+
+				{#if u.id !== me.id}
+					<form method="POST" action="?/setStatus" use:enhance class="shrink-0">
+						<input type="hidden" name="userId" value={u.id} />
+						{#if u.status === 'suspended'}
+							<input type="hidden" name="status" value="active" />
+							<Button size="sm" variant="default" type="submit"><RotateCcw size={13} /> Enable</Button>
+						{:else}
+							<input type="hidden" name="status" value="suspended" />
+							<Button size="sm" variant="ghost" type="submit" class="text-[#f85149] hover:bg-[color-mix(in_srgb,#f85149_12%,transparent)]"><Ban size={13} /> Disable</Button>
+						{/if}
+					</form>
+				{:else}
+					<span class="shrink-0 text-[12px] text-[var(--faint)]">You</span>
+				{/if}
+			</li>
+		{/each}
+	</ul>
+</section>

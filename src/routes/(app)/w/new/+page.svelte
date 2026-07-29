@@ -12,12 +12,12 @@
 <svelte:head><title>New workspace · OpenTrack</title></svelte:head>
 
 <div class="mx-auto max-w-lg px-4 py-8 sm:px-8 sm:py-12">
-	<h1 class="text-xl font-semibold tracking-tight">Create a workspace</h1>
-	<p class="mt-0.5 text-sm text-neutral-500">
+	<h1 class="mono-display text-xl tracking-tight text-[var(--text)]">Create a workspace</h1>
+	<p class="mt-0.5 text-[13px] text-[var(--dim)]">
 		A workspace groups related projects. You'll be its owner.
 	</p>
 
-	<form method="POST" use:enhance class="mt-8 flex flex-col gap-5">
+	<form method="POST" use:enhance class="mt-8 flex flex-col gap-5 border-t border-[var(--rule)] pt-6">
 		<Field label="Name" error={form?.error}>
 			<Input name="name" placeholder="Acme Mods" value={form?.name ?? ''} required autofocus />
 		</Field>
@@ -28,20 +28,20 @@
 				<button
 					type="button"
 					onclick={() => (visibility = 'public')}
-					class={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition ${visibility === 'public' ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-500/10' : 'border-neutral-200 dark:border-neutral-800'}`}
+					class={`focus-ring flex flex-col items-start gap-1 rounded-[3px] border p-3 text-left transition-colors ${visibility === 'public' ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]' : 'border-[var(--rule)]'}`}
 				>
-					<Globe size={16} class="text-neutral-500" />
-					<span class="text-sm font-medium">Public</span>
-					<span class="text-xs text-neutral-500">Anyone can browse it</span>
+					<Globe size={16} class="text-[var(--faint)]" />
+					<span class="text-[13px] font-medium text-[var(--text)]">Public</span>
+					<span class="text-[11px] text-[var(--faint)]">Anyone can browse it</span>
 				</button>
 				<button
 					type="button"
 					onclick={() => (visibility = 'private')}
-					class={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition ${visibility === 'private' ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-500/10' : 'border-neutral-200 dark:border-neutral-800'}`}
+					class={`focus-ring flex flex-col items-start gap-1 rounded-[3px] border p-3 text-left transition-colors ${visibility === 'private' ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]' : 'border-[var(--rule)]'}`}
 				>
-					<Lock size={16} class="text-neutral-500" />
-					<span class="text-sm font-medium">Private</span>
-					<span class="text-xs text-neutral-500">Only members can see it</span>
+					<Lock size={16} class="text-[var(--faint)]" />
+					<span class="text-[13px] font-medium text-[var(--text)]">Private</span>
+					<span class="text-[11px] text-[var(--faint)]">Only members can see it</span>
 				</button>
 			</div>
 		</Field>

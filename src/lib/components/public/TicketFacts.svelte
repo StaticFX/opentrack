@@ -3,7 +3,8 @@
 	import { ciMeta } from '$lib/github-ci';
 	import { ago } from '$lib/time';
 
-	// Wrapping chip row of everything the data already knows about a ticket.
+	// A mono fact row: everything the data already knows about a ticket, as inline
+	// monospace facts separated by space — no filled chips, no card.
 	type Assignee = { displayName: string; avatarUrl: string | null };
 	type Relation = { id: string; label: string; targetNumber: number; targetTitle: string };
 	type Props = {
@@ -37,34 +38,33 @@
 		base
 	}: Props = $props();
 
-	const chip =
-		'flex items-center gap-1.5 rounded-full bg-black/[0.04] px-2.5 py-1 font-mono text-[11px] text-neutral-500 dark:bg-white/[0.06] dark:text-neutral-400';
+	const fact = 'flex items-center gap-1.5 text-[12px] tabular-nums text-[var(--dim)]';
 	const ci = $derived(ciMeta(githubCiStatus));
 </script>
 
-<div class="flex flex-wrap items-center gap-1.5">
-	<span class={chip} title={new Date(createdAt).toLocaleString()}>
-		<CalendarPlus size={12} /> opened {ago(createdAt)}{#if authorName}&nbsp;by {authorName}{/if}
+<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+	<span class={fact} title={new Date(createdAt).toLocaleString()}>
+		<CalendarPlus size={12} class="text-[var(--faint)]" /> opened {ago(createdAt)}{#if authorName}&nbsp;by {authorName}{/if}
 	</span>
 	{#if closedAt}
-		<span class="{chip} !text-green-600 dark:!text-green-400" title={new Date(closedAt).toLocaleString()}>
+		<span class="{fact} !text-[var(--green)]" title={new Date(closedAt).toLocaleString()}>
 			<CircleCheckBig size={12} /> closed {ago(closedAt)}
 		</span>
 	{:else if column}
-		<span class={chip}><Timer size={12} /> currently in: <strong class="font-semibold text-neutral-700 dark:text-neutral-200">{column.name}</strong></span>
+		<span class="{fact} !text-[var(--amber)]"><Timer size={12} /> in: <strong class="font-semibold">{column.name}</strong></span>
 	{/if}
 	{#if milestone}
-		<span class="{chip} {milestone.state === 'closed' ? 'opacity-60' : ''}"><Milestone size={12} /> {milestone.title}</span>
+		<span class="{fact} {milestone.state === 'closed' ? 'opacity-60' : ''}"><Milestone size={12} class="text-[var(--faint)]" /> {milestone.title}</span>
 	{/if}
 	{#if assignees.length}
-		<span class={chip}>
-			<Users size={12} />
+		<span class={fact}>
+			<Users size={12} class="text-[var(--faint)]" />
 			<span class="flex -space-x-1">
 				{#each assignees.slice(0, 3) as a (a.displayName)}
 					{#if a.avatarUrl}
-						<img src={a.avatarUrl} alt={a.displayName} title={a.displayName} class="size-4 rounded-full ring-1 ring-white dark:ring-neutral-800" />
+						<img src={a.avatarUrl} alt={a.displayName} title={a.displayName} class="size-4 rounded-full ring-1 ring-[var(--ground)]" />
 					{:else}
-						<span class="grid size-4 place-items-center rounded-full bg-neutral-300 text-[8px] font-semibold text-neutral-700 ring-1 ring-white dark:bg-neutral-600 dark:text-neutral-100 dark:ring-neutral-800" title={a.displayName}>{a.displayName.slice(0, 1).toUpperCase()}</span>
+						<span class="grid size-4 place-items-center rounded-full bg-[var(--raised)] text-[8px] font-semibold text-[var(--dim)] ring-1 ring-[var(--ground)]" title={a.displayName}>{a.displayName.slice(0, 1).toUpperCase()}</span>
 					{/if}
 				{/each}
 			</span>
@@ -77,7 +77,7 @@
 			href={`https://github.com/${githubRepo}/pull/${githubPrNumber}`}
 			target="_blank"
 			rel="noreferrer"
-			class="{chip} transition-colors hover:bg-black/[0.08] dark:hover:bg-white/[0.1] {merged ? '!text-violet-500' : githubPrState === 'closed' ? '!text-red-400' : '!text-green-600 dark:!text-green-400'}"
+			class="{fact} transition-colors hover:!text-[var(--accent)] {merged ? '!text-[var(--green)]' : githubPrState === 'closed' ? '!text-[var(--faint)]' : '!text-[var(--dim)]'}"
 		>
 			{#if merged}<GitMerge size={12} />{:else}<GitPullRequest size={12} />{/if}
 			PR #{githubPrNumber}{githubPrState ? ` · ${githubPrState}` : ''}
@@ -89,22 +89,22 @@
 			href={`https://github.com/${githubRepo}/issues/${githubIssueNumber}`}
 			target="_blank"
 			rel="noreferrer"
-			class="{chip} transition-colors hover:bg-black/[0.08] dark:hover:bg-white/[0.1]"
+			class="{fact} transition-colors hover:!text-[var(--accent)]"
 		>
-			<Link2 size={12} /> issue #{githubIssueNumber}
+			<Link2 size={12} class="text-[var(--faint)]" /> issue #{githubIssueNumber}
 		</a>
 	{/if}
 </div>
 
 {#if relations.length}
-	<ul class="mt-2.5 space-y-1">
+	<ul class="mt-3 space-y-1">
 		{#each relations as r (r.id)}
 			<li>
-				<a href={`${base}/t/${r.targetNumber}`} class="group flex items-center gap-1.5 text-xs text-neutral-500 hover:text-[var(--accent-fg)] dark:text-neutral-400">
-					<Link2 size={11} class="shrink-0" />
+				<a href={`${base}/t/${r.targetNumber}`} class="mono-focus group flex items-center gap-1.5 text-[12px] text-[var(--dim)] transition-colors hover:text-[var(--accent)]">
+					<Link2 size={11} class="shrink-0 text-[var(--faint)]" />
 					{r.label}
-					<span class="font-mono">#{r.targetNumber}</span>
-					<span class="truncate group-hover:underline">— {r.targetTitle}</span>
+					<span class="tabular-nums text-[var(--faint)]">#{r.targetNumber}</span>
+					<span class="truncate">— {r.targetTitle}</span>
 				</a>
 			</li>
 		{/each}

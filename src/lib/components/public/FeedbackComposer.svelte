@@ -130,13 +130,13 @@
 	);
 </script>
 
-<div class="pub-card ot-rise overflow-hidden rounded-3xl" id="post">
+<div class="mono-composer" id="post">
 	{#if canSubmit}
-		<form method="POST" action="?/submit" use:enhance class="p-4 sm:p-5">
+		<form method="POST" action="?/submit" use:enhance class="ot-rise">
 			<input type="hidden" name="kind" value={kind} />
-			<div class="flex flex-wrap items-center justify-between gap-2">
-				<h2 class="type-poster text-lg">{kindCopy[kind].prompt}</h2>
-				<div class="flex gap-1 rounded-full bg-black/5 p-0.5 dark:bg-white/10">
+			<div class="flex flex-wrap items-center justify-between gap-3">
+				<h2 class="mono-display text-lg text-[var(--text)]">{kindCopy[kind].prompt}</h2>
+				<div class="flex gap-2">
 					{#each SUGGESTION_KINDS as k (k)}
 						{@const meta = SUGGESTION_KIND_META[k]}
 						{@const Icon = meta.icon}
@@ -145,12 +145,11 @@
 							onclick={() => (kind = k)}
 							aria-pressed={kind === k}
 							class={cn(
-								'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-all',
+								'mono-focus flex items-center gap-1.5 border px-3 py-1 text-[12px] transition-colors',
 								kind === k
-									? 'bg-white shadow-sm dark:bg-neutral-700'
-									: 'text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200'
+									? 'border-[var(--accent)] text-[var(--accent)]'
+									: 'border-[var(--rule)] text-[var(--dim)] hover:text-[var(--text)]'
 							)}
-							style={kind === k ? `color:${meta.color}` : ''}
 						>
 							<Icon size={13} /> {meta.label}
 						</button>
@@ -158,7 +157,7 @@
 				</div>
 			</div>
 
-			<div class="mt-3" bind:this={titleEl}>
+			<div class="mt-4" bind:this={titleEl}>
 				<Input
 					name="title"
 					bind:value={title}
@@ -166,8 +165,8 @@
 					required
 					onfocus={() => (expanded = true)}
 				/>
-				{#if error}<p class="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">{error}</p>{/if}
-				{#if draftRestored}<p class="mt-1.5 font-mono text-[11px] text-[var(--accent-fg)]">Draft restored</p>{/if}
+				{#if error}<p class="mt-1.5 text-[12px] text-[var(--amber)]">{error}</p>{/if}
+				{#if draftRestored}<p class="mt-1.5 text-[11px] text-[var(--accent)]">Draft restored</p>{/if}
 			</div>
 
 			<!-- Reveal via grid-rows so height animates without JS measurement. -->
@@ -175,16 +174,16 @@
 				<div class="min-h-0 overflow-hidden">
 					{#if (similar.length || similarTickets.length) && !dismissed}
 						<!-- Announced via the shared LiveRegion (announce()), not a second live region. -->
-						<div class="mt-3 rounded-2xl bg-black/[0.03] p-3 dark:bg-white/[0.04]">
+						<div class="mt-4 border-t border-[var(--rule)] pt-3">
 							<div class="flex items-baseline justify-between gap-2">
-								<p class="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
-									Sound familiar? A vote gets it there faster than a duplicate.
+								<p class="text-[11px] tracking-[0.14em] text-[var(--faint)] uppercase">
+									// sound familiar? a vote beats a duplicate
 								</p>
-								<button type="button" onclick={() => (dismissed = true)} class="shrink-0 text-[11px] font-medium text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
-									None of these — keep writing
+								<button type="button" onclick={() => (dismissed = true)} class="mono-focus shrink-0 text-[11px] text-[var(--faint)] transition-colors hover:text-[var(--dim)]">
+									none of these — keep writing
 								</button>
 							</div>
-							<div class="mt-2 space-y-1.5">
+							<div class="mt-2.5 space-y-1.5">
 								{#each similar as sim (sim.id)}
 									{@const kindMeta = SUGGESTION_KIND_META[sim.kind as keyof typeof SUGGESTION_KIND_META]}
 									{@const KindIcon = kindMeta?.icon}
@@ -201,36 +200,36 @@
 										<a
 											href={`${base}/suggestions/${sim.id}`}
 											onclick={stashDraft}
-											class="min-w-0 flex-1"
+											class="mono-focus min-w-0 flex-1"
 										>
-											<span class="flex items-center gap-1.5 truncate text-sm font-medium hover:text-[var(--accent-fg)]">
+											<span class="flex items-center gap-1.5 truncate text-[14px] text-[var(--text)] transition-colors hover:text-[var(--accent)]">
 												{#if KindIcon}<KindIcon size={12} style={`color:${kindMeta.color}`} class="shrink-0" />{/if}
 												<span class="truncate">{sim.title}</span>
 												{#if sim.status !== 'open'}
-													<span class="shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold" style={`background:${SUGGESTION_STATUS_META[sim.status as keyof typeof SUGGESTION_STATUS_META]?.color}1e;color:${SUGGESTION_STATUS_META[sim.status as keyof typeof SUGGESTION_STATUS_META]?.color}`}>{SUGGESTION_STATUS_META[sim.status as keyof typeof SUGGESTION_STATUS_META]?.label}</span>
+													<span class="shrink-0 text-[10px] tracking-wide uppercase" style={`color:${SUGGESTION_STATUS_META[sim.status as keyof typeof SUGGESTION_STATUS_META]?.color}`}>{SUGGESTION_STATUS_META[sim.status as keyof typeof SUGGESTION_STATUS_META]?.label}</span>
 												{/if}
 											</span>
 											{#if backedIds.includes(sim.id)}
-												<span class="font-mono text-[11px] text-[var(--accent-fg)]">Backed. You can still post yours if it's different.</span>
+												<span class="text-[11px] text-[var(--accent)]">Backed. You can still post yours if it's different.</span>
 											{/if}
 										</a>
 									</div>
 								{/each}
 								{#each similarTickets as tk (tk.number)}
-									<a href={`${base}/t/${tk.number}`} onclick={stashDraft} class="flex items-center gap-2 rounded-lg px-1 py-1 text-sm hover:bg-black/[0.03] dark:hover:bg-white/[0.06]">
-										<span class="font-mono text-xs text-neutral-400">#{tk.number}</span>
-										<span class="min-w-0 flex-1 truncate">{tk.title}</span>
-										<span class="shrink-0 font-mono text-[10px] text-neutral-400">{tk.closed ? 'already shipped' : 'already tracked'}</span>
+									<a href={`${base}/t/${tk.number}`} onclick={stashDraft} class="mono-focus flex items-center gap-2 py-1 text-[14px] text-[var(--dim)] transition-colors hover:text-[var(--accent)]">
+										<span class="tabular-nums text-[var(--faint)]">#{tk.number}</span>
+										<span class="min-w-0 flex-1 truncate text-[var(--text)]">{tk.title}</span>
+										<span class="shrink-0 text-[10px] tabular-nums text-[var(--faint)]">{tk.closed ? 'already shipped' : 'already tracked'}</span>
 									</a>
 								{/each}
 							</div>
 						</div>
 					{/if}
 
-					<div class="mt-3"><Textarea name="body" bind:value={body} rows={3} placeholder={kindCopy[kind].detail} /></div>
-					<div class="mt-3 flex items-center justify-between gap-2">
-						<p class="hidden text-xs text-neutral-400 sm:block">Posting as you — others can vote and comment.</p>
-						<Button variant="accent" type="submit" disabled={!title.trim()} class="ml-auto rounded-full px-4">
+					<div class="mt-4"><Textarea name="body" bind:value={body} rows={3} placeholder={kindCopy[kind].detail} /></div>
+					<div class="mt-4 flex items-center justify-between gap-2">
+						<p class="hidden text-[12px] text-[var(--faint)] sm:block">Posting as you — others can vote and comment.</p>
+						<Button variant="accent" type="submit" disabled={!title.trim()} class="mono-cta ml-auto">
 							<Send size={14} /> Post {kind === 'bug' ? 'bug report' : 'idea'}
 						</Button>
 					</div>
@@ -238,16 +237,54 @@
 			</div>
 		</form>
 	{:else}
-		<div class="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
+		<div class="flex flex-wrap items-center justify-between gap-3">
 			<div>
-				<h2 class="type-poster text-lg">Have an idea? Spotted a bug?</h2>
-				<p class="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+				<h2 class="mono-display text-lg text-[var(--text)]">Have an idea? Spotted a bug?</h2>
+				<p class="mt-1 text-[12px] text-[var(--dim)]">
 					Sign in to join in — it takes one click. Upvoting works without an account.
 				</p>
 			</div>
-			<Button variant="accent" size="sm" href={loginHref} class="rounded-full px-4">
+			<Button variant="accent" size="sm" href={loginHref} class="mono-cta">
 				<Sparkles size={13} /> Sign in
 			</Button>
 		</div>
 	{/if}
 </div>
+
+<style>
+	/* The shared Input/Textarea/Button carry the app's light/dark chrome; inside
+	   the composer we recolour their real elements to the flat mono language. The
+	   selectors out-specify Tailwind's theme utilities (incl. dark: variants), so
+	   no !important is needed. */
+	.mono-composer :global(input),
+	.mono-composer :global(textarea) {
+		border-radius: 3px;
+		border-color: var(--rule);
+		background: var(--raised);
+		color: var(--text);
+		font-family: var(--font-jb);
+		font-size: 14px;
+	}
+	.mono-composer :global(input)::placeholder,
+	.mono-composer :global(textarea)::placeholder {
+		color: var(--faint);
+	}
+	.mono-composer :global(input:focus-visible),
+	.mono-composer :global(textarea:focus-visible) {
+		border-color: var(--accent);
+		outline: none;
+		box-shadow: 0 0 0 1px var(--accent);
+	}
+
+	/* The one primary action per view — flat cobalt, mono type. */
+	.mono-composer :global(.mono-cta) {
+		border-radius: 3px;
+		background: var(--accent);
+		color: var(--ground);
+		font-family: var(--font-jb);
+		font-weight: 400;
+	}
+	.mono-composer :global(.mono-cta:hover:not(:disabled)) {
+		background: color-mix(in srgb, var(--accent) 88%, white);
+	}
+</style>

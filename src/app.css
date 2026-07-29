@@ -110,9 +110,13 @@
 }
 
 /* Floating dark rail — always dark in both themes (the reference's signature).
-   Used by the app Sidebar. */
+   Used by the app Sidebar. Solid background-color first so the rail never
+   depends solely on the gradient resolving (e.g. if --color-rail/-2 fail to
+   compute) — without it, a lost gradient exposes the light --ot-ground page
+   background and turns every near-white nav label into ghost-on-ghost. */
 .ot-rail {
-	background: var(--ot-rail);
+	background-color: oklch(0.26 0.022 261);
+	background-image: var(--ot-rail);
 	box-shadow: var(--ot-shadow-rail);
 	color: oklch(0.92 0.004 65);
 }
@@ -298,4 +302,775 @@ html {
 	::view-transition-group(*) {
 		animation: none;
 	}
+}
+
+/* ---- App design language ------------------------------------------------
+   Internal-surface utilities: mono data voice, hairline borders, restrained
+   cobalt glow at interaction points. Additive — nothing above this line
+   changes. */
+
+:root {
+	--ot-hairline: oklch(0 0 0 / 0.06);
+}
+:root[data-theme='dark'] {
+	--ot-hairline: oklch(1 0 0 / 0.08);
+}
+/* The rail is dark in both themes, so hairlines inside it use the dark token. */
+.ot-rail {
+	--ot-hairline: oklch(1 0 0 / 0.08);
+}
+
+/* Data voice — every numeral, id, count, date, version, status fragment. */
+.data-mono {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	letter-spacing: -0.01em;
+	font-variant-numeric: tabular-nums;
+	font-feature-settings: 'tnum';
+}
+
+/* Hairline borders — the one border for internal cards and dividers. */
+.hairline {
+	border: 1px solid var(--ot-hairline);
+}
+.hairline-t {
+	border-top: 1px solid var(--ot-hairline);
+}
+.hairline-b {
+	border-bottom: 1px solid var(--ot-hairline);
+}
+.hairline-l {
+	border-left: 1px solid var(--ot-hairline);
+}
+.hairline-r {
+	border-right: 1px solid var(--ot-hairline);
+}
+
+/* Blueprint dot ground — rail pegboard + internal empty-state wells ONLY.
+   Dots ride currentColor at 3% so the texture reads on any ground. */
+.texture-dots {
+	background-image: radial-gradient(color-mix(in oklab, currentColor 3%, transparent) 1px, transparent 1px);
+	background-size: 12px 12px;
+}
+
+/* Interactive-card idiom: hairline at rest, accent ring + soft glow on
+   hover/focus-within. Replaces SpotlightCard on internal tiles. */
+.glow-int {
+	border: 1px solid var(--ot-hairline);
+	transition:
+		border-color 120ms var(--ease-swift),
+		box-shadow 120ms var(--ease-swift);
+}
+.glow-int:hover,
+.glow-int:focus-within {
+	border-color: var(--accent-border);
+	box-shadow:
+		0 0 0 1px var(--accent-border),
+		0 4px 24px -12px var(--accent-glow);
+}
+
+/* Sharp focus ring — standard on every kit focusable. Outline follows the
+   element's border-radius natively. */
+.focus-ring:focus-visible {
+	outline: 2px solid var(--accent-solid);
+	outline-offset: 2px;
+}
+
+/* Scan divider — hairline rule with an optional mono uppercase label sitting
+   on it (day dividers in feeds/inbox, section breaks in the peek). Empty
+   element renders as a plain full-width rule. */
+.divider-scan {
+	@apply flex items-center gap-3 text-neutral-500 dark:text-neutral-400;
+	font-family: var(--font-mono);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+.divider-scan::before,
+.divider-scan::after {
+	content: '';
+	height: 1px;
+	background: var(--ot-hairline);
+}
+.divider-scan::before {
+	flex: none;
+	width: 12px;
+}
+.divider-scan::after {
+	flex: 1;
+}
+.divider-scan:empty {
+	gap: 0;
+}
+
+/* Coarse-pointer hit floor for icon-only buttons: visual 28–32px, effective
+   hit ≥40×40px. */
+@media (pointer: coarse) {
+	.hit {
+		min-width: 40px;
+		min-height: 40px;
+	}
+}
+
+/* Width scale for internal content wells. */
+.view-3xl {
+	@apply mx-auto w-full max-w-3xl px-4 py-6;
+}
+.view-4xl {
+	@apply mx-auto w-full max-w-4xl px-4 py-6;
+}
+.view-5xl {
+	@apply mx-auto w-full max-w-5xl px-4 py-6;
+}
+
+/* Paused-state cue chip (drag paused — filters / selecting). */
+.chip-paused {
+	@apply inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-amber-600 dark:border-amber-400/25 dark:text-amber-400;
+	font-family: var(--font-mono);
+	font-size: 11px;
+	letter-spacing: -0.01em;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Thin, always-visible scrollbar for board scrollers (column wells + the
+   horizontal board scroller). Firefox via scrollbar-*, WebKit via pseudos. */
+.ot-scrollbar {
+	scrollbar-width: thin;
+	scrollbar-color: oklch(0 0 0 / 0.25) transparent;
+}
+:root[data-theme='dark'] .ot-scrollbar {
+	scrollbar-color: oklch(1 0 0 / 0.22) transparent;
+}
+.ot-scrollbar::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+.ot-scrollbar::-webkit-scrollbar-track {
+	background: transparent;
+}
+.ot-scrollbar::-webkit-scrollbar-thumb {
+	border-radius: 4px;
+	background: oklch(0 0 0 / 0.25);
+}
+:root[data-theme='dark'] .ot-scrollbar::-webkit-scrollbar-thumb {
+	background: oklch(1 0 0 / 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.glow-int {
+		transition: none;
+	}
+}
+
+/* ==== Public mono skin (.ot-mono) =========================================
+   The high-contrast, monospace-led aesthetic of the landing (.land-mono),
+   repackaged as a REUSABLE scope so the public layout can flip its whole
+   content subtree to it — every public product page + shared component then
+   inherits one continuous mono experience (clicking "See the live demo" into a
+   project stays in the same document/manifesto look).
+
+   Flat colours only — no gradients, no soft shadows. Hierarchy comes from type,
+   space and hairline rules, not filled cards. The palette tokens below are the
+   fixed, WCAG-checked values from the mono spec; nothing dimmer than --faint
+   carries real text. Everything is gated under .ot-mono, so the internal app —
+   which never wears this class — is completely untouched. Append-only. */
+.ot-mono {
+	--ground: #0b0b0c;
+	--raised: #141416;
+	--text: #ecece6;
+	--dim: #9a9a93;
+	--faint: #7d7d76;
+	--rule: rgba(255, 255, 255, 0.09);
+	--accent: #3b5bff;
+	--green: #3fb950;
+	--amber: #d29922;
+
+	--font-space: 'Space Mono', ui-monospace, 'SF Mono', monospace;
+	--font-jb: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', monospace;
+
+	background: var(--ground);
+	color: var(--text);
+	font-family: var(--font-jb);
+	font-size: 15px;
+	line-height: 1.55;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* Display voice — Space Mono 700, tight. */
+.ot-mono .mono-display {
+	font-family: var(--font-space);
+	font-weight: 700;
+	letter-spacing: -0.01em;
+}
+
+/* One consistent cobalt focus ring across interactive elements on mono pages. */
+.ot-mono .mono-focus:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+/* Thin, quiet scrollbars (Firefox scrollbar-* + WebKit pseudos). */
+.ot-mono .mono-scroll {
+	scrollbar-width: thin;
+	scrollbar-color: var(--faint) transparent;
+}
+.ot-mono .mono-scroll::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+.ot-mono .mono-scroll::-webkit-scrollbar-track {
+	background: transparent;
+}
+.ot-mono .mono-scroll::-webkit-scrollbar-thumb {
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--faint) 60%, transparent);
+}
+
+/* Hairline helper — a rule in the mono ground colour. Pages may also use
+   Tailwind's border-[var(--rule)] directly (the var resolves inside scope). */
+.ot-mono .mono-rule {
+	border-color: var(--rule);
+}
+
+/* ---- Shared interactive components, re-skinned inside .ot-mono ------------
+   UpvoteButton / ReactionBar / WatchButton are ALSO used by the internal app,
+   so these overrides are gated on .ot-mono and never touch the component files.
+   They key off each component's stable title / aria-label, so ANY usage inside
+   a mono page auto-adopts the flat look — no per-page wrapper required, and the
+   forced colours read on the dark ground regardless of the visitor's app theme
+   (the components' light-mode neutrals would otherwise vanish). Backgrounds
+   carry !important to beat UpvoteButton's inline voted-state gradient — the
+   mono skin bans gradients. */
+
+/* UpvoteButton → flat mono [▲ N] counter. */
+.ot-mono button[title='Upvote'],
+.ot-mono button[title='Remove your vote'],
+.ot-mono button[title^='Voting is closed'] {
+	gap: 4px;
+	min-width: 3.4rem;
+	border: 1px solid var(--rule);
+	border-radius: 3px;
+	background: transparent !important;
+	padding: 3px 8px;
+	font-family: var(--font-jb);
+	font-size: 13px;
+	font-weight: 400;
+	letter-spacing: 0;
+	color: var(--dim);
+	box-shadow: none !important;
+	transform: none !important;
+	transition:
+		color 0.15s,
+		border-color 0.15s;
+}
+/* Swap the lucide chevron for a solid ▲ so the counter reads exactly [▲ N]. */
+.ot-mono button[title='Upvote'] svg,
+.ot-mono button[title='Remove your vote'] svg,
+.ot-mono button[title^='Voting is closed'] svg {
+	display: none;
+}
+.ot-mono button[title='Upvote']::before,
+.ot-mono button[title='Remove your vote']::before,
+.ot-mono button[title^='Voting is closed']::before {
+	content: '▲';
+	font-size: 9px;
+	line-height: 1;
+}
+.ot-mono button[title='Upvote']:hover:not(:disabled),
+.ot-mono button[title='Remove your vote']:hover:not(:disabled) {
+	border-color: var(--accent);
+	color: var(--accent);
+}
+/* Voted (aria-pressed=true) — the one place cobalt lands on this control. */
+.ot-mono button[title='Remove your vote'] {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.ot-mono button[title^='Voting is closed']:disabled {
+	opacity: 0.5;
+}
+
+/* Optional [ … ] bracket frame — mirror MonoFeedback. Wrap the button in
+   .vote-mono for the literal [▲ N] motif; without it the bordered chip alone
+   still reads mono. Scoped to .ot-mono, so it never collides with the landing. */
+.ot-mono .vote-mono {
+	display: inline-flex;
+	align-items: center;
+	font-family: var(--font-jb);
+	color: var(--faint);
+}
+.ot-mono .vote-mono::before {
+	content: '[';
+	margin-right: 3px;
+}
+.ot-mono .vote-mono::after {
+	content: ']';
+	margin-left: 3px;
+}
+
+/* WatchButton → flat mono pill; cobalt when watching. */
+.ot-mono button[title='Watch for updates'],
+.ot-mono button[title='Stop watching'] {
+	gap: 6px;
+	border: 1px solid var(--rule);
+	border-radius: 3px;
+	background: transparent !important;
+	padding: 3px 8px;
+	font-family: var(--font-jb);
+	font-size: 12px;
+	font-weight: 400;
+	color: var(--dim);
+	box-shadow: none !important;
+	transition:
+		color 0.15s,
+		border-color 0.15s;
+}
+.ot-mono button[title='Watch for updates']:hover {
+	border-color: var(--accent);
+	color: var(--accent);
+}
+.ot-mono button[title='Stop watching'] {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* ReactionBar → flat mono chips; cobalt when reacted. */
+.ot-mono button[title='React'],
+.ot-mono button[title='Remove reaction'],
+.ot-mono button[title^='React with'],
+.ot-mono button[aria-label='Add reaction'],
+.ot-mono button[aria-label^='React with'] {
+	border: 1px solid var(--rule);
+	border-radius: 3px;
+	background: transparent !important;
+	color: var(--dim);
+	font-family: var(--font-jb);
+	font-variant-numeric: tabular-nums;
+	transition:
+		color 0.15s,
+		border-color 0.15s;
+}
+.ot-mono button[title='React']:hover,
+.ot-mono button[title^='React with']:hover,
+.ot-mono button[aria-label='Add reaction']:hover,
+.ot-mono button[aria-label^='React with']:hover {
+	border-color: var(--accent);
+	color: var(--accent);
+}
+.ot-mono button[title='Remove reaction'] {
+	color: var(--accent);
+	border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* Shared cobalt focus ring for every re-skinned control above. */
+.ot-mono button[title='Upvote']:focus-visible,
+.ot-mono button[title='Remove your vote']:focus-visible,
+.ot-mono button[title^='Voting is closed']:focus-visible,
+.ot-mono button[title='Watch for updates']:focus-visible,
+.ot-mono button[title='Stop watching']:focus-visible,
+.ot-mono button[title='React']:focus-visible,
+.ot-mono button[title='Remove reaction']:focus-visible,
+.ot-mono button[title^='React with']:focus-visible,
+.ot-mono button[aria-label='Add reaction']:focus-visible,
+.ot-mono button[aria-label^='React with']:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+/* Flatten any shared floating card (e.g. WatchButton's sign-in nudge) to a mono
+   panel — no rounded card soup, no soft shadow, and body copy forced onto the
+   dark ground so it survives a light-theme visitor. */
+.ot-mono .pub-card {
+	border-radius: 4px;
+	border-color: var(--rule);
+	background: var(--raised);
+	box-shadow: none;
+	color: var(--text);
+}
+.ot-mono .pub-card p {
+	color: var(--dim);
+}
+
+/* ==== App mono skin — .ot-mono re-themes the signed-in app ==================
+   FOUNDATION. When the app shell carries .ot-mono, the floating-panel chrome
+   (gradient ground, dark rail, per-project accent, soft cards) flattens to the
+   fixed high-contrast mono language and every UI-kit primitive inherits it, so
+   kit-based pages convert automatically. Two layers:
+     1) core surface + accent + brand tokens forced to mono cobalt / flat ink;
+     2) re-skins for the kit primitives, keyed on each component's stable
+        classes / roles / data-attrs (the component files are never edited).
+   Everything is gated under .ot-mono, so the internal app is untouched until a
+   subtree opts in, and the already-mono public pages inherit these too (fine —
+   they stay mono). Append-only. Unlayered rules beat Tailwind's utility layer.
+   -------------------------------------------------------------------------- */
+
+/* 1a) Core surface tokens → flat mono ink. The layout applies the ground via an
+   inline `background:var(--ot-ground)`, and the Sidebar rail reads --ot-rail /
+   --color-rail — remapping the tokens flattens both without touching markup. */
+.ot-mono {
+	--ot-ground: var(--ground);
+	--ot-rail: var(--raised);
+	--color-ground-1: var(--ground);
+	--color-ground-2: var(--ground);
+	--color-rail: var(--raised);
+	--color-rail-2: var(--raised);
+	--ot-shadow-float: none;
+	--ot-shadow-rail: none;
+	/* Internal hairline token → the mono rule colour (drives .hairline / .glow-int). */
+	--ot-hairline: var(--rule);
+	/* Fixed cobalt accent. `!important` beats the per-project inline `--accent`
+	   when .ot-mono sits on the same node as .accent-scope — the one sanctioned
+	   inline-beating case; the mono app is always cobalt, never per-project. */
+	--accent: #3b5bff !important;
+}
+
+/* 1b) Derived accent tokens → explicit mono cobalt. Set literally (not derived
+   from var(--accent)) so a descendant .ot-mono subtree overrides the per-project
+   values inherited from an ancestor .accent-scope, and so they beat the
+   .accent-scope / @supports derivations by source order on the same element. */
+.ot-mono {
+	--accent-fg: #7f93ff;
+	--accent-solid: #3b5bff;
+	--accent-solid-hover: #5670ff;
+	--accent-soft: color-mix(in srgb, #3b5bff 16%, transparent);
+	--accent-wash: color-mix(in srgb, #3b5bff 9%, transparent);
+	--accent-border: color-mix(in srgb, #3b5bff 38%, transparent);
+	--accent-glow: color-mix(in srgb, #3b5bff 34%, transparent);
+}
+
+/* 1c) Brand ramp → a cobalt monochrome ramp. The app's brand-* utilities
+   (bg-brand-500, text-brand-600, border-brand-500, bg-brand-50 …) all resolve
+   through these vars, so remapping them flips every brand accent to cobalt in
+   one move. Public pages never use brand utilities, so they're unaffected. */
+.ot-mono {
+	--color-brand-50: color-mix(in srgb, #3b5bff 12%, transparent);
+	--color-brand-100: color-mix(in srgb, #3b5bff 20%, transparent);
+	--color-brand-200: #9db0ff;
+	--color-brand-400: #6d86ff;
+	--color-brand-500: #3b5bff;
+	--color-brand-600: #3b5bff;
+	--color-brand-700: #5670ff;
+}
+
+/* 1d) Type voices — force mono everywhere, and the display voice to Space Mono. */
+.ot-mono .font-sans {
+	font-family: var(--font-jb);
+}
+.ot-mono .font-display,
+.ot-mono .type-poster {
+	font-family: var(--font-space);
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	font-variation-settings: normal;
+}
+
+/* ---- 2) UI-KIT PRIMITIVES ------------------------------------------------- */
+
+/* Text neutrals → the mono greyscale (fixes dark-on-dark: the app hardcodes
+   mono dark regardless of the visitor's data-theme, so light-mode neutral text
+   must be lifted). Targets the classes directly, never the shared --color-*
+   var, so background neutrals of the same step are left alone. */
+.ot-mono .text-neutral-900,
+.ot-mono .text-neutral-800,
+.ot-mono .text-neutral-700 {
+	color: var(--text);
+}
+.ot-mono .text-neutral-600,
+.ot-mono .text-neutral-500,
+.ot-mono .text-neutral-300 {
+	color: var(--dim);
+}
+.ot-mono .text-neutral-400 {
+	color: var(--faint);
+}
+/* Semantic status text → the mono status hues. */
+.ot-mono .text-green-700,
+.ot-mono .text-green-600 {
+	color: var(--green);
+}
+.ot-mono .text-amber-600 {
+	color: var(--amber);
+}
+.ot-mono .text-red-600,
+.ot-mono .text-red-500 {
+	color: #f85149;
+}
+.ot-mono .text-violet-600 {
+	color: #a371f7;
+}
+
+/* Surfaces → flat raised ink (Card / Dialog / Sheet / Popover / Menu / Select
+   popup / Toast / inputs all render a `bg-white … dark:bg-neutral-900` panel). */
+.ot-mono .bg-white,
+.ot-mono .bg-neutral-900,
+.ot-mono .dark\:bg-neutral-900 {
+	background-color: var(--raised);
+}
+.ot-mono .bg-white\/90,
+.ot-mono .dark\:bg-neutral-900\/90 {
+	background-color: color-mix(in srgb, var(--raised) 90%, transparent);
+}
+
+/* Neutral hairlines → the mono rule colour. */
+.ot-mono .border-neutral-200,
+.ot-mono .border-neutral-300,
+.ot-mono .border-neutral-700,
+.ot-mono .border-neutral-800,
+.ot-mono .dark\:border-neutral-700,
+.ot-mono .dark\:border-neutral-800 {
+	border-color: var(--rule);
+}
+
+/* Soft shadows are banned — hairlines + the dimmed backdrop carry separation. */
+.ot-mono .shadow-sm,
+.ot-mono .shadow,
+.ot-mono .shadow-md,
+.ot-mono .shadow-lg,
+.ot-mono .shadow-xl,
+.ot-mono .shadow-2xl {
+	box-shadow: none;
+}
+
+/* Rings → mono (avatar seams to the ground; chrome rings to the hairline). */
+.ot-mono .ring-white,
+.ot-mono .dark\:ring-neutral-900 {
+	--tw-ring-color: var(--ground);
+}
+.ot-mono .ring-black\/5,
+.ot-mono .ring-black\/10,
+.ot-mono .dark\:ring-white\/5,
+.ot-mono .dark\:ring-white\/10 {
+	--tw-ring-color: var(--rule);
+}
+
+/* Neutral interactive fills (hover / active rows, active tab pill, active
+   option, +N chip, skeleton) → one subtle mono wash. */
+.ot-mono .bg-neutral-50,
+.ot-mono .bg-neutral-100,
+.ot-mono .bg-neutral-200,
+.ot-mono .bg-neutral-200\/70,
+.ot-mono .bg-neutral-300,
+.ot-mono .dark\:bg-neutral-800,
+.ot-mono .dark\:bg-neutral-800\/60,
+.ot-mono .dark\:bg-neutral-700,
+.ot-mono .hover\:bg-neutral-50:hover,
+.ot-mono .hover\:bg-neutral-100:hover,
+.ot-mono .focus\:bg-neutral-100:focus,
+.ot-mono .dark\:hover\:bg-neutral-800:hover,
+.ot-mono .dark\:hover\:bg-neutral-800\/60:hover,
+.ot-mono .dark\:focus\:bg-neutral-800:focus {
+	background-color: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+/* Button — flat mono. Hook: the kit Button's unique `active:scale-[0.98]`
+   (survives tailwind-merge on both <button> and <a>). */
+.ot-mono .active\:scale-\[0\.98\] {
+	font-family: var(--font-jb);
+	font-weight: 500;
+	letter-spacing: -0.01em;
+}
+.ot-mono .active\:scale-\[0\.98\]:not(.rounded-full) {
+	border-radius: 3px;
+}
+/* default → hairline chip on the ground */
+.ot-mono .active\:scale-\[0\.98\].bg-white {
+	background-color: transparent;
+	border-color: var(--rule);
+	color: var(--text);
+}
+.ot-mono .active\:scale-\[0\.98\].bg-white:hover {
+	background-color: color-mix(in srgb, var(--text) 8%, transparent);
+	border-color: color-mix(in srgb, var(--text) 22%, transparent);
+}
+/* ghost → text only */
+.ot-mono .active\:scale-\[0\.98\].text-neutral-600 {
+	color: var(--dim);
+}
+.ot-mono .active\:scale-\[0\.98\].text-neutral-600:hover {
+	background-color: color-mix(in srgb, var(--text) 8%, transparent);
+	color: var(--text);
+}
+/* primary + accent → the one cobalt fill: ground text, inverts on hover */
+.ot-mono .active\:scale-\[0\.98\].bg-brand-600,
+.ot-mono .active\:scale-\[0\.98\].bg-\[var\(--accent-solid\)\] {
+	background-color: var(--accent);
+	border: 1px solid var(--accent);
+	color: var(--ground);
+}
+.ot-mono .active\:scale-\[0\.98\].bg-brand-600:hover,
+.ot-mono .active\:scale-\[0\.98\].bg-\[var\(--accent-solid\)\]:hover {
+	background-color: transparent;
+	color: var(--accent);
+}
+/* danger → outlined mono red */
+.ot-mono .active\:scale-\[0\.98\].bg-red-600 {
+	background-color: transparent;
+	border: 1px solid color-mix(in srgb, #f85149 45%, transparent);
+	color: #f85149;
+}
+.ot-mono .active\:scale-\[0\.98\].bg-red-600:hover {
+	background-color: color-mix(in srgb, #f85149 14%, transparent);
+	border-color: #f85149;
+	color: #f85149;
+}
+
+/* Card — flat panel: raised bg (via .bg-white above), hairline (via
+   --ot-hairline), sharp corners, no shadow. */
+.ot-mono .rounded-xl.bg-white {
+	border-radius: 4px;
+	box-shadow: none;
+}
+
+/* Badge — mono chip; muted neutral, or the semantic status hue as a flat tint.
+   Keyed on each tone's border class (also styles the paused-drag chip: mono
+   amber, which is correct). The accent tone already rides mono --accent-* vars. */
+.ot-mono .border-neutral-500\/20 {
+	color: var(--dim);
+	background-color: transparent;
+	border-color: var(--rule);
+}
+.ot-mono .border-green-500\/25 {
+	color: var(--green);
+	background-color: color-mix(in srgb, var(--green) 12%, transparent);
+	border-color: color-mix(in srgb, var(--green) 32%, transparent);
+}
+.ot-mono .border-amber-500\/25 {
+	color: var(--amber);
+	background-color: color-mix(in srgb, var(--amber) 12%, transparent);
+	border-color: color-mix(in srgb, var(--amber) 32%, transparent);
+}
+.ot-mono .border-red-500\/25 {
+	color: #f85149;
+	background-color: color-mix(in srgb, #f85149 12%, transparent);
+	border-color: color-mix(in srgb, #f85149 32%, transparent);
+}
+.ot-mono .border-violet-500\/25 {
+	color: #a371f7;
+	background-color: color-mix(in srgb, #a371f7 12%, transparent);
+	border-color: color-mix(in srgb, #a371f7 32%, transparent);
+}
+
+/* Input / Textarea / Select trigger — dark raised field, hairline, cobalt focus.
+   Excludes checkbox/radio (styled separately) and leaves hidden inputs alone. */
+.ot-mono input:not([type='checkbox']):not([type='radio']),
+.ot-mono textarea,
+.ot-mono [role='combobox'] {
+	background-color: var(--raised);
+	border-color: var(--rule);
+	color: var(--text);
+	border-radius: 3px;
+	font-family: var(--font-jb);
+}
+.ot-mono input:not([type='checkbox']):not([type='radio'])::placeholder,
+.ot-mono textarea::placeholder,
+.ot-mono .placeholder\:text-neutral-400::placeholder {
+	color: var(--faint);
+}
+.ot-mono input:not([type='checkbox']):not([type='radio']):focus-visible,
+.ot-mono textarea:focus-visible,
+.ot-mono [role='combobox']:focus-visible {
+	border-color: var(--accent);
+	outline: none;
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+/* Select listbox + options */
+.ot-mono [role='listbox'] {
+	background-color: var(--raised);
+	border-color: var(--rule);
+	color: var(--text);
+	border-radius: 4px;
+}
+.ot-mono [role='option'] {
+	color: var(--text);
+	border-radius: 2px;
+}
+
+/* Dialog / Sheet / Popover / Menu / Select panels — flat raised, hairline,
+   sharp-ish corners, no soft shadow. */
+.ot-mono [role='dialog'],
+.ot-mono .ot-menu-panel,
+.ot-mono .ot-popover-panel,
+.ot-mono .ot-select-pop {
+	background-color: var(--raised);
+	border-color: var(--rule);
+	box-shadow: none;
+}
+.ot-mono .ot-menu-panel,
+.ot-mono .ot-popover-panel,
+.ot-mono .ot-select-pop {
+	border-radius: 4px;
+}
+.ot-mono [role='dialog'].rounded-xl {
+	border-radius: 4px;
+}
+
+/* Tabs — inactive dim, active gets the neutral wash (above) + a cobalt
+   underline. Both link- and button-mode active tabs read via the type + wash;
+   the underline is added for the real tablist. */
+.ot-mono [role='tab'][aria-selected='true'] {
+	color: var(--text);
+	box-shadow: inset 0 -2px 0 0 var(--accent);
+	border-radius: 3px 3px 0 0;
+}
+
+/* DropdownMenu items — mono rows; danger stays red. */
+.ot-mono [role='menuitem'] {
+	color: var(--text);
+	border-radius: 2px;
+}
+.ot-mono [role='menuitem']:hover,
+.ot-mono [role='menuitem']:focus,
+.ot-mono [role='menuitem']:focus-visible {
+	background-color: color-mix(in srgb, var(--text) 8%, transparent);
+	color: var(--text);
+}
+.ot-mono [role='menuitem'].text-red-600 {
+	color: #f85149;
+}
+.ot-mono [role='menuitem'].text-red-600:hover,
+.ot-mono [role='menuitem'].text-red-600:focus {
+	background-color: color-mix(in srgb, #f85149 12%, transparent);
+	color: #f85149;
+}
+
+/* Tooltip — mono panel (overrides the default inverted bubble). */
+.ot-mono [role='tooltip'] {
+	background-color: var(--raised);
+	color: var(--text);
+	border: 1px solid var(--rule);
+	border-radius: 3px;
+	box-shadow: none;
+}
+
+/* Checkbox — dark raised box, cobalt when checked (the white tick shows on it). */
+.ot-mono .ot-checkbox {
+	border-radius: 3px;
+}
+.ot-mono .ot-checkbox:not(:checked) {
+	background-color: var(--raised);
+	border-color: var(--rule);
+}
+.ot-mono .ot-checkbox:checked {
+	background-color: var(--accent);
+	border-color: var(--accent);
+}
+
+/* Switch — mono track, cobalt when on, light knob (the knob's `bg-white` was
+   flattened to raised above, so restore it to a bright thumb). */
+.ot-mono [role='switch'] > span {
+	background-color: color-mix(in srgb, var(--text) 20%, transparent);
+}
+.ot-mono [role='switch'][aria-checked='true'] > span {
+	background-color: var(--accent);
+}
+.ot-mono [role='switch'] > span > span {
+	background-color: var(--text);
+	box-shadow: none;
+}
+
+/* Skeleton — mono shimmer (keeps the pulse animation). */
+.ot-mono .animate-pulse {
+	background-color: color-mix(in srgb, var(--text) 10%, transparent);
 }

@@ -1,34 +1,34 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Copy, KeyRound, ExternalLink, Plus } from '@lucide/svelte';
+	import { Copy, KeyRound, ExternalLink } from '@lucide/svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Dialog from '$lib/components/ui/Dialog.svelte';
 	import Field from '$lib/components/ui/Field.svelte';
 	import Input from '$lib/components/ui/Input.svelte';
 	import IntegrationCard from '$lib/components/integrations/IntegrationCard.svelte';
+	import { toast } from '$lib/toast';
 
 	type Provider = (typeof data.providers)[number];
 
 	let { data, form } = $props();
 	const f = $derived(form as Record<string, any> | null);
 
-	// Which provider's config modal is open: a provider selector or '__add__'.
-	let openKey = $state<string | null>(null);
+	// Which provider's detail panel is open below the grid: a provider
+	// selector or '__add__'. Inline panel (project-settings model) — not a
+	// modal, so there's nothing to "close" on save, only to select.
+	let selected = $state<string | null>(null);
 	const selector = (p: Provider) => (p.kind === 'custom' ? `custom:${p.id}` : p.key);
 	const active = $derived<Provider | null>(
-		openKey && openKey !== '__add__' ? (data.providers.find((p) => selector(p) === openKey) ?? null) : null
+		selected && selected !== '__add__' ? (data.providers.find((p) => selector(p) === selected) ?? null) : null
 	);
-	const isAdd = $derived(openKey === '__add__');
+	const isAdd = $derived(selected === '__add__');
 
 	// Track the client id typed in the GitHub modal to flag the App-vs-OAuth mixup.
 	let clientIdDraft = $state('');
 
-	function open(p: Provider) {
+	function select(p: Provider) {
 		clientIdDraft = p.clientId;
-		openKey = selector(p);
-	}
-	function close() {
-		openKey = null;
+		selected = selector(p);
 	}
 	function copy(text: string) {
 		navigator.clipboard?.writeText(text);
@@ -38,96 +38,122 @@
 	}
 	const githubAppIdWarning = (key: string, id: string) => key === 'github' && /^Iv/i.test(id.trim());
 
-	// Close the modal after a successful save/delete (and let `load` refresh data).
 	const onSubmit = () => async ({ update, result }: any) => {
 		await update();
-		if (result.type === 'success') close();
+		if (result.type === 'success') toast('Provider saved.', { tone: 'success' });
 	};
+
+	// Destruction Tier 2 — replaces native confirm(): custom-provider delete and
+	// the builtin "clear the Client ID" removal both submit a real form; the
+	// visible button just gates that submission behind this dialog. No-JS
+	// still works (the button is a real submit, associated via `form=` where
+	// the remove action needs its own standalone form).
+	let confirmOpen = $state(false);
+	let confirmButton = $state<HTMLButtonElement | null>(null);
+	let confirmDesc = $state('');
+	function askRemove(e: MouseEvent, name: string) {
+		e.preventDefault();
+		confirmButton = e.currentTarget as HTMLButtonElement;
+		confirmDesc = `Sign-in via ${name} stops working immediately. You can add it again later.`;
+		confirmOpen = true;
+	}
+	function confirmRemove() {
+		confirmOpen = false;
+		confirmButton?.form?.requestSubmit(confirmButton);
+	}
 </script>
 
-<svelte:head><title>Privacy · Admin · OpenTrack</title></svelte:head>
+<svelte:head><title>Sign-in &amp; OAuth · Admin · OpenTrack</title></svelte:head>
 
-<div class="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
-	<header class="mb-6">
-		<h1 class="text-xl font-semibold tracking-tight">Privacy</h1>
-		<p class="mt-0.5 text-sm text-neutral-500">OAuth login providers for sign-in. Every provider is configured here and stored in the database.</p>
-	</header>
+<header class="mb-6">
+	<h2 class="mono-display text-lg tracking-tight text-[var(--text)]">Sign-in &amp; OAuth</h2>
+	<p class="mt-0.5 text-[13px] text-[var(--dim)]">OAuth login providers for sign-in. Every provider is configured here and stored in the database.</p>
+</header>
 
-	<section class="mb-6">
-		<h2 class="mb-3 flex items-center gap-2 text-sm font-semibold"><KeyRound size={15} /> OAuth login providers</h2>
-		<div class="grid gap-3 sm:grid-cols-2">
-			{#each data.providers as p (selector(p))}
-				<IntegrationCard
-					name={p.name}
-					blurb={p.active ? 'Sign-in enabled.' : p.blurb}
-					icon={p.icon}
-					status={p.active ? 'connected' : 'disconnected'}
-					selected={openKey === selector(p)}
-					onclick={() => open(p)}
-				/>
-			{/each}
+<section class="border-t border-[var(--rule)] pt-6">
+	<p class="mb-3 flex items-center gap-1.5 text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase"><KeyRound size={12} aria-hidden="true" /> OAuth login providers</p>
+	<div class="grid gap-3 sm:grid-cols-2">
+		{#each data.providers as p (selector(p))}
 			<IntegrationCard
-				name="Add provider"
-				blurb="Google, GitLab, Keycloak — any OAuth2 / OIDC."
-				icon="plug"
-				status="disconnected"
-				selected={isAdd}
-				onclick={() => (openKey = '__add__')}
+				name={p.name}
+				blurb={p.active ? 'Sign-in enabled.' : p.blurb}
+				icon={p.icon}
+				status={p.active ? 'connected' : 'disconnected'}
+				selected={selected === selector(p)}
+				onclick={() => select(p)}
 			/>
-		</div>
-	</section>
-</div>
+		{/each}
+		<IntegrationCard
+			name="Add provider"
+			blurb="Google, GitLab, Keycloak — any OAuth2 / OIDC."
+			icon="plug"
+			status="disconnected"
+			selected={isAdd}
+			onclick={() => (selected = '__add__')}
+		/>
+	</div>
+</section>
 
-<Dialog
-	bind:open={() => openKey !== null, (v) => { if (!v) close(); }}
-	title={active ? active.name : 'Add a custom provider'}
-	description={active?.kind === 'builtin' ? 'OAuth login credentials' : 'Any OAuth2 / OpenID Connect provider'}
->
-	{#if f?.error}
-		<p class="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-600 dark:bg-red-950/30 dark:text-red-300">{f.error}</p>
-	{/if}
+{#if active || isAdd}
+	<section class="mt-8 border-t border-[var(--rule)] pt-6">
+		<h3 class="mono-display mb-4 text-[13px] text-[var(--text)]">{active ? active.name : 'Add a custom provider'}</h3>
 
-	{#if active?.kind === 'builtin'}
-		{@const p = active}
-		<form method="POST" action="?/saveBuiltin" use:enhance={onSubmit} class="max-h-[65vh] space-y-4 overflow-y-auto">
-			<input type="hidden" name="key" value={p.key} />
+		{#if f?.error}
+			<p class="mb-3 border border-[color-mix(in_srgb,#f85149_35%,transparent)] bg-[color-mix(in_srgb,#f85149_10%,transparent)] p-3 text-[13px] text-[#f85149]">{f.error}</p>
+		{/if}
 
-			<div class="space-y-1.5 rounded-lg bg-neutral-50 p-3 text-xs dark:bg-neutral-900">
-				<div class="flex items-center gap-2">
-					<span class="w-16 shrink-0 text-neutral-400">Callback</span>
-					<code class="min-w-0 flex-1 truncate">{callbackFor(p.key)}</code>
-					<button type="button" onclick={() => copy(callbackFor(p.key))} aria-label="Copy callback URL"><Copy size={12} /></button>
-				</div>
-				{#if p.meta}
-					<div class="flex items-center gap-3 pt-0.5">
-						<a href={p.meta.consoleUrl} target="_blank" rel="noreferrer" class="flex items-center gap-1 text-brand-600 hover:underline"><ExternalLink size={11} /> Create app</a>
-						<a href={p.meta.docsUrl} target="_blank" rel="noreferrer" class="flex items-center gap-1 text-neutral-500 hover:underline"><ExternalLink size={11} /> Docs</a>
+		{#if active?.kind === 'builtin'}
+			{@const p = active}
+			<form method="POST" action="?/saveBuiltin" use:enhance={onSubmit} class="space-y-4">
+				<input type="hidden" name="key" value={p.key} />
+
+				<div class="space-y-1.5 border border-[var(--rule)] bg-[var(--raised)] p-3 text-[12px]">
+					<div class="flex items-center gap-2">
+						<span class="w-16 shrink-0 text-[var(--faint)]">Callback</span>
+						<code class="data-mono min-w-0 flex-1 truncate text-[var(--text)]">{callbackFor(p.key)}</code>
+						<button type="button" onclick={() => copy(callbackFor(p.key))} aria-label="Copy callback URL" class="mono-focus shrink-0 text-[var(--faint)] transition-colors hover:text-[var(--text)]"><Copy size={12} aria-hidden="true" /></button>
 					</div>
+					{#if p.meta}
+						<div class="flex items-center gap-3 pt-0.5">
+							<a href={p.meta.consoleUrl} target="_blank" rel="noreferrer" class="mono-focus flex items-center gap-1 text-[var(--accent)] hover:underline"><ExternalLink size={11} aria-hidden="true" /> Create app</a>
+							<a href={p.meta.docsUrl} target="_blank" rel="noreferrer" class="mono-focus flex items-center gap-1 text-[var(--faint)] hover:underline"><ExternalLink size={11} aria-hidden="true" /> Docs</a>
+						</div>
+					{/if}
+				</div>
+
+				<Field label="Client ID"><Input name="clientId" bind:value={clientIdDraft} placeholder="client id" /></Field>
+				<Field label="Client secret"><Input name="clientSecret" type="password" placeholder={p.hasSecret ? '•••••• (leave blank to keep)' : 'client secret'} /></Field>
+
+				{#if githubAppIdWarning(p.key, clientIdDraft)}
+					<p class="border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] p-2.5 text-[12px] text-[var(--accent-fg)]">{p.meta?.note}</p>
 				{/if}
-			</div>
 
-			<Field label="Client ID"><Input name="clientId" bind:value={clientIdDraft} placeholder="client id" /></Field>
-			<Field label="Client secret"><Input name="clientSecret" type="password" placeholder={p.hasSecret ? '•••••• (leave blank to keep)' : 'client secret'} /></Field>
+				<label class="flex items-center gap-2 text-[13px] text-[var(--text)]"><input type="checkbox" name="enabled" checked={p.enabled} class="size-4 accent-[var(--accent)]" /> Enabled</label>
 
-			{#if githubAppIdWarning(p.key, clientIdDraft)}
-				<p class="rounded-lg bg-blue-50 p-2.5 text-xs text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">{p.meta?.note}</p>
-			{/if}
-
-			<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="enabled" checked={p.enabled} class="size-4 accent-brand-600" /> Enabled</label>
-			<p class="text-xs text-neutral-400">Clear the Client ID and save to remove this provider.</p>
-
-			<div class="flex justify-end gap-2 border-t border-neutral-100 pt-3 dark:border-neutral-800">
-				<Button size="sm" variant="ghost" type="button" onclick={close}>Cancel</Button>
-				<Button size="sm" variant="primary" type="submit">Save</Button>
-			</div>
-		</form>
-	{:else}
-		{@render customForm(active)}
-	{/if}
-</Dialog>
+				<div class="flex items-center justify-between border-t border-[var(--rule)] pt-3">
+					{#if p.clientId}
+						<button type="submit" form={`remove-builtin-${p.key}`} onclick={(e) => askRemove(e, p.name)} class="mono-focus text-[12px] font-medium text-[#f85149] hover:underline">Remove provider</button>
+					{:else}
+						<span></span>
+					{/if}
+					<Button size="sm" variant="primary" type="submit">Save</Button>
+				</div>
+			</form>
+			<!-- Standalone: submits the same action with an empty Client ID, which the
+			     server treats as "remove this provider". Kept outside the edit form so
+			     the visible draft value never leaks into the remove request. -->
+			<form method="POST" action="?/saveBuiltin" use:enhance={onSubmit} id={`remove-builtin-${p.key}`} class="hidden" aria-hidden="true">
+				<input type="hidden" name="key" value={p.key} />
+				<input type="hidden" name="clientId" value="" />
+			</form>
+		{:else}
+			{@render customForm(active)}
+		{/if}
+	</section>
+{/if}
 
 {#snippet customForm(p: Provider | null)}
-	<form method="POST" action="?/saveCustom" use:enhance={onSubmit} class="max-h-[65vh] space-y-3 overflow-y-auto pr-0.5">
+	<form method="POST" action="?/saveCustom" use:enhance={onSubmit} class="space-y-3">
 		<input type="hidden" name="id" value={p?.id ?? ''} />
 		<div class="flex flex-wrap gap-3">
 			<div class="w-28"><Field label="Key" hint="url slug"><Input name="key" value={p?.key ?? ''} placeholder="google" readonly={!!p} required /></Field></div>
@@ -135,8 +161,8 @@
 			<div class="w-20"><Field label="Icon"><Input name="icon" value={p?.icon ?? ''} placeholder="🔵 / url" /></Field></div>
 		</div>
 
-		<p class="text-xs text-neutral-500">
-			Callback: <code class="rounded bg-neutral-100 px-1 dark:bg-neutral-800">{callbackFor(p?.key ?? '<key>')}</code> — register this with the provider.
+		<p class="text-[12px] text-[var(--dim)]">
+			Callback: <code class="bg-[var(--raised)] px-1 text-[var(--text)]">{callbackFor(p?.key ?? '<key>')}</code> — register this with the provider.
 		</p>
 
 		<Field label="Discovery URL" hint="OIDC issuer (e.g. https://accounts.google.com) — fills the endpoints on save. Optional."><Input name="discoveryUrl" placeholder="https://accounts.google.com" /></Field>
@@ -148,18 +174,22 @@
 			<div class="flex-1"><Field label="Client ID"><Input name="clientId" value={p?.clientId ?? ''} placeholder="client id" /></Field></div>
 			<div class="flex-1"><Field label="Client secret"><Input name="clientSecret" type="password" placeholder={p?.hasSecret ? '•••••• (leave blank to keep)' : 'client secret'} /></Field></div>
 		</div>
-		<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="enabled" checked={p ? p.enabled : true} class="size-4 accent-brand-600" /> Enabled</label>
+		<label class="flex items-center gap-2 text-[13px] text-[var(--text)]"><input type="checkbox" name="enabled" checked={p ? p.enabled : true} class="size-4 accent-[var(--accent)]" /> Enabled</label>
 
-		<div class="flex items-center justify-between border-t border-neutral-100 pt-3 dark:border-neutral-800">
+		<div class="flex items-center justify-between border-t border-[var(--rule)] pt-3">
 			<div>
 				{#if p}
-					<button type="submit" formaction="?/deleteCustom" onclick={(e) => !confirm(`Delete “${p.name}”?`) && e.preventDefault()} class="text-xs text-red-600 hover:underline">Delete</button>
+					<button type="submit" formaction="?/deleteCustom" onclick={(e) => askRemove(e, p.name)} class="mono-focus text-[12px] font-medium text-[#f85149] hover:underline">Delete</button>
 				{/if}
 			</div>
-			<div class="flex gap-2">
-				<Button size="sm" variant="ghost" type="button" onclick={close}>Cancel</Button>
-				<Button size="sm" variant="primary" type="submit">{p ? 'Save' : 'Add provider'}</Button>
-			</div>
+			<Button size="sm" variant="primary" type="submit">{p ? 'Save' : 'Add provider'}</Button>
 		</div>
 	</form>
 {/snippet}
+
+<Dialog bind:open={confirmOpen} title="Remove provider?" description={confirmDesc}>
+	{#snippet footer()}
+		<Button variant="ghost" type="button" onclick={() => (confirmOpen = false)}>Cancel</Button>
+		<Button variant="danger" type="button" onclick={confirmRemove}>Remove</Button>
+	{/snippet}
+</Dialog>

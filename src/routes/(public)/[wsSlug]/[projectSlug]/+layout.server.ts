@@ -2,10 +2,11 @@ import { error } from '@sveltejs/kit';
 import { ACCESS, canManageProject } from '$lib/server/permissions';
 import { listBoards } from '$lib/server/services/boards';
 import { getBySlugs } from '$lib/server/services/projects';
+import { getProjectHeartbeat } from '$lib/server/services/public';
 import { listReleases } from '$lib/server/services/releases';
 import type { LayoutServerLoad } from './$types';
 
-export const load: LayoutServerLoad = async ({ locals, params }) => {
+export const load: LayoutServerLoad = async ({ locals, params, depends }) => {
 	const ctx = await getBySlugs(locals.user, params.wsSlug, params.projectSlug);
 	if (!ctx) throw error(404, 'Not found');
 	if (ctx.level === ACCESS.NONE && ctx.visibility !== 'public') throw error(404, 'Not found');
@@ -13,9 +14,14 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 	// Drive public tab visibility: hide Roadmap when disabled, Releases when empty.
 	// The first board's id is hoisted here — the overview, board page, and the
 	// live SSE subscriptions all need it.
-	const [releases, boards] = await Promise.all([
+	const isPublic = ctx.visibility === 'public';
+	// The band's live scoreboard (open/shipped) refreshes on the same debounced
+	// SSE→invalidate rhythm every other public live surface uses.
+	depends(`public:band:${ctx.project.id}`);
+	const [releases, boards, heartbeat] = await Promise.all([
 		listReleases(ctx.project.id, { publishedOnly: true }),
-		listBoards(ctx.project.id)
+		listBoards(ctx.project.id),
+		getProjectHeartbeat(ctx.project.id, isPublic)
 	]);
 	const hasReleases = releases.length > 0;
 	const boardId = boards[0]?.id ?? null;
@@ -36,6 +42,7 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 		effectiveVisibility: ctx.visibility,
 		hasReleases,
 		boardId,
+		stats: { open: heartbeat.open, shipped: heartbeat.shipped },
 		level: ctx.level,
 		canTriage: canManageProject(ctx.level),
 		signedIn: !!locals.user

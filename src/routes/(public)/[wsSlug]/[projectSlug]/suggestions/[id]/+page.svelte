@@ -12,7 +12,6 @@
 	import PublicMeta from '$lib/components/public/PublicMeta.svelte';
 	import WatchButton from '$lib/components/public/WatchButton.svelte';
 	import ReactionBar from '$lib/components/ReactionBar.svelte';
-	import Button from '$lib/components/ui/Button.svelte';
 	import Textarea from '$lib/components/ui/Textarea.svelte';
 	import UpvoteButton from '$lib/components/UpvoteButton.svelte';
 
@@ -90,48 +89,43 @@
 <main class="mx-auto max-w-3xl px-4 py-6 sm:px-6">
 	<a
 		href={base}
-		class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-neutral-500 transition-colors hover:bg-black/5 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-white/10 dark:hover:text-neutral-200"
+		class="mono-focus inline-flex items-center gap-1.5 text-[12px] tracking-tight text-[var(--faint)] transition-colors hover:text-[var(--accent)]"
 	>
-		<ArrowLeft size={13} /> All feedback
+		<ArrowLeft size={12} /> All feedback
 	</a>
 
 	{#if justPosted}
-		<div class="mt-3">
+		<div class="mt-4">
 			<PostSuccessCard watching={data.watching} ondismiss={() => (justPosted = false)} />
 		</div>
 	{/if}
 
-	<article
-		bind:this={articleEl}
-		class="pub-card ot-rise mt-3 rounded-3xl p-5 sm:p-6"
-		style={`view-transition-name: s-${s.id.slice(0, 8)}`}
-	>
+	<article bind:this={articleEl} class="ot-rise mt-8" style={`view-transition-name: s-${s.id.slice(0, 8)}`}>
 		<div class="flex items-start gap-4">
 			<div class="flex shrink-0 flex-col items-center gap-1.5">
 				<UpvoteButton subjectType="suggestion" id={s.id} count={data.votes} voted={data.voted} locked={data.interactionsLocked} onvote={onVote} />
 			</div>
 			<div class="min-w-0 flex-1">
 				<div class="flex items-start justify-between gap-2">
-					<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-						<span
-							class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
-							style={`background:color-mix(in oklab, ${kindMeta.color} 12%, transparent);color:${kindMeta.color}`}
-						><KindIcon size={11} /> {kindMeta.label}</span>
+					<div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px]">
+						<span class="flex items-center gap-1 tracking-[0.14em] uppercase" style={`color:${kindMeta.color}`}>
+							<KindIcon size={11} /> {kindMeta.label}
+						</span>
 						{#if s.authorName}
-							<span class="text-xs text-neutral-400">
-								by {#if s.authorUsername}<a href={`/u/${s.authorUsername}`} class="font-medium hover:text-neutral-700 hover:underline dark:hover:text-neutral-200">{s.authorName}</a>{:else}{s.authorName}{/if}
+							<span class="text-[var(--faint)]">
+								by {#if s.authorUsername}<a href={`/u/${s.authorUsername}`} class="mono-focus text-[var(--dim)] transition-colors hover:text-[var(--accent)]">{s.authorName}</a>{:else}{s.authorName}{/if}
 							</span>
 						{/if}
 					</div>
 					<WatchButton subjectType="suggestion" subjectId={s.id} watching={data.watching} signedIn={data.signedIn} />
 				</div>
-				<h1 class="type-poster mt-2 text-2xl">{s.title}</h1>
-				<p class="mt-1 font-mono text-[11px] text-neutral-400">{proofLine}</p>
+				<h1 class="mono-display mt-3 text-2xl leading-tight tracking-tight text-[var(--text)] sm:text-3xl">{s.title}</h1>
+				<p class="mt-2 text-[12px] text-[var(--faint)]">{proofLine}</p>
 			</div>
 		</div>
 
 		<!-- The Journey -->
-		<div class="mt-6 border-t border-black/5 pt-5 dark:border-white/5">
+		<div class="mt-8 border-t border-[var(--rule)] pt-6">
 			<FeedbackJourney
 				stage={data.journey.stage}
 				postedAt={data.journey.postedAt}
@@ -142,63 +136,80 @@
 			/>
 		</div>
 
-		{#if s.body}<div class="prose prose-sm dark:prose-invert mt-5 max-w-none border-t border-black/5 pt-5 dark:border-white/5">{@html renderMarkdown(s.body)}</div>{/if}
+		{#if s.body}<div class="prose prose-sm prose-invert mt-6 max-w-none border-t border-[var(--rule)] pt-6">{@html renderMarkdown(s.body)}</div>{/if}
 
-		<div class="mt-5"><ReactionBar subjectType="suggestion" subjectId={s.id} reactions={data.suggestionReactions} canReact={data.signedIn} seed /></div>
+		<div class="mt-6"><ReactionBar subjectType="suggestion" subjectId={s.id} reactions={data.suggestionReactions} canReact={data.signedIn} seed /></div>
 	</article>
 
 	<!-- Comments -->
-	<section class="mt-6">
-		<h2 class="pub-label mb-3 px-1">
-			{data.comments.length} {data.comments.length === 1 ? 'comment' : 'comments'}
-		</h2>
-		<div class="space-y-2.5">
+	<section class="mt-10 border-t border-[var(--rule)] pt-8">
+		<div class="flex items-baseline justify-between gap-4">
+			<h2 class="text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase">// Comments</h2>
+			<span class="text-[11px] tabular-nums text-[var(--faint)]">{data.comments.length}</span>
+		</div>
+
+		<ul class="mt-5">
 			{#each data.comments as c, i (c.id)}
-				<div class="ot-rise flex gap-3" style={`--rise-i:${i}`}>
+				<li class="ot-rise flex gap-3 border-t border-[var(--rule)] py-4" style={`--rise-i:${i}`}>
 					{#if c.authorAvatar}
 						<img src={c.authorAvatar} alt="" class="size-8 shrink-0 rounded-full object-cover" />
 					{:else}
-						<div class="grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-b from-neutral-200 to-neutral-300 text-[11px] font-bold text-neutral-600 dark:from-neutral-600 dark:to-neutral-700 dark:text-neutral-200">
+						<span class="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--raised)] text-[11px] font-semibold text-[var(--dim)] ring-1 ring-[var(--rule)]">
 							{(c.authorName ?? '?').slice(0, 1).toUpperCase()}
-						</div>
+						</span>
 					{/if}
-					<div class="pub-card min-w-0 flex-1 px-4 py-3">
-						<p class="mb-1 text-xs font-semibold text-neutral-600 dark:text-neutral-300">{c.authorName ?? 'Unknown'}</p>
-						<div class="prose prose-sm dark:prose-invert max-w-none">{@html renderMarkdown(c.body)}</div>
+					<div class="min-w-0 flex-1">
+						<p class="text-[12px] text-[var(--dim)]">{c.authorName ?? 'Unknown'}</p>
+						<div class="prose prose-sm prose-invert mt-1 max-w-none">{@html renderMarkdown(c.body)}</div>
 						<div class="mt-2"><ReactionBar subjectType="comment" subjectId={c.id} reactions={c.reactions ?? []} canReact={data.signedIn} size="sm" /></div>
 					</div>
-				</div>
+				</li>
 			{:else}
-				<p class="px-1 text-sm text-neutral-400">No comments yet — start the conversation.</p>
+				<li class="border-t border-[var(--rule)] py-8 text-center text-[12px] text-[var(--faint)]">No comments yet — start the conversation.</li>
 			{/each}
-		</div>
+		</ul>
 
-		<div class="mt-5">
+		<div class="mt-6">
 			{#if data.canComment}
 				{#if voteNudge}
-					<div class="mb-2 flex flex-wrap items-center gap-2 rounded-2xl bg-[var(--accent-wash)] px-3.5 py-2.5 text-xs">
-						<p class="font-medium text-neutral-700 dark:text-neutral-200">You backed it — now tell them why. Reasons carry more weight than numbers.</p>
-						{#each quickFills as q (q)}
-							<button
-								onclick={() => { commentDraft = q; voteNudge = false; }}
-								class="rounded-full border border-[var(--accent-border)] px-2.5 py-1 font-medium text-[var(--accent-fg)] transition-colors hover:bg-[var(--accent-soft)]"
-							>{q}</button>
-						{/each}
-						<button onclick={dismissNudge} class="ml-auto text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">Don't ask again</button>
+					<div class="mb-4 border-l-2 border-[var(--accent)] py-1.5 pl-3 text-[12px]">
+						<p class="text-[var(--dim)]">You backed it — now tell them why. Reasons carry more weight than numbers.</p>
+						<div class="mt-2 flex flex-wrap items-center gap-2">
+							{#each quickFills as q (q)}
+								<button
+									onclick={() => { commentDraft = q; voteNudge = false; }}
+									class="mono-focus border border-[var(--rule)] px-2.5 py-1 text-[var(--dim)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+								>{q}</button>
+							{/each}
+							<button onclick={dismissNudge} class="mono-focus ml-auto text-[var(--faint)] transition-colors hover:text-[var(--text)]">Don't ask again</button>
+						</div>
 					</div>
 				{/if}
-				<form method="POST" action="?/comment" use:enhance={() => async ({ update }) => { commentDraft = ''; await update(); }} class="pub-card p-3.5">
-					<Textarea name="body" bind:value={commentDraft} rows={2} placeholder="Add to the discussion…" class="border-transparent bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent" />
+				<form method="POST" action="?/comment" use:enhance={() => async ({ update }) => { commentDraft = ''; await update(); }}>
+					<div class="flex items-start gap-2 border-b border-[var(--rule)] pb-2 transition-colors focus-within:border-[var(--accent)]">
+						<span class="pt-2 text-[13px] text-[var(--faint)]" aria-hidden="true">&gt;</span>
+						<Textarea
+							name="body"
+							bind:value={commentDraft}
+							rows={2}
+							placeholder="Add to the discussion…"
+							class="mono-focus resize-none border-0 bg-transparent px-0 py-2 text-[13px] text-[var(--text)] placeholder:text-[var(--faint)] shadow-none focus-visible:border-0 focus-visible:ring-0 dark:border-0 dark:bg-transparent"
+						/>
+					</div>
 					<div class="mt-2 flex justify-end">
-						<Button size="sm" variant="accent" type="submit" disabled={!commentDraft.trim()} class="rounded-full px-4">Comment</Button>
+						<button
+							type="submit"
+							disabled={!commentDraft.trim()}
+							class="mono-focus border border-[var(--accent)] px-3.5 py-1.5 text-[12px] tracking-tight text-[var(--accent)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--ground)] disabled:pointer-events-none disabled:opacity-40"
+						>Comment</button>
 					</div>
 				</form>
 			{:else if data.interactionsLocked}
-				<p class="flex items-center gap-2 px-1 text-sm text-neutral-400"><Lock size={14} /> This one's been decided — the thread is closed, but the votes are part of history.</p>
+				<p class="flex items-center gap-2 text-[13px] text-[var(--faint)]"><Lock size={14} /> This one's been decided — the thread is closed, but the votes are part of history.</p>
 			{:else if !data.signedIn}
-				<p class="px-1 text-sm text-neutral-500"><a href={loginHref} class="font-medium text-[var(--accent-fg)] hover:underline">Sign in</a> to join in — it takes one click.</p>
+				<p class="text-[13px] text-[var(--dim)]"><a href={loginHref} class="mono-focus text-[var(--accent)] transition-colors hover:underline">Sign in</a> to join in — it takes one click.</p>
 			{:else}
-				<p class="px-1 text-sm text-neutral-400">Comments are not open on this project.</p>
+				<p class="text-[13px] text-[var(--faint)]">Comments are not open on this project.</p>
 			{/if}
 		</div>
 	</section>

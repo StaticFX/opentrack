@@ -3,7 +3,7 @@
 	import { renderMarkdown } from '$lib/markdown';
 	import EmptyState from '$lib/components/public/EmptyState.svelte';
 	import PublicMeta from '$lib/components/public/PublicMeta.svelte';
-	import ShinyText from '$lib/components/vendor/ShinyText.svelte';
+	import { cn } from '$lib/utils/cn';
 
 	let { data } = $props();
 	const base = $derived(`/${data.workspace.slug}/${data.project.slug}`);
@@ -12,6 +12,12 @@
 
 	const linkIcon = (type: string) => (type === 'download' ? Download : type === 'changelog' ? FileText : ExternalLink);
 	const fmtDate = (d: string | Date) => new Date(d).toLocaleDateString(undefined, { dateStyle: 'long' });
+
+	// The latest release stays fully open; older entries clamp to their first
+	// paragraph or so, with an explicit expand — the log can't turn into a
+	// long-notes scroll-fest for anything below the fold.
+	let expandedIds = $state<string[]>([]);
+	const isOpen = (i: number, id: string) => i === 0 || expandedIds.includes(id);
 </script>
 
 <PublicMeta
@@ -21,38 +27,51 @@
 
 <main class="mx-auto max-w-3xl px-4 py-6 sm:px-6">
 	{#if data.releases.length}
-		<div class="mb-5 flex items-center justify-between">
-			<p class="font-mono text-[11px] font-medium text-neutral-400">{data.releases.length} {data.releases.length === 1 ? 'release' : 'releases'}</p>
-			<a href={feed} class="flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[11px] font-medium text-neutral-400 transition-colors hover:bg-black/5 hover:text-orange-500 dark:hover:bg-white/10"><Rss size={13} /> RSS</a>
+		<div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+			<p class="text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase">// Releases</p>
+			<div class="flex items-center gap-4">
+				<span class="text-[11px] tabular-nums text-[var(--faint)]"
+					>{data.releases.length} {data.releases.length === 1 ? 'release' : 'releases'}</span
+				>
+				<a
+					href={feed}
+					class="mono-focus flex items-center gap-1.5 text-[11px] tracking-tight text-[var(--faint)] transition-colors hover:text-[var(--accent)]"
+				>
+					<Rss size={12} /> RSS
+				</a>
+			</div>
 		</div>
 
-		<!-- Timeline -->
-		<div class="relative space-y-8 pl-10">
-			<div class="absolute inset-y-2 left-3.5 w-px" style="background:linear-gradient(to bottom, var(--accent), color-mix(in oklab, var(--accent) 20%, transparent) 40%, transparent)"></div>
-
+		<!-- Release log -->
+		<ol class="mt-6 border-t border-[var(--rule)]">
 			{#each data.releases as r, i (r.id)}
-				<article class="ot-rise relative" style={`--rise-i:${Math.min(i, 6) * 2}`}>
-					<span
-						class={`absolute top-4 -left-10 grid size-7 place-items-center rounded-full shadow-sm ${i === 0 ? 'text-white' : 'border border-black/10 bg-white text-neutral-400 dark:border-white/10 dark:bg-neutral-800'}`}
-						style={i === 0 ? 'background:var(--accent-solid)' : ''}
-					>
-						{#if i === 0}<span class="absolute inset-0 rounded-full ot-breathe" style="background:var(--accent)" aria-hidden="true"></span>{/if}
-						<Tag size={13} class="relative" />
-					</span>
-
-					<div class={`pub-card rounded-3xl p-5 ${i === 0 ? 'ring-1 ring-[var(--accent-border)]' : ''}`}>
-						<div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-							<h2 class="type-poster text-xl">{r.version}</h2>
-							{#if r.name}<span class="text-sm text-neutral-500 dark:text-neutral-400">{r.name}</span>{/if}
-							{#if i === 0}
-								<span class="rounded-full px-2 py-0.5 font-mono text-[10px] font-bold tracking-wide uppercase" style="background:var(--accent-solid)">
-									<ShinyText text="Latest" speed={3.5} delay={2} color="rgba(255,255,255,0.88)" shineColor="#ffffff" />
-								</span>
+				{@const open = isOpen(i, r.id)}
+				<li class="ot-rise border-b border-[var(--rule)] py-8" style={`--rise-i:${i}`}>
+					<article>
+						<div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+							<Tag size={14} class="shrink-0 text-[var(--faint)]" aria-hidden="true" />
+							<h2 class="mono-display text-xl tracking-tight text-[var(--text)] sm:text-2xl">{r.version}</h2>
+							{#if r.name}<span class="text-[14px] text-[var(--dim)]">{r.name}</span>{/if}
+							{#if i === 0}<span class="text-[10px] tracking-[0.16em] text-[var(--accent)] uppercase">latest</span>{/if}
+							{#if r.releasedAt}
+								<span class="ml-auto shrink-0 text-[11px] tabular-nums text-[var(--faint)]">{fmtDate(r.releasedAt)}</span>
 							{/if}
-							{#if r.releasedAt}<span class="ml-auto font-mono text-[11px] text-neutral-400">{fmtDate(r.releasedAt)}</span>{/if}
 						</div>
 
-						{#if r.notes}<div class="prose prose-sm dark:prose-invert mt-3 max-w-none">{@html renderMarkdown(r.notes)}</div>{/if}
+						{#if r.notes}
+							<div class={cn('prose prose-sm prose-invert mt-4 max-w-none text-[var(--dim)]', !open && 'line-clamp-4')}>
+								{@html renderMarkdown(r.notes)}
+							</div>
+							{#if !open}
+								<button
+									type="button"
+									onclick={() => (expandedIds = [...expandedIds, r.id])}
+									class="mono-focus mt-2 text-[11px] tracking-tight text-[var(--dim)] transition-colors hover:text-[var(--accent)]"
+								>
+									Read more →
+								</button>
+							{/if}
+						{/if}
 
 						{#if r.links.length}
 							<div class="mt-4 flex flex-wrap gap-2">
@@ -62,38 +81,38 @@
 										href={l.url}
 										target="_blank"
 										rel="noopener"
-										class={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${l.type === 'download' ? 'text-white shadow-sm hover:bg-[var(--accent-solid-hover)]' : 'border border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/10'}`}
-										style={l.type === 'download' ? 'background:var(--accent-solid)' : ''}
+										class="mono-focus inline-flex items-center gap-1.5 border border-[var(--rule)] px-3 py-1.5 text-[12px] tracking-tight text-[var(--dim)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
 									>
-										<Icon size={14} /> {l.label}
+										<Icon size={13} /> {l.label}
 									</a>
 								{/each}
 							</div>
 						{/if}
 
 						{#if r.tickets.length}
-							<div class="mt-4 rounded-2xl bg-black/[0.03] p-3 dark:bg-white/[0.04]">
-								<p class="pub-label mb-1.5 flex items-center gap-1.5">
-									<PackageOpen size={13} /> Shipped in this release
+							<div class="mt-5">
+								<p class="flex items-center gap-1.5 text-[10px] tracking-[0.16em] text-[var(--faint)] uppercase">
+									<PackageOpen size={12} /> Shipped in this release
 								</p>
-								<ul class="space-y-1">
+								<ul class="mt-2">
 									{#each r.tickets as t (t.id)}
 										<li>
-											<a href={`${base}/t/${t.number}`} class="group flex items-start gap-1.5 text-sm">
-												<CircleCheckBig size={14} class="mt-0.5 shrink-0 text-green-500" />
-												<span class="group-hover:underline"><span class="font-mono text-xs text-neutral-400">#{t.number}</span> {t.title}</span>
+											<a href={`${base}/t/${t.number}`} class="mono-focus group flex items-baseline gap-2 py-1">
+												<CircleCheckBig size={12} class="shrink-0 translate-y-[1px]" style="color:var(--green)" />
+												<span class="shrink-0 text-[11px] tabular-nums text-[var(--faint)]">#{t.number}</span>
+												<span class="min-w-0 truncate text-[13px] text-[var(--dim)] group-hover:text-[var(--text)]">{t.title}</span>
 											</a>
 										</li>
 									{/each}
 								</ul>
 							</div>
 						{/if}
-					</div>
-				</article>
+					</article>
+				</li>
 			{/each}
-		</div>
+		</ol>
 	{:else}
-		<div class="pub-card rounded-3xl">
+		<div class="border-t border-[var(--rule)] pt-10">
 			<EmptyState icon={PackageOpen} title="Nothing shipped yet" body="Releases will appear here as they go out." />
 		</div>
 	{/if}

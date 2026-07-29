@@ -1,11 +1,29 @@
 <script lang="ts">
-	import { MessageSquare, ChevronUp, Link2, AlignLeft, Ban, GitPullRequest, GitMerge, Milestone } from '@lucide/svelte';
+	import { MessageSquare, ChevronUp, Link2, Waypoints, AlignLeft, Ban, GitPullRequest, GitMerge, Clock } from '@lucide/svelte';
 	import { ciMeta } from '$lib/github-ci';
 	import type { TicketCard } from '$lib/board';
 	import { PRIORITY_META } from '$lib/priority';
+	import { dueMeta } from '$lib/time';
+	import AvatarStack from '$lib/components/ui/AvatarStack.svelte';
+	import { cn } from '$lib/utils/cn';
 
-	type Props = { ticket: TicketCard; onopen: (id: string) => void };
-	let { ticket, onopen }: Props = $props();
+	type Props = {
+		ticket: TicketCard;
+		onopen: (id: string) => void;
+		/** Drag is currently unavailable (filter/select/view-only) — drops hover-lift, no grab affordance. */
+		dragDisabled?: boolean;
+		/** One-shot "a teammate just changed this" pulse (SSE-driven). */
+		flash?: boolean;
+	};
+	let { ticket, onopen, dragDisabled = false, flash = false }: Props = $props();
+
+	// Priority carries color (left edge, quick scan) AND a text label (meta row) —
+	// color-only encoding was the a11y gap in the previous card.
+	const PRIORITY_SHORT: Partial<Record<string, string>> = { low: 'Low', medium: 'Med', high: 'High', urgent: 'Urg' };
+	const due = $derived(dueMeta(ticket.dueDate));
+	const assignees = $derived(ticket.assignees.map((a) => ({ name: a.displayName, src: a.avatarUrl })));
+	const shownLabels = $derived(ticket.labels.slice(0, 2));
+	const extraLabels = $derived(ticket.labels.length - shownLabels.length);
 </script>
 
 <div
@@ -13,99 +31,87 @@
 	tabindex="0"
 	onclick={() => onopen(ticket.id)}
 	onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onopen(ticket.id)}
-	class="cursor-pointer rounded-xl border border-black/5 bg-white p-3 shadow-[0_1px_2px_rgb(20_22_28/0.04),0_6px_16px_-8px_rgb(20_22_28/0.16)] transition duration-150 hover:-translate-y-0.5 hover:shadow-[0_8px_30px_-12px_rgb(20_22_28/0.35)] dark:border-white/8 dark:bg-neutral-800 dark:shadow-[0_1px_2px_rgb(0_0_0/0.25),0_8px_20px_-12px_rgb(0_0_0/0.55)]"
+	class={cn(
+		'focus-ring relative flex cursor-pointer flex-col gap-1.5 overflow-hidden rounded-[3px] border border-[var(--rule)] bg-[var(--raised)] p-2.5 transition-colors duration-150',
+		!dragDisabled && 'hover:border-[color-mix(in_srgb,var(--accent)_45%,transparent)]',
+		ticket.archived && 'opacity-60',
+		flash && 'ot-flash'
+	)}
 >
-	{#if ticket.labels.length || ticket.blocked}
-		<div class="mb-1.5 flex flex-wrap items-center gap-1">
+	{#if ticket.priority !== 'none'}
+		<span
+			class="absolute inset-y-0 left-0 w-[2px]"
+			style={`background:${PRIORITY_META[ticket.priority].color}`}
+			aria-hidden="true"
+		></span>
+	{/if}
+
+	<!-- Title first — every card starts at the same y regardless of labels/badges. -->
+	<p class="line-clamp-2 text-sm leading-snug text-[var(--text)]">{ticket.title}</p>
+
+	{#if ticket.blocked || shownLabels.length}
+		<div class="flex flex-wrap items-center gap-1">
 			{#if ticket.blocked}
 				<span
-					class="flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400"
-					style="background:color-mix(in oklab, #f59e0b 12%, transparent)"
+					class="flex items-center gap-0.5 rounded-[3px] border border-[color-mix(in_srgb,var(--amber)_30%,transparent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--amber)]"
+					style="background:color-mix(in srgb, var(--amber) 12%, transparent)"
 					title="Blocked by another ticket"
 				>
 					<Ban size={10} /> Blocked
 				</span>
 			{/if}
-			{#each ticket.labels as label (label.id)}
+			{#each shownLabels as label (label.id)}
 				<span
-					class="rounded-full px-2 py-0.5 text-[10px] font-medium"
-					style={`background:color-mix(in oklab, ${label.color} 12%, transparent);color:${label.color}`}
+					class="rounded-[3px] px-1.5 py-0.5 text-[10px] font-medium"
+					style={`background:color-mix(in oklab, ${label.color} 14%, transparent);color:${label.color}`}
 				>
 					{label.name}
 				</span>
 			{/each}
+			{#if extraLabels > 0}<span class="data-mono text-[var(--faint)]">+{extraLabels}</span>{/if}
 		</div>
 	{/if}
 
-	<p class="text-sm leading-snug text-neutral-800 dark:text-neutral-100">{ticket.title}</p>
-
-	{#if ticket.milestone}
-		<div class="mt-1.5">
+	<div class="data-mono flex items-center gap-2 text-[var(--dim)]">
+		<span>#{ticket.number}</span>
+		{#if ticket.priority !== 'none'}<span>{PRIORITY_SHORT[ticket.priority]}</span>{/if}
+		{#if due}
 			<span
-				class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium text-violet-700 dark:text-violet-300"
-				style="background:color-mix(in oklab, #8b5cf6 12%, transparent)"
-				title={`Milestone: ${ticket.milestone.title}${ticket.milestone.state === 'closed' ? ' (closed)' : ''}`}
+				class={cn(
+					'flex items-center gap-0.5',
+					due.overdue ? 'text-[#f85149]' : due.soon ? 'text-[var(--amber)]' : ''
+				)}
+				title={due.overdue ? 'Overdue' : `Due ${due.label}`}
 			>
-				<Milestone size={10} />
-				<span class="max-w-[140px] truncate">{ticket.milestone.title}</span>
+				<Clock size={11} /> {due.label}
 			</span>
-		</div>
-	{/if}
-
-	<div class="mt-2 flex items-center gap-2 text-[11px] text-neutral-400">
-		{#if ticket.priority !== 'none'}
-			<span
-				class="size-2 rounded-full"
-				style={`background:${PRIORITY_META[ticket.priority].color}`}
-				title={PRIORITY_META[ticket.priority].label}
-			></span>
 		{/if}
-		<span class="font-mono tabular-nums">#{ticket.number}</span>
 		{#if ticket.githubIssueNumber}
-			<span class="flex items-center gap-0.5 font-mono tabular-nums" title="Linked GitHub issue">
-				<Link2 size={11} /> {ticket.githubIssueNumber}
-			</span>
+			<span class="flex items-center gap-0.5" title="Linked GitHub issue"><Link2 size={11} /> {ticket.githubIssueNumber}</span>
 		{/if}
 		{#if ticket.githubPrNumber}
 			{@const merged = ticket.githubPrState === 'merged'}
 			{@const ci = ciMeta(ticket.githubCiStatus)}
 			<span
-				class="flex items-center gap-0.5 font-mono tabular-nums {merged ? 'text-violet-500' : ticket.githubPrState === 'closed' ? 'text-red-400' : 'text-green-500'}"
+				class={cn(
+					'flex items-center gap-0.5',
+					merged ? 'text-[#a371f7]' : ticket.githubPrState === 'closed' ? 'text-[#f85149]' : 'text-[var(--green)]'
+				)}
 				title={`Pull request #${ticket.githubPrNumber}${ticket.githubPrState ? ' — ' + ticket.githubPrState : ''}${ci ? ' · ' + ci.label : ''}`}
 			>
 				{#if merged}<GitMerge size={11} />{:else}<GitPullRequest size={11} />{/if} {ticket.githubPrNumber}
 				{#if ci}<span class={`h-1.5 w-1.5 rounded-full ${ci.dotClass}`}></span>{/if}
 			</span>
 		{/if}
-		{#if ticket.hasDescription}
-			<AlignLeft size={12} title="Has description" />
-		{/if}
+		{#if ticket.hasDescription}<AlignLeft size={12} title="Has description" />{/if}
 		{#if ticket.relations > 0}
-			<span class="flex items-center gap-0.5 font-mono tabular-nums" title={`${ticket.relations} linked ticket${ticket.relations === 1 ? '' : 's'}`}>
-				<Link2 size={11} /> {ticket.relations}
+			<span class="flex items-center gap-0.5" title={`${ticket.relations} linked ticket${ticket.relations === 1 ? '' : 's'}`}>
+				<Waypoints size={11} /> {ticket.relations}
 			</span>
 		{/if}
 		<span class="flex-1"></span>
-		{#if ticket.votes > 0}
-			<span class="flex items-center gap-0.5 font-mono tabular-nums"><ChevronUp size={12} /> {ticket.votes}</span>
-		{/if}
-		{#if ticket.comments > 0}
-			<span class="flex items-center gap-0.5 font-mono tabular-nums"><MessageSquare size={11} /> {ticket.comments}</span>
-		{/if}
-		{#if ticket.assignees.length}
-			<div class="flex -space-x-1.5">
-				{#each ticket.assignees.slice(0, 3) as a (a.userId ?? a.githubLogin)}
-					{@const label = a.githubLogin ? `${a.displayName} (@${a.githubLogin})` : a.displayName}
-					{#if a.avatarUrl}
-						<img src={a.avatarUrl} alt={a.displayName} title={label} class="size-4 rounded-full ring-1 ring-white dark:ring-neutral-800" />
-					{:else}
-						<span
-							class="grid size-4 place-items-center rounded-full bg-neutral-300 text-[8px] font-semibold text-neutral-700 ring-1 ring-white dark:bg-neutral-600 dark:text-neutral-100 dark:ring-neutral-800"
-							title={label}
-						>{a.displayName.slice(0, 1).toUpperCase()}</span>
-					{/if}
-				{/each}
-			</div>
-		{/if}
+		{#if ticket.votes > 0}<span class="flex items-center gap-0.5"><ChevronUp size={12} /> {ticket.votes}</span>{/if}
+		{#if ticket.comments > 0}<span class="flex items-center gap-0.5"><MessageSquare size={11} /> {ticket.comments}</span>{/if}
+		{#if assignees.length}<AvatarStack users={assignees} size={16} max={3} />{/if}
 	</div>
 </div>

@@ -72,6 +72,7 @@
 		"@fontsource-variable/bricolage-grotesque": "^5.3.0",
 		"@fontsource-variable/instrument-sans": "^5.3.0",
 		"@fontsource-variable/jetbrains-mono": "^5.3.0",
+		"@fontsource/space-mono": "^5.3.0",
 		"@libsql/client": "^0.15.0",
 		"@lucide/svelte": "^1.23.0",
 		"@node-rs/argon2": "^2.0.2",
@@ -88,6 +89,7 @@
 		"postgres": "^3.4.9",
 		"qrcode": "^1.5.4",
 		"svelte-dnd-action": "^0.9.70",
+		"tailwind-merge": "^3.6.0",
 		"valibot": "^1.4.2",
 		"web-push": "^3.6.7"
 	}

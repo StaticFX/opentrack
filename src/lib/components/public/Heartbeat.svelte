@@ -36,7 +36,7 @@
 <figure aria-label={`Activity over the last ${weekly.length} weeks: ${total} events`}>
 	<svg viewBox={`0 0 ${W} ${H}`} class="h-auto w-full" role="img" aria-hidden="true">
 		{#if area}
-			<path d={area} fill="var(--accent-soft)" />
+			<path d={area} fill="color-mix(in srgb, var(--accent) 14%, transparent)" />
 		{/if}
 		{#if line}
 			<!-- No non-scaling-stroke here: it makes Chromium compute the ot-draw

@@ -1,81 +1,71 @@
 <script lang="ts">
-	import { Plus, ArrowRight, CircleCheck, MessageSquare, Lightbulb, Tag, Activity as ActivityIcon } from '@lucide/svelte';
-	import ProjectPageHeader from '$lib/components/app/ProjectPageHeader.svelte';
+	import ViewHeader, { type Crumb } from '$lib/components/app/ViewHeader.svelte';
+	import ActivityFeed from '$lib/components/app/ActivityFeed.svelte';
+	import Tabs, { type TabItem } from '$lib/components/ui/Tabs.svelte';
+	import { PROJECT_NAV } from '$lib/projectNav';
 
 	let { data } = $props();
 
-	function subject(a: any) {
-		if (a.subjectType === 'ticket' && a.ticketNumber != null) return `#${a.ticketNumber} ${a.ticketTitle ?? ''}`;
-		if (a.subjectType === 'suggestion') return a.suggestionTitle ?? 'a suggestion';
-		if (a.subjectType === 'release') return a.releaseVersion ?? 'a release';
-		return '';
-	}
-	function verb(a: any): string {
-		switch (a.type) {
-			case 'ticket.created': return 'created';
-			case 'ticket.moved': return `moved to ${a.data?.column ?? ''} —`;
-			case 'ticket.closed': return 'closed';
-			case 'ticket.commented': return 'commented on';
-			case 'suggestion.created': return 'suggested';
-			case 'suggestion.status': return `marked as ${a.data?.status ?? ''} —`;
-			case 'release.published': return 'published';
-			default: return a.type;
+	const wsSlug = $derived(data.workspace.slug);
+	const projSlug = $derived(data.project.slug);
+	const base = $derived(`/w/${wsSlug}/p/${projSlug}`);
+
+	const crumbs = $derived<Crumb[]>([
+		{
+			label: data.project.name,
+			href: base,
+			dot: data.project.color ?? undefined,
+			menu:
+				(data.projects?.length ?? 0) > 1
+					? data.projects.map((p) => ({ label: p.name, href: `/w/${wsSlug}/p/${p.slug}`, current: p.slug === projSlug }))
+					: undefined
+		},
+		{
+			label: 'Activity',
+			menu: [
+				...data.boards.map((b) => ({ label: b.name, href: `${base}/b/${b.id}` })),
+				...PROJECT_NAV.filter((i) => !i.external && (!i.manageOnly || data.canManageProject)).map((i) => ({
+					label: i.label,
+					href: i.href(wsSlug, projSlug),
+					current: i.key === 'activity'
+				}))
+			]
 		}
-	}
-	function icon(t: string) {
-		if (t === 'ticket.created') return Plus;
-		if (t === 'ticket.moved') return ArrowRight;
-		if (t === 'ticket.closed') return CircleCheck;
-		if (t === 'ticket.commented') return MessageSquare;
-		if (t.startsWith('suggestion')) return Lightbulb;
-		if (t.startsWith('release')) return Tag;
-		return ActivityIcon;
-	}
-	function ago(d: string | Date): string {
-		const s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
-		if (s < 60) return 'just now';
-		if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-		if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-		return `${Math.floor(s / 86400)}d ago`;
-	}
+	]);
+
+	let typeFilter = $state('all');
+	const typeItems: TabItem[] = [
+		{ key: 'all', label: 'All' },
+		{ key: 'ticket', label: 'Tickets' },
+		{ key: 'suggestion', label: 'Feedback' },
+		{ key: 'release', label: 'Releases' }
+	];
+	const filtered = $derived(
+		typeFilter === 'all' ? data.activity : data.activity.filter((a) => a.subjectType === typeFilter)
+	);
+	const nextLimit = $derived(data.limit + 50);
 </script>
 
-<svelte:head><title>Activity — {data.project.name}</title></svelte:head>
+<svelte:head><title>Activity · {data.project.name} · OpenTrack</title></svelte:head>
 
-<div class="flex h-full flex-col">
-	<ProjectPageHeader section="Activity" />
-	<div class="min-h-0 flex-1 overflow-y-auto">
-		<div class="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
-			{#if data.activity.length}
-				<div class="mb-3 flex items-baseline justify-between gap-3">
-					<h2 class="pub-label">Project log</h2>
-					<span class="shrink-0 font-mono text-[11px] text-neutral-400">{data.activity.length} events</span>
-				</div>
-				<ol class="space-y-0.5">
-					{#each data.activity as a, i (a.id)}
-						{@const Icon = icon(a.type)}
-						<li
-							class="ot-rise flex items-start gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
-							style={`--rise-i:${i}`}
-						>
-							<span class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-black/5 text-neutral-400 dark:bg-white/10">
-								<Icon size={11} />
-							</span>
-							<p class="min-w-0 flex-1 text-[13px] leading-5">
-								<span class="font-medium">{a.actorName ?? 'Someone'}</span>
-								<span class="text-neutral-500 dark:text-neutral-400">{verb(a)}</span>
-								<span class="text-neutral-600 dark:text-neutral-300">{subject(a)}</span>
-							</p>
-							<span class="shrink-0 font-mono text-[10px] leading-5 text-neutral-400">{ago(a.createdAt)}</span>
-						</li>
-					{/each}
-				</ol>
-			{:else}
-				<div class="rounded-2xl bg-black/[0.03] py-16 text-center dark:bg-white/[0.04]">
-					<p class="text-sm text-neutral-400">No activity yet.</p>
-					<p class="mt-1 font-mono text-[11px] text-neutral-400 dark:text-neutral-500">Ticket moves, comments and releases land here.</p>
-				</div>
-			{/if}
+<ViewHeader {crumbs} live={{ text: `${data.activity.length} events` }} tabs />
+
+<div class="view-5xl">
+	<div class="mx-auto max-w-2xl">
+		<div class="mb-4">
+			<Tabs items={typeItems} bind:value={typeFilter} ariaLabel="Filter activity by type" />
 		</div>
+
+		<ActivityFeed items={filtered} {wsSlug} projectSlug={projSlug} emptyText="No activity matches." />
+
+		{#if data.hasMore}
+			<div class="mt-6 flex justify-center border-t border-[var(--rule)] pt-6">
+				<a
+					href={`?limit=${nextLimit}`}
+					class="mono-focus inline-flex h-8 items-center border border-[var(--rule)] px-3 text-[13px] text-[var(--dim)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+					>Load more</a
+				>
+			</div>
+		{/if}
 	</div>
 </div>

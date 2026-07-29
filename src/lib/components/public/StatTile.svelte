@@ -1,16 +1,17 @@
 <script lang="ts">
 	import AnimatedNumber from './AnimatedNumber.svelte';
-	import SpotlightCard from '$lib/components/vendor/SpotlightCard.svelte';
 
 	type Props = { value: number; label: string; sub?: string; accent?: boolean };
 	let { value, label, sub, accent = false }: Props = $props();
 </script>
 
-<SpotlightCard class="pub-card px-4 py-3.5">
+<!-- Mono stat: a big Space Mono numeral over a tracked mono label. No card box —
+     hierarchy is type + space. Cobalt only when this is the view's key figure. -->
+<div>
 	<AnimatedNumber
 		{value}
-		class={`block text-3xl font-bold ${accent ? 'text-[var(--accent-fg)]' : ''}`}
+		class={`mono-display block text-3xl leading-none ${accent ? 'text-[var(--accent)]' : 'text-[var(--text)]'}`}
 	/>
-	<p class="pub-label mt-1">{label}</p>
-	{#if sub}<p class="mt-0.5 font-mono text-[11px] text-neutral-400 dark:text-neutral-500">{sub}</p>{/if}
-</SpotlightCard>
+	<p class="mt-2 text-[11px] tracking-[0.14em] text-[var(--faint)] uppercase">{label}</p>
+	{#if sub}<p class="mt-0.5 text-[11px] tabular-nums text-[var(--faint)]">{sub}</p>{/if}
+</div>

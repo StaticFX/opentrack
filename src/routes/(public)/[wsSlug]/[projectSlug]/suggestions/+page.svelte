@@ -9,6 +9,7 @@
 	import PublicMeta from '$lib/components/public/PublicMeta.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
 	import UpvoteButton from '$lib/components/UpvoteButton.svelte';
+	import { ago } from '$lib/time';
 	import { cn } from '$lib/utils/cn';
 
 	let { data, form } = $props();
@@ -39,15 +40,18 @@
 		goto(`${base}?${sp}`, { noScroll: true });
 	}
 
-	const RANK_STYLE = [
-		'background:color-mix(in oklab, #eab308 16%, transparent);color:#a16207',
-		'background:color-mix(in oklab, #94a3b8 18%, transparent);color:#64748b',
-		'background:color-mix(in oklab, #d97706 14%, transparent);color:#b45309'
-	];
 	const MILESTONES = [100, 50, 25, 10];
 	const backerPill = (votes: number) => MILESTONES.find((m) => votes >= m) ?? null;
 
 	const filtered = $derived(data.status !== 'all' || !!data.kind || data.mine);
+
+	// One toggle vocabulary for the sort / kind / mine filters — a hairline
+	// border, cobalt when active. Mirrors FeedbackComposer's kind picker.
+	const filterBtn = (active: boolean) =>
+		cn(
+			'mono-focus flex items-center gap-1.5 border px-2.5 py-1 text-[12px] tracking-tight transition-colors',
+			active ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-[var(--rule)] text-[var(--dim)] hover:text-[var(--text)]'
+		);
 </script>
 
 <PublicMeta
@@ -68,127 +72,153 @@
 		initialTitle={form?.title || data.initialTitle}
 	/>
 
-	<!-- Controls -->
-	<div class="mt-6 mb-4 flex flex-wrap items-center gap-2">
-		<div class="flex gap-0.5 rounded-full border border-black/5 bg-white/70 p-0.5 dark:border-white/5 dark:bg-neutral-800/70">
+	<!-- Section label + controls -->
+	<div class="mt-10 flex flex-wrap items-end justify-between gap-3 border-t border-[var(--rule)] pt-6">
+		<p class="text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase">// Browse feedback</p>
+		<a
+			href={`${base}/rss.xml`}
+			class="mono-focus flex items-center gap-1.5 text-[11px] tracking-tight text-[var(--faint)] transition-colors hover:text-[var(--accent)]"
+		>
+			<Rss size={12} /> RSS
+		</a>
+	</div>
+
+	<div class="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2.5">
+		<div class="flex flex-wrap items-center gap-1.5">
 			{#each sorts as s (s.key)}
 				{@const Icon = s.icon}
-				<button
-					onclick={() => go({ sort: s.key })}
-					aria-pressed={data.sort === s.key}
-					class={cn(
-						'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
-						data.sort === s.key
-							? 'bg-neutral-900 text-white shadow-sm dark:bg-white dark:text-neutral-900'
-							: 'text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200'
-					)}
-				>
-					<Icon size={13} /> {s.label}
+				<button onclick={() => go({ sort: s.key })} aria-pressed={data.sort === s.key} class={filterBtn(data.sort === s.key)}>
+					<Icon size={12} /> {s.label}
 				</button>
 			{/each}
 		</div>
 
-		<div class="flex gap-0.5 rounded-full border border-black/5 bg-white/70 p-0.5 dark:border-white/5 dark:bg-neutral-800/70">
+		<span class="hidden h-4 w-px bg-[var(--rule)] sm:block" aria-hidden="true"></span>
+
+		<div class="flex flex-wrap items-center gap-1.5">
 			{#each kindFilters as k (k.key)}
-				<button
-					onclick={() => go({ kind: k.key })}
-					aria-pressed={(data.kind ?? '') === k.key}
-					class={cn(
-						'rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
-						(data.kind ?? '') === k.key
-							? 'bg-neutral-900 text-white shadow-sm dark:bg-white dark:text-neutral-900'
-							: 'text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200'
-					)}
-				>{k.label}</button>
+				<button onclick={() => go({ kind: k.key })} aria-pressed={(data.kind ?? '') === k.key} class={filterBtn((data.kind ?? '') === k.key)}>
+					{k.label}
+				</button>
 			{/each}
 			{#if data.canSubmit}
-				<button
-					onclick={() => go({ mine: data.mine ? '' : '1' })}
-					aria-pressed={data.mine}
-					class={cn(
-						'rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
-						data.mine
-							? 'bg-[var(--accent-solid)] text-white shadow-sm'
-							: 'text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200'
-					)}
-				>Mine</button>
+				<button onclick={() => go({ mine: data.mine ? '' : '1' })} aria-pressed={data.mine} class={filterBtn(!!data.mine)}>
+					Mine
+				</button>
 			{/if}
 		</div>
 
-		<div class="ml-auto flex items-center gap-2">
-			<Select value={data.status} options={statusOptions} class="w-36" onchange={(v) => go({ status: v })} />
-			<a href={`${base}/rss.xml`} class="rounded-full p-1.5 text-neutral-400 transition-colors hover:bg-black/5 hover:text-orange-500 dark:hover:bg-white/10" title="RSS feed" aria-label="RSS feed">
-				<Rss size={14} />
-			</a>
+		<div class="mono-select ml-auto">
+			<Select value={data.status} options={statusOptions} size="sm" class="w-36" onchange={(v) => go({ status: v })} />
 		</div>
 	</div>
 
 	<!-- List -->
-	<div class="space-y-2.5">
+	<ul class="mt-6 border-t border-[var(--rule)]">
 		{#each data.suggestions as s, i (s.id)}
 			{@const kindMeta = SUGGESTION_KIND_META[s.kind]}
 			{@const KindIcon = kindMeta.icon}
 			{@const statusMeta = SUGGESTION_STATUS_META[s.status]}
 			{@const rank = data.topIds.indexOf(s.id)}
 			{@const pill = backerPill(s.votes)}
-			<!-- Stretched-link card: the title anchor covers the card via ::before,
-			     so the author link and vote button stay valid, separate interactives. -->
-			<div
-				class="pub-card ot-rise group relative flex items-start gap-3.5 p-3.5 transition duration-150 hover:-translate-y-0.5"
-				style={`--rise-i:${i}; view-transition-name: s-${s.id.slice(0, 8)}`}
-			>
-				<div class="relative z-10 shrink-0">
-					<UpvoteButton subjectType="suggestion" id={s.id} count={s.votes} voted={s.voted} locked={!data.isMember && s.status !== 'open'} />
-				</div>
-				<div class="min-w-0 flex-1">
-					<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-						<span
-							class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold"
-							style={`background:color-mix(in oklab, ${kindMeta.color} 12%, transparent);color:${kindMeta.color}`}
-						><KindIcon size={11} /> {kindMeta.label}</span>
-						{#if rank >= 0 && s.status === 'open'}
-							<span class="rounded-full px-2 py-0.5 font-mono text-[10px] font-bold" style={RANK_STYLE[rank]}>#{rank + 1} requested</span>
-						{/if}
-						{#if s.status !== 'open'}
-							<span
-								class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-								style={`background:color-mix(in oklab, ${statusMeta.color} 12%, transparent);color:${statusMeta.color}`}
-							>{statusMeta.label}</span>
-						{/if}
-						{#if pill}
-							<span class="rounded-full bg-amber-500/12 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-600 dark:text-amber-400">{pill}+ backers</span>
-						{/if}
-					</div>
-					<a
-						href={`${base}/${s.id}`}
-						class="mt-1 block font-semibold tracking-tight text-neutral-800 before:absolute before:inset-0 before:content-[''] group-hover:text-neutral-950 dark:text-neutral-100 dark:group-hover:text-white"
-					>{s.title}</a>
-					{#if s.body}<p class="mt-0.5 line-clamp-2 text-sm text-neutral-500 dark:text-neutral-400">{s.body}</p>{/if}
-					<div class="mt-2 flex items-center gap-3 text-xs text-neutral-400">
-						{#if s.authorName}
-							<span class="flex items-center gap-1.5">
-								{#if s.authorAvatar}
-									<img src={s.authorAvatar} alt="" class="size-4 rounded-full" />
-								{/if}
-								{#if s.authorUsername}
-									<a href={`/u/${s.authorUsername}`} class="relative z-10 hover:text-neutral-600 hover:underline dark:hover:text-neutral-300">{s.authorName}</a>
-								{:else}
-									{s.authorName}
-								{/if}
-							</span>
-						{/if}
-						{#if s.comments > 0}<span class="flex items-center gap-1"><MessageSquare size={12} /> {s.comments}</span>{/if}
+			<li class="ot-rise border-b border-[var(--rule)]" style={`--rise-i:${i}; view-transition-name: s-${s.id.slice(0, 8)}`}>
+				<div class="flex items-start gap-3 py-3.5">
+					<span class="vote-mono mt-0.5 shrink-0">
+						<UpvoteButton
+							subjectType="suggestion"
+							id={s.id}
+							count={s.votes}
+							voted={s.voted}
+							locked={!data.isMember && s.status !== 'open'}
+							layout="row"
+						/>
+					</span>
+					<div class="min-w-0 flex-1">
+						<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+							<KindIcon size={13} class="shrink-0" style={`color:${kindMeta.color}`} aria-hidden="true" />
+							<a
+								href={`${base}/${s.id}`}
+								class="mono-focus min-w-0 truncate text-[14px] tracking-tight text-[var(--text)] transition-colors hover:text-[var(--accent)]"
+							>{s.title}</a>
+							{#if s.status !== 'open'}
+								<span class="shrink-0 text-[10px] tracking-wide uppercase" style={`color:${statusMeta.color}`}>{statusMeta.label}</span>
+							{/if}
+						</div>
+						{#if s.body}<p class="mt-1 line-clamp-2 text-[13px] leading-relaxed text-[var(--dim)]">{s.body}</p>{/if}
+						<p class="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] tabular-nums text-[var(--faint)]">
+							{#if rank >= 0 && s.status === 'open'}<span>#{rank + 1} requested</span><span aria-hidden="true">·</span>{/if}
+							{#if pill}<span>{pill}+ backers</span><span aria-hidden="true">·</span>{/if}
+							{#if s.authorName}
+								<span class="flex items-center gap-1">
+									{#if s.authorAvatar}<img src={s.authorAvatar} alt="" class="size-3.5 rounded-full" />{/if}
+									{#if s.authorUsername}
+										<a href={`/u/${s.authorUsername}`} class="mono-focus transition-colors hover:text-[var(--accent)]">{s.authorName}</a>
+									{:else}
+										{s.authorName}
+									{/if}
+								</span>
+								<span aria-hidden="true">·</span>
+							{/if}
+							<span>{ago(s.createdAt)}</span>
+							{#if s.comments > 0}
+								<span aria-hidden="true">·</span>
+								<span class="flex items-center gap-1"><MessageSquare size={11} /> {s.comments}</span>
+							{/if}
+						</p>
 					</div>
 				</div>
-			</div>
+			</li>
 		{:else}
-			<div class="pub-card rounded-3xl">
+			<li class="border-b border-[var(--rule)]">
 				<EmptyState
 					icon={Inbox}
 					title={filtered ? 'Nothing matches these filters' : 'Every project starts with idea #1'}
 					body={filtered ? 'Try widening them — good ideas hide in odd corners.' : 'Make it yours — the composer is right above.'}
 				/>
-			</div>
+			</li>
 		{/each}
-	</div>
+	</ul>
 </main>
+
+<style>
+	/* Select is a shared, theme-following UI primitive (light/dark app chrome) —
+	   recolour its real trigger + popover to the flat mono language without
+	   touching the component, mirroring FeedbackComposer's input/textarea reskin. */
+	.mono-select :global(button[role='combobox']) {
+		border-radius: 2px;
+		border-color: var(--rule);
+		background: var(--raised);
+		color: var(--dim);
+		font-family: var(--font-jb);
+	}
+	.mono-select :global(button[role='combobox']:hover) {
+		border-color: var(--accent);
+		color: var(--text);
+	}
+	.mono-select :global(button[role='combobox']:focus-visible) {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+	.mono-select :global(button[role='combobox'] svg) {
+		color: var(--faint);
+	}
+	.mono-select :global([role='listbox']) {
+		border-radius: 2px;
+		border-color: var(--rule);
+		background: var(--raised);
+		box-shadow: none;
+	}
+	.mono-select :global([role='option']) {
+		border-radius: 0;
+		color: var(--dim);
+	}
+	.mono-select :global([role='option']:hover),
+	.mono-select :global([role='option'].bg-neutral-100),
+	.mono-select :global([role='option'].dark\:bg-neutral-800) {
+		background: color-mix(in srgb, var(--accent) 10%, transparent);
+		color: var(--text);
+	}
+	.mono-select :global([role='option'] svg) {
+		color: var(--accent);
+	}
+</style>

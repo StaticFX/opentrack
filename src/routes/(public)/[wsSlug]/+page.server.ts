@@ -31,6 +31,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			};
 		})
 	);
+	// Activity-ranked: the project that moved most recently leads the directory.
+	projects.sort((a, b) => {
+		const at = a.stats.lastActivityAt ? new Date(a.stats.lastActivityAt).getTime() : -1;
+		const bt = b.stats.lastActivityAt ? new Date(b.stats.lastActivityAt).getTime() : -1;
+		return bt - at;
+	});
 
 	const totals = {
 		projects: projects.length,

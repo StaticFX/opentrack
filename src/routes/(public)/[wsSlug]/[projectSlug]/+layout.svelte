@@ -7,11 +7,14 @@
 		MessagesSquare,
 		Tag,
 		GitBranch,
-		ExternalLink,
 		ChevronRight,
+		Ellipsis,
+		Rss,
 		Search
 	} from '@lucide/svelte';
+	import { liveInvalidate } from '$lib/client/live';
 	import PublicCommandPalette from '$lib/components/public/PublicCommandPalette.svelte';
+	import DropdownMenu from '$lib/components/ui/DropdownMenu.svelte';
 	import { cn } from '$lib/utils/cn';
 
 	let { data, children } = $props();
@@ -34,7 +37,33 @@
 			: [])
 	]);
 
+	// GitHub + both RSS feeds fold into one overflow pill so they survive on
+	// mobile instead of being `hidden sm:flex`-ed away entirely.
+	const overflowItems = $derived([
+		...(data.project.githubRepo
+			? [{ label: data.project.githubRepo, icon: GitBranch, href: `https://github.com/${data.project.githubRepo}` }]
+			: []),
+		{ label: 'Feedback RSS', icon: Rss, href: `${base}/suggestions/rss.xml` },
+		...(data.hasReleases ? [{ label: 'Releases RSS', icon: Rss, href: `${base}/releases/rss.xml` }] : [])
+	]);
+
 	const openPalette = () => window.dispatchEvent(new CustomEvent('pub-palette'));
+
+	// Band scoreboard: one mono live fragment + breathing dot, ticking off the
+	// same board SSE stream the board/overview pages already subscribe to —
+	// so the "is this alive" signal persists across every tab, not just Overview.
+	let beat = $state(0);
+	const liveBoardId = $derived(data.boardId);
+	const liveProjectId = $derived(data.project.id);
+	$effect(() => {
+		if (!liveBoardId) return;
+		const stop = liveInvalidate(`/api/sse/board/${liveBoardId}`, `public:band:${liveProjectId}`, {
+			debounce: 1500,
+			maxWait: 5000,
+			onEvent: () => beat++
+		});
+		return () => stop();
+	});
 </script>
 
 <svelte:head>
@@ -54,7 +83,7 @@
 	{/if}
 </svelte:head>
 
-<div class="accent-scope" style={`--accent:${data.project.color || 'var(--color-brand-600)'}`}>
+<div class="accent-scope" style="--accent:#3b5bff">
 	<PublicCommandPalette
 		projectId={data.project.id}
 		{base}
@@ -62,58 +91,62 @@
 		tabs={tabs.map((t) => ({ href: t.href, label: t.label }))}
 	/>
 
-	<!-- Identity band — accent-washed, present on every project page. Named so
+	<!-- Identity band — type on the ground, present on every project page. Named so
 	     tab switches don't crossfade it with the root (identical snapshots are
 	     seamless; only the page content below fades). -->
-	<div
-		class="relative overflow-hidden"
-		style="view-transition-name: project-band; background:
-			radial-gradient(760px 300px at 10% -50%, var(--accent-soft), transparent 70%),
-			radial-gradient(900px 340px at 90% -65%, var(--accent-wash), transparent 70%)"
-	>
-		<div class="mx-auto max-w-6xl px-4 pt-5 pb-4 sm:px-6">
-			<nav class="flex items-center gap-1 text-xs font-medium text-neutral-400 dark:text-neutral-500">
-				<a href="/" class="transition-colors hover:text-neutral-700 dark:hover:text-neutral-300">Home</a>
-				<ChevronRight size={12} />
-				<a href={`/${data.workspace.slug}`} class="transition-colors hover:text-neutral-700 dark:hover:text-neutral-300">{data.workspace.name}</a>
+	<div class="relative" style="view-transition-name: project-band">
+		<div class="mx-auto max-w-6xl px-4 pt-6 pb-5 sm:px-6">
+			<nav class="flex items-center gap-1.5 text-[11px] tracking-tight text-[var(--faint)]">
+				<a href="/" class="mono-focus transition-colors hover:text-[var(--accent)]">Home</a>
+				<ChevronRight size={11} />
+				<a href={`/${data.workspace.slug}`} class="mono-focus transition-colors hover:text-[var(--accent)]"
+					>{data.workspace.name}</a
+				>
 			</nav>
 
-			<div class="mt-3.5 flex flex-wrap items-center gap-4">
+			<div class="mt-4 flex flex-wrap items-center gap-4">
 				<span
-					class="grid size-13 shrink-0 place-items-center rounded-2xl text-2xl font-bold text-white shadow-lg"
-					style="background:linear-gradient(140deg, color-mix(in oklab, var(--accent) 86%, white), var(--accent)); view-transition-name: project-mark"
+					class="mono-display grid size-12 shrink-0 place-items-center rounded-sm border border-[var(--rule)] bg-[var(--raised)] text-lg text-[var(--text)]"
+					style="view-transition-name: project-mark"
 				>
 					{#if data.project.icon}{data.project.icon}{:else}{data.project.name.slice(0, 1).toUpperCase()}{/if}
 				</span>
 				<div class="min-w-0">
-					<h1 class="type-poster text-3xl sm:text-4xl">{data.project.name}</h1>
+					<h1 class="mono-display text-3xl tracking-tight text-[var(--text)] sm:text-4xl">{data.project.name}</h1>
 					{#if data.project.description}
-						<p class="mt-0.5 max-w-2xl text-sm text-neutral-500 dark:text-neutral-400">{data.project.description}</p>
+						<p class="mt-1 max-w-2xl text-[13px] leading-relaxed text-[var(--dim)]">{data.project.description}</p>
 					{/if}
 				</div>
-				{#if data.project.githubRepo}
-					<a
-						href={`https://github.com/${data.project.githubRepo}`}
-						target="_blank"
-						rel="noreferrer"
-						class="ml-auto hidden items-center gap-1.5 rounded-full border border-black/10 bg-white/60 px-3.5 py-1.5 font-mono text-xs text-neutral-600 backdrop-blur transition-colors hover:bg-white sm:flex dark:border-white/10 dark:bg-white/5 dark:text-neutral-300 dark:hover:bg-white/10"
-					>
-						<GitBranch size={13} /> {data.project.githubRepo} <ExternalLink size={11} class="text-neutral-400" />
-					</a>
-				{/if}
+				<!-- Live scoreboard — one mono fragment + breathing dot, wired to the
+				     board SSE stream so "is this alive" persists across every tab. -->
+				<span
+					class="ml-auto flex shrink-0 items-center gap-2 text-[12px] tracking-tight tabular-nums text-[var(--faint)]"
+				>
+					<span class="relative flex size-1.5" aria-hidden="true">
+						{#if beat > 0}<span class="ot-breathe absolute inline-flex size-full rounded-full bg-[var(--accent)] opacity-60"></span>{/if}
+						<span class="relative inline-flex size-1.5 rounded-full bg-[var(--accent)]"></span>
+					</span>
+					<span class="text-[var(--accent)]">{data.stats.open}</span> open
+					<span aria-hidden="true">·</span>
+					<span class="text-[var(--green)]">{data.stats.shipped}</span> shipped
+				</span>
 			</div>
 		</div>
 	</div>
 
-	<!-- Floating pill tab bar, sticky under the site header. Named for the same
-	     reason as the band: the bar itself must not blink during tab switches
-	     (the active pill keeps its own pub-tab-pill morph). -->
-	<div class="sticky top-14 z-20 pb-1" style="view-transition-name: project-tabs">
+	<!-- Tab nav — a hairline-underlined mono row, sticky under the site header.
+	     Named for the same reason as the band: the bar itself must not blink
+	     during tab switches (the active tab keeps its own pub-tab-pill morph). -->
+	<div
+		class="sticky top-14 z-20 border-b border-[var(--rule)] bg-[color-mix(in_srgb,var(--ground)_88%,transparent)] backdrop-blur-md"
+		style="view-transition-name: project-tabs"
+	>
 		<div class="mx-auto max-w-6xl px-4 sm:px-6">
-			<div class="flex items-center gap-2">
-				<div
-					class="flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-black/5 bg-white/80 p-1 backdrop-blur-md dark:border-white/5 dark:bg-neutral-800/80"
-					style="box-shadow:var(--ot-shadow-float); scrollbar-width: none"
+			<div class="flex items-center gap-4">
+				<nav
+					class="mono-scroll -mb-px flex min-w-0 flex-1 items-center gap-6 overflow-x-auto"
+					aria-label="Project sections"
+					style="scrollbar-width: none"
 				>
 					{#each tabs as tab (tab.href)}
 						{@const active = tab.match(page.url.pathname)}
@@ -121,32 +154,53 @@
 							href={tab.href}
 							aria-current={active ? 'page' : undefined}
 							class={cn(
-								'flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
-								active
-									? 'bg-neutral-900 text-white shadow-sm dark:bg-white dark:text-neutral-900'
-									: 'text-neutral-500 hover:bg-black/5 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-white/10 dark:hover:text-white'
+								'mono-focus relative shrink-0 py-3.5 text-[13px] tracking-tight whitespace-nowrap transition-colors',
+								active ? 'text-[var(--text)]' : 'text-[var(--dim)] hover:text-[var(--text)]'
 							)}
-							style={active ? 'view-transition-name: pub-tab-pill' : ''}
 						>
-							<tab.icon size={15} />
 							{tab.label}
+							{#if active}
+								<span
+									class="absolute inset-x-0 -bottom-px h-[2px] bg-[var(--accent)]"
+									style="view-transition-name: pub-tab-pill"
+								></span>
+							{/if}
 						</a>
 					{/each}
-				</div>
+				</nav>
+
+				{#if overflowItems.length}
+					<DropdownMenu items={overflowItems} placement="bottom-end" ariaLabel="Project links">
+						{#snippet trigger(tp)}
+							<button
+								type="button"
+								{...tp}
+								class="mono-focus flex shrink-0 items-center justify-center border border-[var(--rule)] p-2 text-[var(--dim)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+								aria-label="More links"
+							>
+								<Ellipsis size={15} />
+							</button>
+						{/snippet}
+					</DropdownMenu>
+				{/if}
 
 				<button
 					type="button"
 					onclick={openPalette}
-					class="ml-auto flex shrink-0 items-center gap-1.5 rounded-full border border-black/5 bg-white/80 px-3 py-2 text-sm text-neutral-400 backdrop-blur-md transition-colors hover:text-neutral-700 dark:border-white/5 dark:bg-neutral-800/80 dark:text-neutral-500 dark:hover:text-neutral-200"
-					style="box-shadow:var(--ot-shadow-float)"
+					class="mono-focus flex shrink-0 items-center gap-1.5 border border-[var(--rule)] px-2.5 py-2 text-[12px] tracking-tight text-[var(--dim)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
 					aria-label="Search this project"
 				>
-					<Search size={15} />
-					<kbd class="hidden rounded border border-black/10 px-1 font-mono text-[10px] sm:inline dark:border-white/15">⌘K</kbd>
+					<Search size={14} />
+					<kbd class="hidden font-mono text-[10px] text-[var(--faint)] sm:inline">⌘K</kbd>
 				</button>
 			</div>
 		</div>
 	</div>
 
-	{@render children()}
+	<!-- The one spine well every project tab shares — reading pages (releases,
+	     suggestion/ticket detail) center a narrower column inside it, so the
+	     content boundary never jumps switching tabs. -->
+	<div class="mx-auto w-full max-w-6xl">
+		{@render children()}
+	</div>
 </div>

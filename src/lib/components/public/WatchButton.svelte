@@ -45,7 +45,7 @@
 <div class="relative">
 	<button
 		onclick={toggle}
-		class={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${w ? 'bg-[var(--accent-soft)] text-[var(--accent-fg)]' : 'text-neutral-500 hover:bg-black/5 dark:hover:bg-white/10'}`}
+		class={`mono-focus flex shrink-0 items-center gap-1.5 border px-2.5 py-1 text-[12px] transition-colors ${w ? 'border-[color-mix(in_srgb,var(--accent)_55%,transparent)] text-[var(--accent)]' : 'border-[var(--rule)] text-[var(--dim)] hover:border-[var(--accent)] hover:text-[var(--accent)]'}`}
 		title={w ? 'Stop watching' : 'Watch for updates'}
 		aria-pressed={signedIn ? w : undefined}
 		aria-expanded={signedIn ? undefined : nudge}
@@ -56,12 +56,12 @@
 	{#if nudge}
 		<div
 			use:clickOutside={() => (nudge = false)}
-			class="pub-card absolute right-0 z-20 mt-1.5 w-56 p-3 text-left"
+			class="absolute right-0 z-20 mt-1.5 w-56 border border-[var(--rule)] bg-[var(--raised)] p-3 text-left"
 		>
-			<p class="text-xs text-neutral-600 dark:text-neutral-300">
+			<p class="text-[12px] leading-relaxed text-[var(--dim)]">
 				Watching needs an account — sign in and we'll ping you at every step.
 			</p>
-			<a href={loginHref} class="mt-2 inline-block rounded-full bg-[var(--accent-solid)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--accent-solid-hover)]">Sign in</a>
+			<a href={loginHref} class="mono-focus mt-2 inline-flex items-center border border-[var(--accent)] px-3 py-1.5 text-[12px] text-[var(--accent)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--ground)]">Sign in →</a>
 		</div>
 	{/if}
 </div>

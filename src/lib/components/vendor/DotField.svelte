@@ -2,7 +2,9 @@
 	DotField — vendored from Svelte Bits (https://sveltebits.xyz, github.com/DavidHDev/svelte-bits)
 	Copyright (c) 2026 David Haz — MIT + Commons Clause (used as part of this application).
 	Local adaptations: prefers-reduced-motion renders a static field (no rAF loop,
-	no pointer tracking), and the animation pauses while the tab is hidden.
+	no pointer tracking), and the animation pauses while the tab is hidden. Default
+	colors are the blueprint-cobalt brand oklch values (canvas can't resolve CSS vars,
+	so the --color-brand-500/400 literals are inlined).
 -->
 <script module lang="ts">
 	const TWO_PI = Math.PI * 2;
@@ -46,9 +48,9 @@
 		glowRadius = 160,
 		sparkle = false,
 		waveAmplitude = 0,
-		gradientFrom = 'rgba(255, 62, 0, 0.35)',
-		gradientTo = 'rgba(255, 176, 137, 0.25)',
-		glowColor = '#14110E',
+		gradientFrom = 'oklch(0.63 0.18 262 / 0.35)',
+		gradientTo = 'oklch(0.7 0.15 262 / 0.25)',
+		glowColor = 'oklch(0.2 0.03 262)',
 		class: className = ''
 	}: Props = $props();
 

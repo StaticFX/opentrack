@@ -1,6 +1,5 @@
 <script lang="ts">
 	import {
-		ArrowRight,
 		CircleCheckBig,
 		CircleDot,
 		Hammer,
@@ -18,8 +17,6 @@
 	import PublicMeta from '$lib/components/public/PublicMeta.svelte';
 	import StatTile from '$lib/components/public/StatTile.svelte';
 	import UpvoteButton from '$lib/components/UpvoteButton.svelte';
-	import SpotlightCard from '$lib/components/vendor/SpotlightCard.svelte';
-	import StarBorder from '$lib/components/vendor/StarBorder.svelte';
 	import { renderMarkdown } from '$lib/markdown';
 	import { ago } from '$lib/time';
 
@@ -86,46 +83,47 @@
 
 <PublicMeta title={data.project.name} description={metaDesc} />
 
-<main class="mx-auto max-w-6xl px-4 pb-4 sm:px-6">
+<main class="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
 	{#if isEmpty}
-		<div class="pub-card mt-8 rounded-3xl">
+		<div class="mt-10 border-t border-[var(--rule)] pt-10">
 			<EmptyState icon={Sparkles} title="The workshop just opened" body="Nothing on the wall yet — but the front door is open. Ideas and bug reports shape what gets built first.">
-				<StarBorder
-					as="a"
+				<a
 					href={`${base}/suggestions#post`}
-					class="inline-block shadow-sm"
-					radius="9999px"
-					innerClass="inline-flex items-center gap-1.5 bg-[var(--accent-solid)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-solid-hover)]"
+					class="mono-focus inline-flex items-center gap-2 border border-[var(--accent)] px-5 py-2.5 text-[13px] tracking-tight text-[var(--accent)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--ground)]"
 				>
 					<Lightbulb size={15} /> Share the first idea
-				</StarBorder>
+				</a>
 			</EmptyState>
 		</div>
 	{:else}
-		<!-- Pulse band -->
-		<section class="mt-5 grid gap-4 lg:grid-cols-12">
-			<SpotlightCard class="pub-card ot-rise rounded-3xl p-5 lg:col-span-7" style="--rise-i:0">
-				<div class="flex items-baseline justify-between gap-3">
-					<h2 class="pub-label flex items-center gap-1.5">
-						<span class="relative flex size-2">
-							<span class="absolute inline-flex size-full rounded-full bg-[var(--accent)] opacity-60 {beat > 0 ? 'ot-breathe' : ''}"></span>
-							<span class="relative inline-flex size-2 rounded-full bg-[var(--accent)]"></span>
+		<!-- Pulse -->
+		<section class="mt-8 grid gap-x-10 gap-y-6 lg:grid-cols-12">
+			<div class="lg:col-span-7">
+				<div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+					<p class="flex items-center gap-2 text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase">
+						<span class="relative flex size-1.5" aria-hidden="true">
+							<span
+								class="absolute inline-flex size-full rounded-full bg-[var(--accent)] opacity-60 {beat > 0 ? 'ot-breathe' : ''}"
+							></span>
+							<span class="relative inline-flex size-1.5 rounded-full bg-[var(--accent)]"></span>
 						</span>
-						Pulse
-					</h2>
+						01 // Pulse
+					</p>
 					{#if data.pulse.lastActivityAt}
-						<span class="font-mono text-[11px] text-neutral-400">last activity {ago(data.pulse.lastActivityAt)}</span>
+						<span class="text-[11px] tabular-nums text-[var(--faint)]">last activity {ago(data.pulse.lastActivityAt)}</span>
 					{/if}
 				</div>
-				<div class="mt-3">
+				<div class="mt-4">
 					<Heartbeat weekly={data.pulse.weekly} {beat} />
 				</div>
-				<p class="mt-2 font-mono text-[11px] text-neutral-400 dark:text-neutral-500">
+				<p class="mt-2 text-[11px] tabular-nums text-[var(--faint)]">
 					{data.pulse.velocity.openedLast30d} opened · {data.pulse.velocity.closedLast30d} shipped in the last 30 days
 				</p>
-			</SpotlightCard>
+			</div>
 
-			<div class="grid grid-cols-2 gap-4 lg:col-span-5">
+			<div
+				class="grid grid-cols-2 gap-x-6 gap-y-6 border-t border-[var(--rule)] pt-6 lg:col-span-5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-10"
+			>
 				<StatTile value={s.openTickets} label="Open" accent />
 				<StatTile value={s.closedTickets} label="Shipped" />
 				<StatTile value={s.openIdeas} label="Ideas waiting" />
@@ -133,153 +131,201 @@
 			</div>
 		</section>
 
-		<div class="mt-8 grid gap-x-8 gap-y-10 lg:grid-cols-12">
-			<div class="space-y-10 lg:col-span-7">
+		<div class="mt-14 grid gap-x-10 gap-y-14 lg:grid-cols-12">
+			<div class="space-y-14 lg:col-span-7">
 				<!-- Now building -->
 				{#if data.nowBuilding.length || data.milestones.length}
-					<section>
-						<div class="flex items-baseline justify-between">
-							<h2 class="type-poster flex items-center gap-2 text-xl"><Hammer size={18} class="text-[var(--accent-fg)]" /> Now building</h2>
-							<a href={`${base}/board`} class="flex items-center gap-1 text-xs font-medium text-neutral-400 hover:text-[var(--accent-fg)]">full board <ArrowRight size={12} /></a>
+					<section class="border-t border-[var(--rule)] pt-8">
+						<div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+							<p class="flex items-center gap-2 text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase">
+								<Hammer size={13} class="text-[var(--faint)]" /> 02 // Now building
+							</p>
+							<a
+								href={`${base}/board`}
+								class="mono-focus text-[12px] tracking-tight text-[var(--dim)] transition-colors hover:text-[var(--accent)]"
+							>
+								full board →
+							</a>
 						</div>
 
 						{#if data.milestones.length}
-							<div class="mt-3 space-y-2.5">
+							<div class="mt-5 space-y-3">
 								{#each data.milestones as m (m.id)}
-									<div class="flex items-center gap-3">
-										<Milestone size={14} class="shrink-0 text-neutral-400" />
-										<span class="min-w-0 truncate text-sm font-medium">{m.title}</span>
-										<div class="h-1.5 min-w-16 flex-1 overflow-hidden rounded-full bg-black/5 dark:bg-white/10">
-											<div class="h-full rounded-full transition-all duration-500" style={`width:${msProgress(m)}%;background:var(--accent)`}></div>
+									<div class="flex items-center gap-3 text-[13px]">
+										<Milestone size={13} class="shrink-0 text-[var(--faint)]" />
+										<span class="min-w-0 truncate text-[var(--text)]">{m.title}</span>
+										<div class="h-1 min-w-16 flex-1 bg-[var(--rule)]">
+											<div class="h-full transition-all duration-500" style={`width:${msProgress(m)}%;background:var(--accent)`}></div>
 										</div>
-										<span class="shrink-0 font-mono text-[11px] text-neutral-400">{msProgress(m)}%{m.dueDate ? ` · due ${new Date(m.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}</span>
+										<span class="shrink-0 text-[11px] tabular-nums text-[var(--faint)]"
+											>{msProgress(m)}%{m.dueDate ? ` · due ${new Date(m.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}</span
+										>
 									</div>
 								{/each}
 							</div>
 						{/if}
 
-						<div class="mt-3 space-y-2.5">
+						<ul class="mt-5 border-t border-[var(--rule)]">
 							{#each data.nowBuilding as t, i (t.id)}
-								<a href={`${base}/t/${t.number}`} class="pub-card ot-rise group flex items-center gap-3 p-3.5 transition duration-150 hover:-translate-y-0.5" style={`--rise-i:${i}`}>
-									<span class="size-2 shrink-0 rounded-full" style={`background:${t.columnColor}`} title={t.columnName}></span>
-									<span class="shrink-0 font-mono text-xs text-neutral-400">#{t.number}</span>
-									<span class="min-w-0 flex-1 truncate text-sm font-medium group-hover:text-[var(--accent-fg)]">{t.title}</span>
-									{#if t.assignees.length}
-										<span class="flex shrink-0 -space-x-1.5">
-											{#each t.assignees.slice(0, 3) as a (a.userId ?? a.githubLogin)}
-												{#if a.avatarUrl}
-													<img src={a.avatarUrl} alt={a.displayName} title={a.displayName} class="size-5 rounded-full ring-2 ring-white dark:ring-neutral-800" />
-												{:else}
-													<span class="grid size-5 place-items-center rounded-full bg-neutral-300 text-[9px] font-semibold text-neutral-700 ring-2 ring-white dark:bg-neutral-600 dark:text-neutral-100 dark:ring-neutral-800" title={a.displayName}>{a.displayName.slice(0, 1).toUpperCase()}</span>
-												{/if}
-											{/each}
-										</span>
-									{/if}
-								</a>
+								<li class="ot-rise border-b border-[var(--rule)]" style={`--rise-i:${i}`}>
+									<a href={`${base}/t/${t.number}`} class="mono-focus group flex items-center gap-3 py-3 transition-colors">
+										<span class="size-2 shrink-0 rounded-full" style={`background:${t.columnColor}`} title={t.columnName}></span>
+										<span class="shrink-0 text-[12px] tabular-nums text-[var(--faint)]">#{t.number}</span>
+										<span class="min-w-0 flex-1 truncate text-[14px] text-[var(--text)] group-hover:text-[var(--accent)]">{t.title}</span>
+										{#if t.assignees.length}
+											<span class="flex shrink-0 -space-x-1.5">
+												{#each t.assignees.slice(0, 3) as a (a.userId ?? a.githubLogin)}
+													{#if a.avatarUrl}
+														<img
+															src={a.avatarUrl}
+															alt={a.displayName}
+															title={a.displayName}
+															class="size-5 rounded-full ring-2 ring-[var(--ground)]"
+														/>
+													{:else}
+														<span
+															class="grid size-5 place-items-center rounded-full border border-[var(--rule)] bg-[var(--raised)] text-[9px] font-semibold text-[var(--dim)] ring-2 ring-[var(--ground)]"
+															title={a.displayName}>{a.displayName.slice(0, 1).toUpperCase()}</span
+														>
+													{/if}
+												{/each}
+											</span>
+										{/if}
+									</a>
+								</li>
 							{:else}
-								<p class="text-sm text-neutral-400">Nothing on the bench right now.</p>
+								<li class="border-b border-[var(--rule)] py-3 text-[13px] text-[var(--faint)]">— nothing on the bench right now.</li>
 							{/each}
-						</div>
+						</ul>
 					</section>
 				{/if}
 
 				<!-- Recently shipped -->
 				{#if data.shipped.length}
-					<section>
-						<h2 class="type-poster flex items-center gap-2 text-xl"><Rocket size={18} class="text-green-600 dark:text-green-400" /> Recently shipped</h2>
-						<div class="mt-3 space-y-1">
+					<section class="border-t border-[var(--rule)] pt-8">
+						<p class="flex items-center gap-2 text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase">
+							<Rocket size={13} class="text-[var(--faint)]" /> 03 // Recently shipped
+						</p>
+						<ul class="mt-5 border-t border-[var(--rule)]">
 							{#each data.shipped as t (t.id)}
-								<a href={`${base}/t/${t.number}`} class="group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.05]">
-									<CircleCheckBig size={15} class="shrink-0 text-green-500" />
-									<span class="shrink-0 font-mono text-xs text-neutral-400">#{t.number}</span>
-									<span class="min-w-0 flex-1 truncate text-sm group-hover:text-neutral-950 dark:group-hover:text-white">{t.title}</span>
-									{#each t.labels.slice(0, 2) as l (l.id)}
-										<span class="hidden rounded-full px-2 py-0.5 text-[10px] font-medium sm:inline" style={`background:color-mix(in oklab, ${l.color} 12%, transparent);color:${l.color}`}>{l.name}</span>
-									{/each}
-									<span class="shrink-0 font-mono text-[11px] text-neutral-400">{ago(t.closedAt)}</span>
-								</a>
+								<li class="border-b border-[var(--rule)]">
+									<a href={`${base}/t/${t.number}`} class="mono-focus group flex items-center gap-2.5 py-2.5 transition-colors">
+										<CircleCheckBig size={14} class="shrink-0" style="color:var(--green)" />
+										<span class="shrink-0 text-[12px] tabular-nums text-[var(--faint)]">#{t.number}</span>
+										<span class="min-w-0 flex-1 truncate text-[13px] text-[var(--dim)] group-hover:text-[var(--text)]">{t.title}</span>
+										{#each t.labels.slice(0, 2) as l (l.id)}
+											<span class="hidden text-[10px] tracking-wide uppercase sm:inline" style={`color:${l.color}`}>{l.name}</span>
+										{/each}
+										<span class="shrink-0 text-[11px] tabular-nums text-[var(--faint)]">{ago(t.closedAt)}</span>
+									</a>
+								</li>
 							{/each}
-						</div>
+						</ul>
 					</section>
 				{/if}
 
 				<!-- Latest release -->
 				{#if data.latestRelease}
 					{@const r = data.latestRelease}
-					<section class="pub-card rounded-3xl p-5">
+					<section class="border-t border-[var(--rule)] pt-8">
 						<div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-							<h2 class="pub-label">Latest release</h2>
-							<span class="ml-auto font-mono text-[11px] text-neutral-400">{r.releasedAt ? ago(r.releasedAt) : ''}</span>
+							<p class="text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase">04 // Latest release</p>
+							<span class="ml-auto text-[11px] tabular-nums text-[var(--faint)]">{r.releasedAt ? ago(r.releasedAt) : ''}</span>
 						</div>
-						<p class="type-poster mt-1.5 text-2xl">{r.version}{#if r.name}<span class="ml-2 font-sans text-base font-normal text-neutral-500 dark:text-neutral-400">{r.name}</span>{/if}</p>
+						<p class="mono-display mt-3 text-2xl tracking-tight text-[var(--text)]">
+							{r.version}{#if r.name}<span class="ml-2 text-base font-normal text-[var(--dim)]">{r.name}</span>{/if}
+						</p>
 						{#if r.notes}
-							<div class="prose prose-sm dark:prose-invert mt-2 line-clamp-3 max-w-none opacity-80">{@html renderMarkdown(r.notes)}</div>
+							<div class="prose prose-sm prose-invert mt-2 line-clamp-3 max-w-none text-[var(--dim)]">{@html renderMarkdown(r.notes)}</div>
 						{/if}
-						<div class="mt-3 flex flex-wrap items-center gap-2">
+						<div class="mt-4 flex flex-wrap items-center gap-4">
 							{#each r.links.slice(0, 2) as l (l.url)}
-								<a href={l.url} target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-full bg-[var(--accent-solid)] px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[var(--accent-solid-hover)]">
+								<a
+									href={l.url}
+									target="_blank"
+									rel="noopener"
+									class="mono-focus inline-flex items-center gap-1.5 border border-[var(--accent)] px-3.5 py-1.5 text-[12px] tracking-tight text-[var(--accent)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--ground)]"
+								>
 									<PackageOpen size={13} /> {l.label}
 								</a>
 							{/each}
-							<a href={`${base}/releases`} class="ml-auto flex items-center gap-1 text-xs font-medium text-neutral-400 hover:text-[var(--accent-fg)]">
-								all releases{#if r.ticketCount}<span class="font-mono">({r.ticketCount} shipped)</span>{/if} <ArrowRight size={12} />
+							<a
+								href={`${base}/releases`}
+								class="mono-focus ml-auto text-[12px] tracking-tight text-[var(--dim)] transition-colors hover:text-[var(--accent)]"
+							>
+								all releases{#if r.ticketCount}<span class="tabular-nums"> ({r.ticketCount} shipped)</span>{/if} →
 							</a>
 						</div>
 					</section>
 				{/if}
 			</div>
 
-			<div class="space-y-10 lg:col-span-5">
+			<div class="space-y-14 lg:col-span-5">
 				<!-- Top ideas -->
-				<section>
-					<div class="flex items-baseline justify-between">
-						<h2 class="type-poster flex items-center gap-2 text-xl"><Lightbulb size={18} class="text-[var(--accent-fg)]" /> Top ideas</h2>
-						<a href={`${base}/suggestions`} class="flex items-center gap-1 text-xs font-medium text-neutral-400 hover:text-[var(--accent-fg)]">all feedback <ArrowRight size={12} /></a>
-					</div>
-					<div class="mt-3 space-y-2.5">
-						{#each data.ideas as idea, i (idea.id)}
-							<div class="pub-card ot-rise flex items-center gap-3 p-3" style={`--rise-i:${i}`}>
-								<UpvoteButton subjectType="suggestion" id={idea.id} count={idea.votes} voted={idea.voted} layout="row" />
-								<a href={`${base}/suggestions/${idea.id}`} class="min-w-0 flex-1">
-									<p class="truncate text-sm font-medium hover:text-[var(--accent-fg)]">{idea.title}</p>
-									{#if idea.comments > 0}
-										<p class="mt-0.5 flex items-center gap-1 text-[11px] text-neutral-400"><MessageSquare size={11} /> {idea.comments}</p>
-									{/if}
-								</a>
-							</div>
-						{:else}
-							<p class="text-sm text-neutral-400">No open ideas — the floor is yours.</p>
-						{/each}
+				<section class="border-t border-[var(--rule)] pt-8">
+					<div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+						<p class="flex items-center gap-2 text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase">
+							<Lightbulb size={13} class="text-[var(--faint)]" /> 05 // Top ideas
+						</p>
 						<a
-							href={`${base}/suggestions#post`}
-							class="flex items-center justify-center gap-1.5 rounded-2xl border border-dashed border-neutral-300 px-3 py-2.5 text-sm font-medium text-neutral-500 transition-colors hover:border-[var(--accent-border)] hover:text-[var(--accent-fg)] dark:border-neutral-700"
+							href={`${base}/suggestions`}
+							class="mono-focus text-[12px] tracking-tight text-[var(--dim)] transition-colors hover:text-[var(--accent)]"
 						>
-							<Sparkles size={14} /> Share yours
+							all feedback →
 						</a>
 					</div>
+					<ul class="mt-5 border-t border-[var(--rule)]">
+						{#each data.ideas as idea, i (idea.id)}
+							<li class="ot-rise border-b border-[var(--rule)]" style={`--rise-i:${i}`}>
+								<div class="flex items-center gap-3 py-3">
+									<span class="vote-mono shrink-0">
+										<UpvoteButton subjectType="suggestion" id={idea.id} count={idea.votes} voted={idea.voted} layout="row" />
+									</span>
+									<a href={`${base}/suggestions/${idea.id}`} class="mono-focus min-w-0 flex-1">
+										<p class="truncate text-[14px] text-[var(--text)] transition-colors hover:text-[var(--accent)]">{idea.title}</p>
+										{#if idea.comments > 0}
+											<p class="mt-0.5 flex items-center gap-1 text-[11px] text-[var(--faint)]"><MessageSquare size={11} /> {idea.comments}</p>
+										{/if}
+									</a>
+								</div>
+							</li>
+						{:else}
+							<li class="border-b border-[var(--rule)] py-3 text-[13px] text-[var(--faint)]">No open ideas — the floor is yours.</li>
+						{/each}
+					</ul>
+					<a
+						href={`${base}/suggestions#post`}
+						class="mono-focus group mt-4 flex items-center justify-center gap-2 border border-[var(--rule)] py-2.5 text-[13px] tracking-tight text-[var(--dim)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+					>
+						<Sparkles size={14} /> Share yours
+					</a>
 				</section>
 
 				<!-- Activity -->
 				{#if data.activity.length}
-					<section>
-						<h2 class="pub-label">Recent activity</h2>
-						<ol class="mt-3 space-y-0.5">
+					<section class="border-t border-[var(--rule)] pt-8">
+						<p class="text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase">06 // Recent activity</p>
+						<ol class="mt-5">
 							{#each data.activity as a (a.id)}
 								{@const line = actLine(a)}
 								{@const Icon = line.icon}
-								<li>
+								<li class="border-b border-[var(--rule)]">
 									<svelte:element
 										this={line.href ? 'a' : 'div'}
 										href={line.href ?? undefined}
-										class="group flex items-start gap-2.5 rounded-lg px-2 py-1.5 {line.href ? 'transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.05]' : ''}"
+										class="mono-focus group flex items-start gap-2.5 py-2.5 {line.href ? 'transition-colors' : ''}"
 									>
 										{#if a.actorAvatar}
 											<img src={a.actorAvatar} alt="" class="mt-0.5 size-5 shrink-0 rounded-full" />
 										{:else}
-											<span class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-black/5 text-neutral-400 dark:bg-white/10"><Icon size={11} /></span>
+											<span class="mt-0.5 grid size-5 shrink-0 place-items-center border border-[var(--rule)] text-[var(--faint)]"
+												><Icon size={11} /></span
+											>
 										{/if}
-										<span class="min-w-0 flex-1 text-[13px] leading-5 text-neutral-600 dark:text-neutral-300">{line.text}</span>
-										<span class="shrink-0 font-mono text-[10px] leading-5 text-neutral-400">{ago(a.createdAt)}</span>
+										<span class="min-w-0 flex-1 text-[13px] leading-5 text-[var(--dim)] {line.href ? 'group-hover:text-[var(--text)]' : ''}"
+											>{line.text}</span
+										>
+										<span class="shrink-0 text-[10px] leading-5 tabular-nums text-[var(--faint)]">{ago(a.createdAt)}</span>
 									</svelte:element>
 								</li>
 							{/each}
@@ -289,15 +335,18 @@
 
 				<!-- Contributors -->
 				{#if data.contributors.length}
-					<section>
-						<h2 class="pub-label">Contributors</h2>
-						<div class="mt-3 flex flex-wrap items-center gap-2">
+					<section class="border-t border-[var(--rule)] pt-8">
+						<p class="text-[11px] tracking-[0.18em] text-[var(--faint)] uppercase">07 // Contributors</p>
+						<div class="mt-5 flex flex-wrap items-center gap-2.5">
 							{#each data.contributors.slice(0, 12) as m (m.username)}
-								<a href={`/u/${m.username}`} title={`${m.displayName} · ${m.role}`} class="transition-transform hover:-translate-y-0.5">
+								<a href={`/u/${m.username}`} title={`${m.displayName} · ${m.role}`} class="mono-focus transition-opacity hover:opacity-70">
 									{#if m.avatarUrl}
-										<img src={m.avatarUrl} alt={m.displayName} class="size-8 rounded-full ring-2 ring-white dark:ring-neutral-800" />
+										<img src={m.avatarUrl} alt={m.displayName} class="size-8 rounded-full border border-[var(--rule)]" />
 									{:else}
-										<span class="grid size-8 place-items-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-600 ring-2 ring-white dark:bg-neutral-700 dark:text-neutral-200 dark:ring-neutral-800">{m.displayName.slice(0, 1).toUpperCase()}</span>
+										<span
+											class="grid size-8 place-items-center rounded-full border border-[var(--rule)] bg-[var(--raised)] text-[11px] font-semibold text-[var(--dim)]"
+											>{m.displayName.slice(0, 1).toUpperCase()}</span
+										>
 									{/if}
 								</a>
 							{/each}

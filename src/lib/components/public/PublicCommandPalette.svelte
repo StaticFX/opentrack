@@ -227,15 +227,15 @@
 
 {#if open}
 	<div class="fixed inset-0 z-50 flex items-end justify-center sm:items-start sm:p-4 sm:pt-[12vh]">
-		<button aria-label="Close search" class="absolute inset-0 bg-neutral-950/40 backdrop-blur-[2px]" onclick={close}></button>
+		<button aria-label="Close search" class="absolute inset-0 bg-[color-mix(in_srgb,var(--ground)_70%,transparent)] backdrop-blur-[2px]" onclick={close}></button>
 		<div
 			role="dialog"
 			aria-modal="true"
 			aria-label="Search {projectName}"
-			class="relative w-full max-w-xl overflow-hidden rounded-t-2xl border border-black/5 bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl sm:rounded-2xl dark:border-white/10 dark:bg-neutral-900"
+			class="relative w-full max-w-xl overflow-hidden border border-[var(--rule)] bg-[var(--raised)] pb-[env(safe-area-inset-bottom)] sm:rounded-sm"
 		>
-			<div class="flex items-center gap-2 border-b border-neutral-100 px-3 dark:border-neutral-800">
-				<Search size={16} class="shrink-0 text-neutral-400" />
+			<div class="flex items-center gap-2 border-b border-[var(--rule)] px-3">
+				<Search size={16} class="shrink-0 text-[var(--faint)]" />
 				<input
 					bind:this={inputEl}
 					bind:value={q}
@@ -244,34 +244,34 @@
 					aria-expanded="true"
 					aria-controls="pub-palette-list"
 					aria-activedescendant={results[sel] ? `pp-${results[sel].id}` : undefined}
-					class="h-12 w-full bg-transparent text-sm outline-none placeholder:text-neutral-400"
+					class="h-12 w-full bg-transparent text-[14px] text-[var(--text)] outline-none placeholder:text-[var(--faint)]"
 				/>
 				{#if loading}
 					<span class="flex shrink-0 gap-0.5" aria-hidden="true">
 						{#each [0, 1, 2] as i (i)}
-							<span class="size-1 animate-pulse rounded-full bg-neutral-300 motion-reduce:animate-none dark:bg-neutral-600" style={`animation-delay:${i * 150}ms`}></span>
+							<span class="size-1 animate-pulse rounded-full bg-[var(--faint)] motion-reduce:animate-none" style={`animation-delay:${i * 150}ms`}></span>
 						{/each}
 					</span>
 				{/if}
-				<kbd class="hidden shrink-0 rounded border border-neutral-200 px-1.5 py-0.5 font-mono text-[10px] text-neutral-400 sm:block dark:border-neutral-700">esc</kbd>
+				<kbd class="hidden shrink-0 border border-[var(--rule)] px-1.5 py-0.5 text-[10px] text-[var(--faint)] sm:block">esc</kbd>
 			</div>
 
-			<div id="pub-palette-list" role="listbox" class="max-h-[60vh] overflow-y-auto p-1.5 sm:max-h-[50vh]">
+			<div id="pub-palette-list" role="listbox" class="mono-scroll max-h-[60vh] overflow-y-auto p-1.5 sm:max-h-[50vh]">
 				{#if results.length === 0}
 					<div class="px-3 py-8 text-center">
-						<p class="text-sm text-neutral-500 dark:text-neutral-400">
-							Nothing matched <span class="font-semibold">“{q.trim()}”</span>.
+						<p class="text-[13px] text-[var(--dim)]">
+							Nothing matched <span class="text-[var(--text)]">“{q.trim()}”</span>.
 						</p>
 						<button
 							onclick={() => nav(`${base}/suggestions?title=${encodeURIComponent(q.trim())}#post`)}
-							class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--accent-solid)] px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[var(--accent-solid-hover)]"
+							class="mono-focus mt-3 inline-flex items-center gap-1.5 border border-[var(--accent)] px-4 py-1.5 text-[13px] text-[var(--accent)] transition-colors hover:bg-[var(--accent)] hover:text-[var(--ground)]"
 						>
 							<Sparkles size={14} /> Missing something? Post it as feedback
 						</button>
 					</div>
 				{:else}
 					{#each grouped as g (g.group)}
-						<div class="pub-label px-2 pt-2 pb-1" role="presentation">{g.group}</div>
+						<div class="px-2 pt-2.5 pb-1 text-[10px] tracking-[0.16em] text-[var(--faint)] uppercase" role="presentation">// {g.group}</div>
 						{#each g.items as it (it.id)}
 							{@const idx = results.indexOf(it)}
 							{@const Icon = it.icon}
@@ -282,16 +282,16 @@
 								aria-selected={idx === sel}
 								onclick={it.run}
 								onmousemove={() => (sel = idx)}
-								class={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm ${idx === sel ? 'bg-[var(--accent-soft)] text-[var(--accent-fg)]' : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'}`}
+								class={`flex w-full items-center gap-2.5 px-2.5 py-2 text-left text-[14px] transition-colors ${idx === sel ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]' : 'text-[var(--dim)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]'}`}
 							>
-								<Icon size={15} class="shrink-0 text-neutral-400" />
-								<span class="min-w-0 flex-1 truncate">{it.label}</span>
-								{#if it.sub}<span class="shrink-0 truncate font-mono text-[11px] text-neutral-400">{it.sub}</span>{/if}
-								{#if idx === sel}<CornerDownLeft size={13} class="shrink-0 text-neutral-400" />{/if}
+								<Icon size={15} class="shrink-0 {idx === sel ? 'text-[var(--accent)]' : 'text-[var(--faint)]'}" />
+								<span class="min-w-0 flex-1 truncate {idx === sel ? '' : 'text-[var(--text)]'}">{it.label}</span>
+								{#if it.sub}<span class="shrink-0 truncate text-[11px] tabular-nums text-[var(--faint)]">{it.sub}</span>{/if}
+								{#if idx === sel}<CornerDownLeft size={13} class="shrink-0 text-[var(--accent)]" />{/if}
 							</button>
 						{/each}
 					{/each}
-					<p class="px-2 pt-2 pb-1 text-right font-mono text-[10px] text-neutral-300 dark:text-neutral-600" role="presentation">↑↓ navigate · ↵ open · esc close</p>
+					<p class="px-2 pt-2 pb-1 text-right text-[10px] tabular-nums text-[var(--faint)]" role="presentation">↑↓ navigate · ↵ open · esc close</p>
 				{/if}
 			</div>
 		</div>

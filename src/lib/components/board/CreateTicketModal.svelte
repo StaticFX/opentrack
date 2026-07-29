@@ -1,9 +1,14 @@
 <script lang="ts">
-	import { X, Check } from '@lucide/svelte';
+	import { Check } from '@lucide/svelte';
 	import { PRIORITIES, type Priority } from '$lib/constants';
 	import { PRIORITY_META } from '$lib/priority';
+	import { cn } from '$lib/utils/cn';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
+	import Dialog from '$lib/components/ui/Dialog.svelte';
+	import Field from '$lib/components/ui/Field.svelte';
+	import Kbd from '$lib/components/ui/Kbd.svelte';
+	import Avatar from '$lib/components/ui/Avatar.svelte';
 
 	type ColumnDef = { id: string; name: string; color: string };
 	type LabelDef = { id: string; name: string; color: string };
@@ -29,7 +34,12 @@
 	let milestones = $state<Array<{ id: string; title: string; state: string }>>([]);
 	let saving = $state(false);
 	let error = $state('');
-	let titleEl = $state<HTMLInputElement | null>(null);
+
+	// The Dialog owns Esc/backdrop/✕; the parent unmounts on onclose.
+	let open = $state(true);
+	$effect(() => {
+		if (!open) onclose();
+	});
 
 	const jsonHeaders = { 'content-type': 'application/json' };
 	const priorityOptions = PRIORITIES.map((p) => ({
@@ -42,10 +52,6 @@
 		{ value: '', label: 'No milestone' },
 		...milestones.map((m) => ({ value: m.id, label: m.state === 'closed' ? `${m.title} (closed)` : m.title }))
 	]);
-
-	$effect(() => {
-		titleEl?.focus();
-	});
 
 	// Load assignable members + milestones for the pickers.
 	$effect(() => {
@@ -112,102 +118,103 @@
 	}
 
 	function onKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') onclose();
 		// Cmd/Ctrl+Enter submits from anywhere in the form.
 		if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
 			e.preventDefault();
 			void submit();
 		}
 	}
+
+	const pillOff =
+		'border-[var(--ot-hairline)] text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800';
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
-<div class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh]">
-	<button type="button" aria-label="Close" class="absolute inset-0 bg-neutral-950/40 backdrop-blur-[2px]" onclick={onclose}></button>
-	<div class="relative z-10 flex max-h-[80vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-2xl dark:border-neutral-800 dark:bg-neutral-900">
-		<div class="flex items-center justify-between border-b border-neutral-100 px-5 py-3 dark:border-neutral-800">
-			<h2 class="text-sm font-semibold">New ticket</h2>
-			<button onclick={onclose} class="rounded p-1 text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close"><X size={16} /></button>
-		</div>
+<Dialog bind:open title="New ticket" size="lg" align="top">
+	<input
+		bind:value={title}
+		placeholder="Ticket title"
+		aria-label="Ticket title"
+		class="focus-ring mb-3 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-[13px] font-medium dark:border-neutral-800 dark:bg-neutral-900"
+	/>
+	<textarea
+		bind:value={description}
+		placeholder="Description (markdown supported)…"
+		aria-label="Description"
+		rows="4"
+		class="focus-ring mb-4 w-full resize-y rounded-md border border-neutral-200 bg-white px-3 py-2 text-[13px] dark:border-neutral-800 dark:bg-neutral-900"
+	></textarea>
 
-		<div class="flex-1 overflow-y-auto px-5 py-4">
-			<!-- svelte-ignore a11y_autofocus -->
-			<input
-				bind:this={titleEl}
-				bind:value={title}
-				placeholder="Ticket title"
-				class="mb-3 w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none dark:border-neutral-700 dark:bg-neutral-900"
-			/>
-			<textarea
-				bind:value={description}
-				placeholder="Description (markdown supported)…"
-				rows="4"
-				class="mb-4 w-full resize-y rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none dark:border-neutral-700 dark:bg-neutral-900"
-			></textarea>
-
-			<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-				<label class="block">
-					<span class="mb-1 block text-xs font-medium text-neutral-400">Column</span>
-					<Select bind:value={columnId} options={columnOptions} size="sm" />
-				</label>
-				<label class="block">
-					<span class="mb-1 block text-xs font-medium text-neutral-400">Priority</span>
-					<Select bind:value={priority} options={priorityOptions} size="sm" />
-				</label>
-				<label class="block">
-					<span class="mb-1 block text-xs font-medium text-neutral-400">Milestone</span>
-					<Select bind:value={milestoneId} options={milestoneOptions} size="sm" placeholder="No milestone" />
-				</label>
-			</div>
-
-			{#if labels.length}
-				<div class="mb-4">
-					<span class="mb-1.5 block text-xs font-medium text-neutral-400">Labels</span>
-					<div class="flex flex-wrap gap-1.5">
-						{#each labels as l (l.id)}
-							{@const on = selLabels.includes(l.id)}
-							<button
-								onclick={() => (selLabels = toggle(selLabels, l.id))}
-								class={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${on ? 'border-transparent text-white' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800'}`}
-								style={on ? `background:${l.color}` : ''}
-							>
-								{#if on}<Check size={11} />{/if}{l.name}
-							</button>
-						{/each}
-					</div>
-				</div>
-			{/if}
-
-			{#if members.length}
-				<div>
-					<span class="mb-1.5 block text-xs font-medium text-neutral-400">Assignees</span>
-					<div class="flex flex-wrap gap-1.5">
-						{#each members as m (m.userId)}
-							{@const on = selAssignees.includes(m.userId)}
-							<button
-								onclick={() => (selAssignees = toggle(selAssignees, m.userId))}
-								class={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs ${on ? 'border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800'}`}
-							>
-								{#if m.avatarUrl}
-									<img src={m.avatarUrl} alt="" class="size-4 rounded-full" />
-								{:else}
-									<span class="grid size-4 place-items-center rounded-full bg-neutral-300 text-[8px] font-semibold text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">{m.displayName.slice(0, 1).toUpperCase()}</span>
-								{/if}
-								{m.displayName}
-							</button>
-						{/each}
-					</div>
-				</div>
-			{/if}
-		</div>
-
-		<div class="flex items-center justify-between gap-3 border-t border-neutral-100 px-5 py-3 dark:border-neutral-800">
-			{#if error}<span class="text-sm text-red-600">{error}</span>{:else}<span class="text-xs text-neutral-400">⌘↵ to create</span>{/if}
-			<div class="flex items-center gap-2">
-				<Button variant="ghost" size="sm" onclick={onclose}>Cancel</Button>
-				<Button variant="primary" size="sm" onclick={submit} disabled={saving}>{saving ? 'Creating…' : 'Create ticket'}</Button>
-			</div>
-		</div>
+	<div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+		<Field label="Column">
+			<Select bind:value={columnId} options={columnOptions} size="sm" />
+		</Field>
+		<Field label="Priority">
+			<Select bind:value={priority} options={priorityOptions} size="sm" />
+		</Field>
+		<Field label="Milestone">
+			<Select bind:value={milestoneId} options={milestoneOptions} size="sm" placeholder="No milestone" />
+		</Field>
 	</div>
-</div>
+
+	{#if labels.length}
+		<div class="mb-4">
+			<span class="mb-1.5 block text-[11px] font-medium text-neutral-500">Labels</span>
+			<div class="flex flex-wrap gap-1.5">
+				{#each labels as l (l.id)}
+					{@const on = selLabels.includes(l.id)}
+					<button
+						type="button"
+						aria-pressed={on}
+						onclick={() => (selLabels = toggle(selLabels, l.id))}
+						class={cn(
+							'focus-ring flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs',
+							on ? 'border-transparent text-white' : pillOff
+						)}
+						style={on ? `background:${l.color}` : ''}
+					>
+						{#if on}<Check size={11} />{/if}{l.name}
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
+	{#if members.length}
+		<div>
+			<span class="mb-1.5 block text-[11px] font-medium text-neutral-500">Assignees</span>
+			<div class="flex flex-wrap gap-1.5">
+				{#each members as m (m.userId)}
+					{@const on = selAssignees.includes(m.userId)}
+					<button
+						type="button"
+						aria-pressed={on}
+						onclick={() => (selAssignees = toggle(selAssignees, m.userId))}
+						class={cn(
+							'focus-ring flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs',
+							on
+								? 'border-[var(--accent-border)] bg-[var(--accent-soft)] text-[var(--accent-fg)]'
+								: pillOff
+						)}
+					>
+						<Avatar name={m.displayName} src={m.avatarUrl} size={16} />
+						{m.displayName}
+					</button>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
+	{#snippet footer()}
+		{#if error}
+			<span class="mr-auto self-center text-[13px] text-red-600">{error}</span>
+		{:else}
+			<span class="mr-auto flex items-center gap-1 self-center text-[11px] text-neutral-500">
+				<Kbd keys={['⌘', '↵']} /> to create
+			</span>
+		{/if}
+		<Button variant="ghost" size="sm" onclick={() => (open = false)}>Cancel</Button>
+		<Button variant="primary" size="sm" onclick={submit} loading={saving}>Create ticket</Button>
+	{/snippet}
+</Dialog>

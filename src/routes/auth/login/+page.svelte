@@ -1,16 +1,18 @@
+<!--
+	/auth/login — the "Immersive First Boot" sign-in experience: a
+	full-viewport cursor-reactive dot field + blueprint grid + power-on rings
+	behind a glowing glass auth card, with a terminal-style decrypt headline.
+	All the actual contracts (providers, admin password form, 2FA step) are
+	unchanged from the plain version this replaces — see Hero.svelte for the
+	real forms/links; this file only derives the same view state the old
+	page did and supplies the dark, cobalt-accent theme tokens the auth-b
+	component family expects.
+-->
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import BrandIcon from '$lib/components/integrations/BrandIcon.svelte';
+	import Hero from '$lib/components/landing/auth-b/Hero.svelte';
 
 	let { data, form } = $props();
 	const f = $derived(form as Record<string, any> | null);
-
-	// Brand styling for built-in providers; custom providers get a neutral style.
-	const brandClass: Record<string, string> = {
-		github: 'bg-neutral-900 hover:bg-neutral-800 text-white',
-		discord: 'bg-[#5865F2] hover:bg-[#4752c4] text-white',
-		modrinth: 'bg-[#1bd96a] hover:bg-[#17b959] text-black'
-	};
 
 	const redirectParam = $derived(
 		data.redirectTo && data.redirectTo !== '/'
@@ -18,96 +20,58 @@
 			: ''
 	);
 
-	let showAdmin = $state(false);
 	// Step 2 shows when the server asks for a code (fresh submit) or a pending
 	// 2FA marker survives a reload — unless the last action reset the flow.
-	const twoFactor = $derived(!f?.reset && (f?.needCode || (!!data.pendingUsername && f?.error == null)));
+	const twoFactor = $derived(
+		!f?.reset && (f?.needCode || (!!data.pendingUsername && f?.error == null))
+	);
 	const pendingName = $derived(f?.username ?? data.pendingUsername ?? '');
-	const inputCls =
-		'rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 dark:border-neutral-700';
 </script>
 
 <svelte:head><title>Sign in · OpenTrack</title></svelte:head>
 
-<main class="mx-auto flex min-h-full max-w-sm flex-col justify-center gap-8 px-4 py-16 sm:px-6">
-	<div class="text-center">
-		<h1 class="text-2xl font-bold tracking-tight">Sign in to OpenTrack</h1>
-		<p class="mt-1 text-sm text-neutral-500">Use a provider to comment, vote, and suggest.</p>
-	</div>
+<div
+	data-theme="dark"
+	class="auth-b relative isolate min-h-dvh font-sans antialiased"
+	style="
+		--accent: oklch(0.64 0.19 262);
+		--accent-solid: oklch(0.55 0.2 262);
+		--accent-solid-hover: oklch(0.61 0.2 262);
+		--accent-fg: oklch(0.78 0.13 262);
+		--accent-soft: oklch(0.64 0.19 262 / 0.16);
+		--accent-wash: oklch(0.64 0.19 262 / 0.08);
+		--accent-border: oklch(0.64 0.19 262 / 0.4);
+		--accent-glow: oklch(0.64 0.19 262 / 0.45);
+		--ot-hairline: oklch(1 0 0 / 0.1);
+		--ab-bg: oklch(0.145 0.016 258);
+		--ab-bg-2: oklch(0.185 0.018 260);
+		--ab-surface: oklch(0.2 0.018 259);
+		--ab-surface-2: oklch(0.245 0.02 259);
+		--ab-line: oklch(1 0 0 / 0.09);
+		--ab-line-strong: oklch(1 0 0 / 0.16);
+		--ab-text: oklch(0.97 0.005 258);
+		--ab-text-dim: oklch(0.745 0.013 258);
+		--ab-text-faint: oklch(0.52 0.013 258);
+		background: var(--ab-bg);
+		color: var(--ab-text);
+		color-scheme: dark;
+	"
+>
+	<Hero
+		providers={data.providers}
+		{redirectParam}
+		oauthError={data.oauthError}
+		{f}
+		{twoFactor}
+		{pendingName}
+	/>
+</div>
 
-	{#if data.oauthError}
-		<p class="rounded-md bg-red-50 px-3 py-2 text-center text-sm text-red-600 dark:bg-red-950/40">{data.oauthError}</p>
-	{/if}
-
-	{#if data.providers.length > 0}
-		<div class="flex flex-col gap-3">
-			{#each data.providers as provider (provider.key)}
-				<a
-					href={`/auth/oauth/${provider.key}${redirectParam}`}
-					class={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition ${brandClass[provider.key] ?? 'border border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800'}`}
-				>
-					<BrandIcon name={provider.icon || provider.key} size={18} class="shrink-0" />
-					Continue with {provider.label}
-				</a>
-			{/each}
-		</div>
-	{:else}
-		<p class="rounded-lg bg-amber-50 p-3 text-center text-sm text-amber-700 dark:bg-amber-950/40">
-			No OAuth providers are configured yet.
-		</p>
-	{/if}
-
-	<div class="border-t border-neutral-200 pt-4 dark:border-neutral-800">
-		{#if twoFactor}
-			<!-- Step 2: one-time code -->
-			<div class="flex flex-col gap-3">
-				<form method="POST" action="?/code" use:enhance class="flex flex-col gap-3">
-					<div>
-						<h2 class="text-sm font-semibold">Two-factor authentication</h2>
-						<p class="mt-0.5 text-xs text-neutral-500">Signing in as <span class="font-medium">{pendingName}</span>. Enter the 6-digit code from your authenticator app.</p>
-					</div>
-					{#if f?.error}
-						<p class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{f.error}</p>
-					{/if}
-					<input
-						name="code"
-						type="text"
-						inputmode="numeric"
-						autocomplete="one-time-code"
-						placeholder="123456"
-						maxlength="8"
-						autofocus
-						class={`${inputCls} text-center text-lg tracking-[0.4em]`}
-					/>
-					<button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-						Verify &amp; sign in
-					</button>
-				</form>
-				<form method="POST" action="?/cancel" use:enhance>
-					<button type="submit" class="w-full text-center text-xs text-neutral-400 hover:text-neutral-600">← Use a different account</button>
-				</form>
-			</div>
-		{:else if showAdmin}
-			<!-- Step 1: username + password -->
-			<form method="POST" action="?/password" use:enhance class="flex flex-col gap-3">
-				<h2 class="text-sm font-semibold text-neutral-500">Admin sign in</h2>
-				{#if f?.error}
-					<p class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-950/40">{f.error}</p>
-				{/if}
-				<input name="username" type="text" autocomplete="username" placeholder="Username" value={f?.username ?? ''} required class={inputCls} />
-				<input name="password" type="password" autocomplete="current-password" placeholder="Password" required class={inputCls} />
-				<button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
-					Continue
-				</button>
-			</form>
-		{:else}
-			<button
-				type="button"
-				onclick={() => (showAdmin = true)}
-				class="w-full text-center text-xs text-neutral-400 hover:text-neutral-600"
-			>
-				Admin sign in
-			</button>
-		{/if}
-	</div>
-</main>
+<style>
+	.auth-b :global(.pub-label) {
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.03em;
+		text-transform: uppercase;
+	}
+</style>

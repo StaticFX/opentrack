@@ -13,6 +13,9 @@
 		action: string;
 		/** If set, the user must type this exact text to enable the confirm button. */
 		requireText?: string;
+		tone?: 'danger' | 'default';
+		/** Spinner on the confirm button while the call site's mutation runs. */
+		loading?: boolean;
 	};
 	let {
 		open = $bindable(false),
@@ -20,7 +23,9 @@
 		description,
 		confirmLabel = 'Delete',
 		action,
-		requireText
+		requireText,
+		tone = 'danger',
+		loading = false
 	}: Props = $props();
 
 	let typed = $state('');
@@ -44,7 +49,9 @@
 		<Button variant="ghost" type="button" onclick={() => (open = false)}>Cancel</Button>
 		<form method="POST" {action} use:enhance>
 			<input type="hidden" name="_confirm" value="1" />
-			<Button variant="danger" type="submit" {disabled}>{confirmLabel}</Button>
+			<Button variant={tone === 'default' ? 'primary' : 'danger'} type="submit" {disabled} {loading}>
+				{confirmLabel}
+			</Button>
 		</form>
 	{/snippet}
 </Dialog>
