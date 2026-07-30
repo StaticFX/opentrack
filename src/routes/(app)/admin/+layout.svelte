@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Users, Palette, Bell, ShieldCheck, Plug, KeyRound, DatabaseBackup } from '@lucide/svelte';
+	import { Users, Palette, Bell, ShieldCheck, Plug, KeyRound, DatabaseBackup, Scale } from '@lucide/svelte';
 	import SettingsShell from '$lib/components/app/SettingsShell.svelte';
 
 	let { children } = $props();
@@ -8,6 +8,7 @@
 	const items = [
 		{ label: 'Users', icon: Users, href: '/admin/users' },
 		{ label: 'Landing page', icon: Palette, href: '/admin/appearance' },
+		{ label: 'Legal', icon: Scale, href: '/admin/legal' },
 		{ label: 'Notifications', icon: Bell, href: '/admin/notifications' },
 		{ label: 'Sign-in & OAuth', icon: ShieldCheck, href: '/admin/privacy' },
 		{ label: 'Integrations', icon: Plug, href: '/admin/integrations' },

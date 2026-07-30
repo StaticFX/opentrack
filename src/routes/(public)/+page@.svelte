@@ -25,6 +25,7 @@
 
 	import LiveRegion from '$lib/components/public/LiveRegion.svelte';
 	import PublicMeta from '$lib/components/public/PublicMeta.svelte';
+	import CookieBanner from '$lib/components/public/CookieBanner.svelte';
 	import MonoNav from '$lib/components/landing/mono/MonoNav.svelte';
 	import MonoHero from '$lib/components/landing/mono/MonoHero.svelte';
 	import MonoFeedback from '$lib/components/landing/mono/MonoFeedback.svelte';
@@ -76,6 +77,8 @@
 	</main>
 
 	<MonoFooter siteName={data.site.name} {demoHref} {hasShowcase} />
+
+	<CookieBanner text={data.cookie.text} enabled={data.cookie.enabled} />
 </div>
 
 <style>

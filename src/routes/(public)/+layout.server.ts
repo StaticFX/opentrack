@@ -31,7 +31,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		}
 	}
 
-	const { site } = await getConfig();
+	const { site, legal } = await getConfig();
 	return {
 		user: locals.user
 			? {
@@ -41,6 +41,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 				}
 			: null,
 		brand,
-		siteName: site.name
+		siteName: site.name,
+		cookie: legal.cookie
 	};
 };

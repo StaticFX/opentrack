@@ -52,10 +52,14 @@
 		</div>
 
 		<div
-			class="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--rule)] pt-6 text-[11px] tracking-tight text-[var(--faint)]"
+			class="mt-10 flex flex-wrap items-center justify-between gap-x-5 gap-y-3 border-t border-[var(--rule)] pt-6 text-[11px] tracking-tight text-[var(--faint)]"
 		>
 			<span>{siteName} · running OpenTrack</span>
-			<span>open-source · self-hosted · © {year}</span>
+			<nav class="flex flex-wrap items-center gap-4" aria-label="Rechtliches">
+				<a href="/impressum" class="mono-focus transition-colors hover:text-[var(--accent)]">Impressum</a>
+				<a href="/datenschutz" class="mono-focus transition-colors hover:text-[var(--accent)]">Datenschutz</a>
+				<span>open-source · © {year}</span>
+			</nav>
 		</div>
 	</div>
 </footer>

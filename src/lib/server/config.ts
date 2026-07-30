@@ -55,6 +55,40 @@ export interface McpConfig {
 	/** Expose the Model Context Protocol server at /api/mcp. */
 	enabled: boolean;
 }
+/** Structured legal notice (Impressum) per § 5 DDG / § 18 MStV. All optional so
+ *  a fresh instance renders nothing until the operator fills it in. */
+export interface ImpressumConfig {
+	/** Diensteanbieter — person or company name. */
+	provider: string;
+	/** Postal address (multi-line: street, ZIP + city, country). */
+	address: string;
+	/** Contact e-mail (required by § 5 for a valid Impressum). */
+	email: string;
+	/** Optional phone number. */
+	phone: string;
+	/** "Vertreten durch" — legal representative(s) for companies. */
+	represented: string;
+	/** Register entry, e.g. "Amtsgericht Musterstadt, HRB 12345". */
+	register: string;
+	/** VAT ID (USt-IdNr.) per § 27 a UStG. */
+	vatId: string;
+	/** Person responsible for content per § 18 Abs. 2 MStV. */
+	responsible: string;
+	/** Free markdown appended below (disclaimers, dispute-resolution note, …). */
+	extra: string;
+}
+/** Cookie notice banner. OpenTrack only sets strictly-necessary cookies, so this
+ *  is an informational notice (§ 25 Abs. 2 TTDSG) — not a consent gate. */
+export interface CookieNoticeConfig {
+	enabled: boolean;
+	text: string;
+}
+export interface LegalConfig {
+	impressum: ImpressumConfig;
+	/** Privacy policy markdown. Blank → the generated German template is shown. */
+	datenschutz: string;
+	cookie: CookieNoticeConfig;
+}
 export interface RuntimeConfig {
 	githubApp: GithubAppConfig;
 	storage: StorageConfig;
@@ -62,6 +96,7 @@ export interface RuntimeConfig {
 	mcp: McpConfig;
 	site: SiteConfig;
 	push: PushConfig;
+	legal: LegalConfig;
 }
 
 /** Defaults for the instance landing page (`/`), overridable from Admin. */
@@ -69,6 +104,24 @@ export const SITE_DEFAULTS: SiteConfig = {
 	name: 'OpenTrack',
 	headline: 'Build in the open.',
 	tagline: "Follow what's being worked on, upvote what matters to you, and suggest what comes next."
+};
+
+/** Default cookie-notice copy (German — the notice targets DE/EU compliance). */
+export const COOKIE_NOTICE_DEFAULT =
+	'Diese Website verwendet ausschließlich technisch notwendige Cookies, die für ' +
+	'Anmeldung, Sicherheit und grundlegende Funktionen (z. B. Abstimmungen) erforderlich ' +
+	'sind. Es findet kein Tracking und keine Analyse durch Dritte statt.';
+
+export const IMPRESSUM_DEFAULTS: ImpressumConfig = {
+	provider: '',
+	address: '',
+	email: '',
+	phone: '',
+	represented: '',
+	register: '',
+	vatId: '',
+	responsible: '',
+	extra: ''
 };
 
 // ── Raw settings access ─────────────────────────────────────────────────────
@@ -165,6 +218,25 @@ export async function getConfig(): Promise<RuntimeConfig> {
 			publicKey: get('push.publicKey') ?? undefined,
 			privateKey: get('push.privateKey') ?? undefined,
 			subject: get('push.subject') ?? `mailto:admin@${new URL(env.origin).hostname}`
+		},
+		legal: {
+			impressum: {
+				provider: get('legal.impressum.provider') ?? '',
+				address: get('legal.impressum.address') ?? '',
+				email: get('legal.impressum.email') ?? '',
+				phone: get('legal.impressum.phone') ?? '',
+				represented: get('legal.impressum.represented') ?? '',
+				register: get('legal.impressum.register') ?? '',
+				vatId: get('legal.impressum.vatId') ?? '',
+				responsible: get('legal.impressum.responsible') ?? '',
+				extra: get('legal.impressum.extra') ?? ''
+			},
+			datenschutz: get('legal.datenschutz.body') ?? '',
+			cookie: {
+				// Default ON — the banner shows unless the admin explicitly disables it.
+				enabled: get('legal.cookie.enabled') !== '0',
+				text: get('legal.cookie.text') ?? COOKIE_NOTICE_DEFAULT
+			}
 		}
 	};
 	globalForCfg.__otCfg = cache;
@@ -226,8 +298,20 @@ export async function getConfigView() {
 			subject: val('push.subject'),
 			hasPrivateKey: has('push.privateKey'),
 			active: !!(cfg.push.publicKey && cfg.push.privateKey)
+		},
+		legal: {
+			impressum: cfg.legal.impressum,
+			datenschutz: cfg.legal.datenschutz,
+			cookie: cfg.legal.cookie,
+			// Whether the Impressum is complete enough to be a valid § 5 notice.
+			impressumConfigured: impressumConfigured(cfg.legal.impressum)
 		}
 	};
+}
+
+/** Minimum for a usable § 5 Impressum: who + how to reach them. */
+export function impressumConfigured(imp: ImpressumConfig): boolean {
+	return !!(imp.provider.trim() && imp.address.trim() && imp.email.trim());
 }
 
 /** True when Web Push is fully configured (both VAPID keys present). */

@@ -7,6 +7,7 @@
 	import { Compass, LayoutDashboard } from '@lucide/svelte';
 	import { onNavigate } from '$app/navigation';
 	import LiveRegion from '$lib/components/public/LiveRegion.svelte';
+	import CookieBanner from '$lib/components/public/CookieBanner.svelte';
 
 	let { data, children } = $props();
 
@@ -120,18 +121,32 @@
 	</div>
 
 	<footer class="mt-16 border-t border-[var(--rule)]" style="view-transition-name: pub-footer">
-		<div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 sm:px-6">
+		<div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-6 sm:px-6">
 			<span class="text-[11px] tracking-tight text-[var(--faint)]">
 				{#if data.brand}{data.brand.name} · running OpenTrack{:else}{data.siteName} · running OpenTrack{/if}
 			</span>
-			<a
-				href="https://github.com/StaticFX/opentrack"
-				class="mono-focus group text-[11px] tracking-tight text-[var(--faint)] transition-colors hover:text-[var(--accent)]"
-			>
-				Powered by <span class="text-[var(--dim)] group-hover:text-[var(--accent)]">OpenTrack</span> ↗
-			</a>
+			<nav class="flex flex-wrap items-center gap-4 text-[11px] tracking-tight" aria-label="Rechtliches">
+				<a
+					href="/impressum"
+					class="mono-focus text-[var(--faint)] transition-colors hover:text-[var(--accent)]"
+					>Impressum</a
+				>
+				<a
+					href="/datenschutz"
+					class="mono-focus text-[var(--faint)] transition-colors hover:text-[var(--accent)]"
+					>Datenschutz</a
+				>
+				<a
+					href="https://github.com/StaticFX/opentrack"
+					class="mono-focus group text-[var(--faint)] transition-colors hover:text-[var(--accent)]"
+				>
+					Powered by <span class="text-[var(--dim)] group-hover:text-[var(--accent)]">OpenTrack</span> ↗
+				</a>
+			</nav>
 		</div>
 	</footer>
+
+	<CookieBanner text={data.cookie.text} enabled={data.cookie.enabled} />
 </div>
 
 <style>

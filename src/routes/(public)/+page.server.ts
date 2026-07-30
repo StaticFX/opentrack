@@ -17,7 +17,7 @@ function activityMs(t: Date | string | null): number {
 }
 
 export const load: PageServerLoad = async ({ locals, cookies, getClientAddress, depends }) => {
-	const { site } = await getConfig();
+	const { site, legal } = await getConfig();
 	const workspaces = await listPublic();
 
 	// Directory items — same item-building shape as (public)/+page.server.ts, so the
@@ -176,6 +176,7 @@ export const load: PageServerLoad = async ({ locals, cookies, getClientAddress, 
 		totals,
 		showcase,
 		directory,
-		signedIn: !!locals.user
+		signedIn: !!locals.user,
+		cookie: legal.cookie
 	};
 };
