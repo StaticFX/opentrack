@@ -146,7 +146,7 @@
 		</div>
 	</footer>
 
-	<CookieBanner text={data.cookie.text} enabled={data.cookie.enabled} />
+	<CookieBanner text={data.cookie.text} textEn={data.cookie.textEn} enabled={data.cookie.enabled} />
 </div>
 
 <style>

@@ -78,15 +78,24 @@ export interface ImpressumConfig {
 	extra: string;
 }
 /** Cookie notice banner. OpenTrack only sets strictly-necessary cookies, so this
- *  is an informational notice (§ 25 Abs. 2 TTDSG) — not a consent gate. */
+ *  is an informational notice (§ 25 Abs. 2 TTDSG) — not a consent gate. Bilingual:
+ *  the banner shows `text`/`textEn` per the visitor's chosen language. */
 export interface CookieNoticeConfig {
 	enabled: boolean;
+	/** German notice text. */
 	text: string;
+	/** English notice text. */
+	textEn: string;
+}
+/** Privacy policy markdown per language. Blank → the generated template for that
+ *  language is shown on /datenschutz. */
+export interface PrivacyConfig {
+	de: string;
+	en: string;
 }
 export interface LegalConfig {
 	impressum: ImpressumConfig;
-	/** Privacy policy markdown. Blank → the generated German template is shown. */
-	datenschutz: string;
+	datenschutz: PrivacyConfig;
 	cookie: CookieNoticeConfig;
 }
 export interface RuntimeConfig {
@@ -111,6 +120,11 @@ export const COOKIE_NOTICE_DEFAULT =
 	'Diese Website verwendet ausschließlich technisch notwendige Cookies, die für ' +
 	'Anmeldung, Sicherheit und grundlegende Funktionen (z. B. Abstimmungen) erforderlich ' +
 	'sind. Es findet kein Tracking und keine Analyse durch Dritte statt.';
+
+/** Default cookie-notice copy (English). */
+export const COOKIE_NOTICE_DEFAULT_EN =
+	'This website uses only strictly necessary cookies required for sign-in, security ' +
+	'and basic functionality (e.g. voting). There is no third-party tracking or analytics.';
 
 export const IMPRESSUM_DEFAULTS: ImpressumConfig = {
 	provider: '',
@@ -231,11 +245,15 @@ export async function getConfig(): Promise<RuntimeConfig> {
 				responsible: get('legal.impressum.responsible') ?? '',
 				extra: get('legal.impressum.extra') ?? ''
 			},
-			datenschutz: get('legal.datenschutz.body') ?? '',
+			datenschutz: {
+				de: get('legal.datenschutz.body') ?? '',
+				en: get('legal.datenschutz.body_en') ?? ''
+			},
 			cookie: {
 				// Default ON — the banner shows unless the admin explicitly disables it.
 				enabled: get('legal.cookie.enabled') !== '0',
-				text: get('legal.cookie.text') ?? COOKIE_NOTICE_DEFAULT
+				text: get('legal.cookie.text') ?? COOKIE_NOTICE_DEFAULT,
+				textEn: get('legal.cookie.text_en') ?? COOKIE_NOTICE_DEFAULT_EN
 			}
 		}
 	};

@@ -14,10 +14,12 @@
 	let { data, form } = $props();
 	const f = $derived(form as Record<string, any> | null);
 
-	// Init snapshot, used only to seed the $state fields below (seeding happens
-	// once, so the init-time value is correct). discard() must NOT use this — it
-	// reads the live loader data instead (see below).
+	// Init snapshots, used only to seed the $state fields below (seeding happens
+	// once). discard() reads the live loader data instead (see below). Seeding
+	// from a plain const rather than `data.*` avoids the state_referenced_locally lint.
 	const imp = data.legal.impressum;
+	const ds = data.legal.datenschutz;
+	const ck = data.legal.cookie;
 
 	// Impressum — one $state per field so each binds independently.
 	let provider = $state(imp.provider);
@@ -30,22 +32,28 @@
 	let responsible = $state(imp.responsible);
 	let extra = $state(imp.extra);
 
-	// Privacy policy — blank means "render the generated template publicly".
-	let datenschutz = $state(data.legal.datenschutz);
+	// Privacy policy — blank means "render the generated template" (per language).
+	let datenschutz = $state(ds.de);
+	let datenschutzEn = $state(ds.en);
 
 	// Cookie notice.
-	let cookieEnabled = $state(data.legal.cookie.enabled);
-	let cookieText = $state(data.legal.cookie.text);
+	let cookieEnabled = $state(ck.enabled);
+	let cookieText = $state(ck.text);
+	let cookieTextEn = $state(ck.textEn);
 
-	const shownCookieText = $derived(cookieText.trim() || data.cookieDefault);
+	const shownCookieText = $derived(cookieTextEn.trim() || data.cookieDefaultEn);
 
 	const dirtyGuard = createDirtyGuard();
 	const dirty = dirtyGuard.dirty;
 	const pending = dirtyGuard.pending;
 	let saving = $state(false);
 
-	function loadTemplate() {
-		datenschutz = data.datenschutzTemplate;
+	function loadTemplateDe() {
+		datenschutz = data.datenschutzTemplateDe;
+		dirtyGuard.markDirty();
+	}
+	function loadTemplateEn() {
+		datenschutzEn = data.datenschutzTemplateEn;
 		dirtyGuard.markDirty();
 	}
 
@@ -62,9 +70,11 @@
 		vatId = i.vatId;
 		responsible = i.responsible;
 		extra = i.extra;
-		datenschutz = data.legal.datenschutz;
+		datenschutz = data.legal.datenschutz.de;
+		datenschutzEn = data.legal.datenschutz.en;
 		cookieEnabled = data.legal.cookie.enabled;
 		cookieText = data.legal.cookie.text;
+		cookieTextEn = data.legal.cookie.textEn;
 		dirtyGuard.markClean();
 	}
 
@@ -81,8 +91,8 @@
 <header class="mb-6">
 	<h2 class="mono-display text-lg tracking-tight text-[var(--text)]">Legal &amp; Compliance</h2>
 	<p class="mt-0.5 text-[13px] text-[var(--dim)]">
-		Impressum (§ 5 DDG), Datenschutzerklärung (Art. 13 DSGVO) und Cookie-Hinweis — für einen
-		abmahnsicheren öffentlichen Auftritt.
+		Legal notice (Impressum, § 5 DDG), privacy policy (Art. 13 GDPR) and cookie notice — shown
+		bilingually (English default, German one click away) on the public site.
 	</p>
 </header>
 
@@ -92,9 +102,9 @@
 	>
 		<span aria-hidden="true">⚠</span>
 		<span>
-			Impressum unvollständig. Für ein gültiges Impressum sind mindestens <strong>Anbieter</strong>,
-			<strong>Anschrift</strong> und <strong>E-Mail</strong> erforderlich. Bis dahin zeigt die
-			öffentliche Seite einen Platzhalter.
+			Legal notice incomplete. A valid Impressum needs at least <strong>provider</strong>,
+			<strong>address</strong> and <strong>email</strong>. Until then the public page shows a
+			placeholder.
 		</span>
 	</div>
 {/if}
@@ -110,142 +120,164 @@
 	oninput={() => dirtyGuard.markDirty()}
 	class="flex flex-col gap-10"
 >
-	<!-- ── Impressum ─────────────────────────────────────────────────────── -->
+	<!-- ── Legal notice (Impressum) ──────────────────────────────────────── -->
 	<section>
 		<div class="mb-4 flex items-center justify-between border-b border-[var(--rule)] pb-3">
 			<div class="flex items-center gap-2">
 				<FileText size={15} class="text-[var(--dim)]" aria-hidden="true" />
-				<h3 class="mono-display text-[15px] tracking-tight text-[var(--text)]">Impressum</h3>
+				<h3 class="mono-display text-[15px] tracking-tight text-[var(--text)]">Legal notice (Impressum)</h3>
 			</div>
 			<a
 				href="/impressum"
 				target="_blank"
 				rel="noreferrer"
 				class="mono-focus flex items-center gap-1 text-[12px] text-[var(--accent)] hover:underline"
-				><ExternalLink size={12} aria-hidden="true" /> Ansehen</a
+				><ExternalLink size={12} aria-hidden="true" /> View</a
 			>
 		</div>
 		<p class="mb-4 text-[13px] text-[var(--dim)]">
-			Angaben gemäß § 5 DDG. Nicht benötigte Felder leer lassen — sie werden dann ausgeblendet.
+			Information pursuant to § 5 DDG. Leave fields you don't need blank — they are hidden. These
+			values are language-neutral and shown on both the English and German page.
 		</p>
 
 		<div class="flex flex-col gap-4">
 			<div class="grid gap-4 sm:grid-cols-2">
-				<Field label="Anbieter / Name" hint="Person oder Firma (Pflicht).">
+				<Field label="Provider / name" hint="Person or company (required).">
 					<Input name="provider" bind:value={provider} placeholder="Max Mustermann" />
 				</Field>
-				<Field label="E-Mail" hint="Direkter Kontakt (Pflicht).">
-					<Input name="email" type="email" bind:value={email} placeholder="kontakt@example.com" />
+				<Field label="Email" hint="Direct contact (required).">
+					<Input name="email" type="email" bind:value={email} placeholder="contact@example.com" />
 				</Field>
 			</div>
-			<Field label="Anschrift" hint="Straße, PLZ + Ort, Land — je Zeile (Pflicht).">
-				<Textarea name="address" bind:value={address} rows={3} placeholder={'Musterstraße 1\n12345 Musterstadt\nDeutschland'} />
+			<Field label="Address" hint="Street, ZIP + city, country — one per line (required).">
+				<Textarea name="address" bind:value={address} rows={3} placeholder={'Musterstraße 1\n12345 Musterstadt\nGermany'} />
 			</Field>
 			<div class="grid gap-4 sm:grid-cols-2">
-				<Field label="Telefon" hint="Optional.">
+				<Field label="Phone" hint="Optional.">
 					<Input name="phone" bind:value={phone} placeholder="+49 …" />
 				</Field>
-				<Field label="Vertreten durch" hint="Bei Firmen: Geschäftsführer / Vertretungsberechtigte.">
-					<Input name="represented" bind:value={represented} placeholder="Geschäftsführer: …" />
+				<Field label="Represented by" hint="For companies: managing director(s) / authorised reps.">
+					<Input name="represented" bind:value={represented} placeholder="Managing director: …" />
 				</Field>
 			</div>
 			<div class="grid gap-4 sm:grid-cols-2">
-				<Field label="Registereintrag" hint="z. B. Amtsgericht Musterstadt, HRB 12345.">
+				<Field label="Register entry" hint="e.g. Amtsgericht Musterstadt, HRB 12345.">
 					<Input name="register" bind:value={register} placeholder="Amtsgericht …, HRB …" />
 				</Field>
-				<Field label="Umsatzsteuer-ID" hint="USt-IdNr. nach § 27 a UStG (optional).">
+				<Field label="VAT ID" hint="USt-IdNr. per § 27a UStG (optional).">
 					<Input name="vatId" bind:value={vatId} placeholder="DE123456789" />
 				</Field>
 			</div>
 			<Field
-				label="Inhaltlich verantwortlich (§ 18 Abs. 2 MStV)"
-				hint="Name + Anschrift der verantwortlichen Person, falls redaktionelle Inhalte."
+				label="Responsible for content (§ 18(2) MStV)"
+				hint="Name + address of the responsible person, if editorial content."
 			>
-				<Input name="responsible" bind:value={responsible} placeholder="Max Mustermann, Anschrift wie oben" />
+				<Input name="responsible" bind:value={responsible} placeholder="Max Mustermann, address as above" />
 			</Field>
 			<Field
-				label="Zusatz (Markdown)"
-				hint="Optional — z. B. Haftungsausschluss, Streitschlichtungs-Hinweis, EU-OS-Plattform-Link."
+				label="Extra (Markdown)"
+				hint="Optional — e.g. liability disclaimer, dispute-resolution note, EU-ODR link."
 			>
-				<Textarea name="extra" bind:value={extra} rows={4} placeholder={'## Haftung für Inhalte\n…'} />
+				<Textarea name="extra" bind:value={extra} rows={4} placeholder={'## Liability\n…'} />
 			</Field>
 		</div>
 	</section>
 
-	<!-- ── Datenschutz ───────────────────────────────────────────────────── -->
+	<!-- ── Privacy policy (Datenschutz) ──────────────────────────────────── -->
 	<section>
 		<div class="mb-4 flex items-center justify-between border-b border-[var(--rule)] pb-3">
 			<div class="flex items-center gap-2">
 				<ScrollText size={15} class="text-[var(--dim)]" aria-hidden="true" />
-				<h3 class="mono-display text-[15px] tracking-tight text-[var(--text)]">Datenschutzerklärung</h3>
+				<h3 class="mono-display text-[15px] tracking-tight text-[var(--text)]">Privacy policy</h3>
 			</div>
-			<a
-				href="/datenschutz"
-				target="_blank"
-				rel="noreferrer"
-				class="mono-focus flex items-center gap-1 text-[12px] text-[var(--accent)] hover:underline"
-				><ExternalLink size={12} aria-hidden="true" /> Ansehen</a
-			>
+			<div class="flex items-center gap-3 text-[12px]">
+				<a href="/datenschutz?lang=en" target="_blank" rel="noreferrer" class="mono-focus flex items-center gap-1 text-[var(--accent)] hover:underline"><ExternalLink size={12} aria-hidden="true" /> EN</a>
+				<a href="/datenschutz?lang=de" target="_blank" rel="noreferrer" class="mono-focus flex items-center gap-1 text-[var(--accent)] hover:underline"><ExternalLink size={12} aria-hidden="true" /> DE</a>
+			</div>
 		</div>
-		<p class="mb-3 text-[13px] text-[var(--dim)]">
-			Leer lassen = die automatisch generierte, auf OpenTrack zugeschnittene DSGVO-Vorlage wird
-			öffentlich angezeigt. Zum Anpassen die Vorlage einfügen und editieren. <strong>Bitte vor
-			Veröffentlichung prüfen</strong> — dies ist keine Rechtsberatung.
+		<p class="mb-4 text-[13px] text-[var(--dim)]">
+			Leave a field blank to publish the auto-generated template for that language (tailored to
+			OpenTrack's actual processing). <strong>Please review before publishing</strong> — this is
+			not legal advice.
 		</p>
-		<div class="mb-3">
-			<Button type="button" variant="ghost" size="sm" onclick={loadTemplate}>
-				<RotateCcw size={13} aria-hidden="true" /> Vorlage einfügen
-			</Button>
+
+		<div class="grid gap-6 lg:grid-cols-2">
+			<div>
+				<div class="mb-2 flex items-center justify-between">
+					<span class="text-[12px] font-medium text-[var(--text)]">English</span>
+					<Button type="button" variant="ghost" size="sm" onclick={loadTemplateEn}>
+						<RotateCcw size={13} aria-hidden="true" /> Insert template
+					</Button>
+				</div>
+				<Textarea
+					name="datenschutzEn"
+					bind:value={datenschutzEn}
+					rows={12}
+					class="font-mono text-[12px]"
+					placeholder="Blank = generated English template is shown. Paste your own Markdown here …"
+				/>
+			</div>
+			<div>
+				<div class="mb-2 flex items-center justify-between">
+					<span class="text-[12px] font-medium text-[var(--text)]">German (Deutsch)</span>
+					<Button type="button" variant="ghost" size="sm" onclick={loadTemplateDe}>
+						<RotateCcw size={13} aria-hidden="true" /> Vorlage einfügen
+					</Button>
+				</div>
+				<Textarea
+					name="datenschutz"
+					bind:value={datenschutz}
+					rows={12}
+					class="font-mono text-[12px]"
+					placeholder="Leer = generierte deutsche Vorlage wird angezeigt. Eigenes Markdown hier einfügen …"
+				/>
+			</div>
 		</div>
-		<Textarea
-			name="datenschutz"
-			bind:value={datenschutz}
-			rows={14}
-			class="font-mono text-[12px]"
-			placeholder="Leer = generierte Vorlage wird angezeigt. Hier eigenen Text (Markdown) einfügen …"
-		/>
 	</section>
 
-	<!-- ── Cookie-Hinweis ────────────────────────────────────────────────── -->
+	<!-- ── Cookie notice ─────────────────────────────────────────────────── -->
 	<section>
 		<div class="mb-4 flex items-center gap-2 border-b border-[var(--rule)] pb-3">
 			<Cookie size={15} class="text-[var(--dim)]" aria-hidden="true" />
-			<h3 class="mono-display text-[15px] tracking-tight text-[var(--text)]">Cookie-Hinweis</h3>
+			<h3 class="mono-display text-[15px] tracking-tight text-[var(--text)]">Cookie notice</h3>
 		</div>
 		<p class="mb-4 text-[13px] text-[var(--dim)]">
-			OpenTrack setzt nur technisch notwendige Cookies — ein informativer Hinweis genügt
-			(§ 25 Abs. 2 TTDSG), keine Einwilligung nötig.
+			OpenTrack sets only strictly-necessary cookies — an informational notice is enough
+			(§ 25(2) TTDSG), no consent required. The banner shows in the visitor's chosen language.
 		</p>
 
-		<Field label="Hinweis anzeigen">
+		<Field label="Show notice">
 			<Switch
 				name="cookieEnabled"
 				bind:checked={cookieEnabled}
 				onchange={() => dirtyGuard.markDirty()}
-				label="Banner beim ersten Besuch einblenden"
+				label="Show the banner on first visit"
 			/>
 		</Field>
 
-		<div class="mt-4">
-			<Field label="Hinweistext" hint="Leer = Standardtext.">
+		<div class="mt-4 grid gap-4 lg:grid-cols-2">
+			<Field label="Notice text (English)" hint="Blank = default text.">
+				<Textarea name="cookieTextEn" bind:value={cookieTextEn} rows={3} placeholder={data.cookieDefaultEn} />
+			</Field>
+			<Field label="Notice text (German)" hint="Blank = default text.">
 				<Textarea name="cookieText" bind:value={cookieText} rows={3} placeholder={data.cookieDefault} />
 			</Field>
 		</div>
 
-		<!-- Preview -->
+		<!-- Preview (English, the default language) -->
 		<div class="mt-4">
-			<p class="mb-2 text-[11px] tracking-tight text-[var(--faint)]">Vorschau</p>
+			<p class="mb-2 text-[11px] tracking-tight text-[var(--faint)]">Preview (English)</p>
 			<div class="border border-[var(--rule)] bg-[var(--raised)] p-3">
 				{#if cookieEnabled}
 					<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
 						<p class="min-w-0 flex-1 text-[12px] text-[var(--dim)]">{shownCookieText}</p>
 						<div class="flex shrink-0 items-center gap-2 text-[12px]">
-							<span class="text-[var(--accent)] underline">Datenschutz</span>
-							<span class="border border-[var(--accent)] px-2.5 py-1 text-[var(--accent)]">Verstanden</span>
+							<span class="text-[var(--accent)] underline">privacy policy</span>
+							<span class="border border-[var(--accent)] px-2.5 py-1 text-[var(--accent)]">Got it</span>
 						</div>
 					</div>
 				{:else}
-					<p class="text-[12px] text-[var(--faint)]">Hinweis deaktiviert — kein Banner.</p>
+					<p class="text-[12px] text-[var(--faint)]">Notice disabled — no banner.</p>
 				{/if}
 			</div>
 		</div>

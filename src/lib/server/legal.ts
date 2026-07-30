@@ -1,40 +1,70 @@
 import type { ImpressumConfig } from '$lib/server/config';
 
-/**
- * Build a German GDPR privacy-policy template (Datenschutzerklärung) that
- * accurately describes what an OpenTrack instance actually processes:
- * server logs, strictly-necessary cookies, accounts, OAuth login, public
- * contributions, GitHub sync and (opt-in) web push.
- *
- * It is a starting point the operator MUST review — it is not legal advice.
- * When the stored privacy policy is blank, this template is rendered as-is on
- * `/datenschutz`; the admin editor also seeds its textarea from it.
- */
-export function buildDatenschutzTemplate(
-	imp: ImpressumConfig,
-	opts: { origin: string; siteName: string }
-): string {
-	let host = opts.origin;
-	try {
-		host = new URL(opts.origin).host;
-	} catch {
-		/* keep raw origin */
-	}
+export type Lang = 'de' | 'en';
 
-	const provider = imp.provider.trim() || '[Name des Betreibers — im Impressum eintragen]';
-	const email = imp.email.trim() || '[Kontakt-E-Mail — im Impressum eintragen]';
+/** Normalise an untrusted `?lang` value to a supported language (default English). */
+export function resolveLang(raw: string | null | undefined): Lang {
+	return raw === 'de' ? 'de' : 'en';
+}
+
+function hostOf(origin: string): string {
+	try {
+		return new URL(origin).host;
+	} catch {
+		return origin;
+	}
+}
+
+function controllerBlock(imp: ImpressumConfig, lang: Lang): string {
+	const providerFallback =
+		lang === 'de'
+			? '[Name des Betreibers — im Impressum eintragen]'
+			: '[Operator name — set in the legal notice]';
+	const emailFallback =
+		lang === 'de'
+			? '[Kontakt-E-Mail — im Impressum eintragen]'
+			: '[Contact e-mail — set in the legal notice]';
+	const addressFallback =
+		lang === 'de' ? '[Anschrift — im Impressum eintragen]' : '[Address — set in the legal notice]';
+
+	const provider = imp.provider.trim() || providerFallback;
+	const email = imp.email.trim() || emailFallback;
 	const addressLines = imp.address.trim()
 		? imp.address
 				.trim()
 				.split('\n')
 				.map((l) => l.trim())
 				.filter(Boolean)
-		: ['[Anschrift — im Impressum eintragen]'];
+		: [addressFallback];
+	return [provider, ...addressLines, `E-Mail: ${email}`].join('  \n');
+}
 
-	const controllerBlock = [provider, ...addressLines, `E-Mail: ${email}`]
-		.map((l) => l)
-		.join('  \n');
+/**
+ * Build a GDPR privacy-policy template that accurately describes what an
+ * OpenTrack instance actually processes (server logs, strictly-necessary
+ * cookies, accounts, OAuth, GitHub sync, opt-in web push, third-country
+ * transfers). Available in German (`de`) and English (`en`).
+ *
+ * It is a starting point the operator MUST review — it is not legal advice.
+ * When the stored policy for a language is blank, this template is rendered
+ * as-is on `/datenschutz`; the admin editor also seeds its textareas from it.
+ */
+export function buildPrivacyPolicy(
+	imp: ImpressumConfig,
+	opts: { origin: string; siteName: string },
+	lang: Lang
+): string {
+	const host = hostOf(opts.origin);
+	const controller = controllerBlock(imp, lang);
+	const email = imp.email.trim() || (lang === 'de' ? '[Kontakt-E-Mail]' : '[Contact e-mail]');
 
+	return lang === 'de'
+		? germanTemplate(host, controller, email)
+		: englishTemplate(host, controller, email);
+}
+
+/** German privacy-policy template (legally authoritative for DE compliance). */
+function germanTemplate(host: string, controller: string, email: string): string {
 	return `# Datenschutzerklärung
 
 ## 1. Verantwortlicher
@@ -42,7 +72,7 @@ export function buildDatenschutzTemplate(
 Verantwortlich für die Datenverarbeitung auf dieser Website (${host}) im Sinne der
 Datenschutz-Grundverordnung (DSGVO) ist:
 
-${controllerBlock}
+${controller}
 
 Weitere Angaben findest du im [Impressum](/impressum).
 
@@ -185,5 +215,155 @@ Bei Fragen zum Datenschutz erreichst du uns unter ${email}.
 
 _Diese Datenschutzerklärung ist eine Vorlage und vom Betreiber vor
 Veröffentlichung zu prüfen und anzupassen. Sie stellt keine Rechtsberatung dar._
+`;
+}
+
+/** English translation of the privacy-policy template. */
+function englishTemplate(host: string, controller: string, email: string): string {
+	return `# Privacy Policy
+
+## 1. Controller
+
+The controller responsible for data processing on this website (${host}) within
+the meaning of the General Data Protection Regulation (GDPR) is:
+
+${controller}
+
+Further details can be found in the [legal notice](/impressum?lang=en).
+
+## 2. General information on data processing
+
+We process personal data only to the extent necessary to provide a functional
+website together with our content and services. The legal bases are in particular
+Art. 6(1)(a) (consent), (b) (contract/usage relationship) and (f) GDPR
+(legitimate interest in secure, functional operation).
+
+## 3. Hosting and server log files
+
+When you access this website, your browser automatically transmits information to
+the server, which is temporarily stored in so-called log files:
+
+- the IP address of the requesting device,
+- the date and time of access,
+- the requested address (URL) and HTTP status code,
+- the amount of data transferred, the referrer and the browser used (user agent).
+
+This data is used to deliver the page and to ensure system security and
+stability. The legal basis is Art. 6(1)(f) GDPR. The log files are deleted as
+soon as they are no longer required for the stated purpose.
+
+> Note: If the site is delivered via an upstream service (e.g. a content delivery
+> network such as Cloudflare), add the respective processor and its privacy
+> information here.
+
+## 4. Cookies
+
+This website uses **strictly necessary cookies only**. They are required for
+operation, are not used for analytics or advertising, and are not shared with
+third parties for marketing purposes. The legal basis is § 25(2) TTDSG in
+conjunction with Art. 6(1)(f) GDPR.
+
+| Cookie | Purpose | Storage period |
+| --- | --- | --- |
+| \`ot_session\` | Sign-in / session management for logged-in users | Session |
+| \`ot_2fa_pending\` | Intermediate step of two-factor sign-in | A few minutes |
+| \`ot_oauth_state\`, \`ot_oauth_redirect\`, \`ot_oauth_link\` | Securing sign-in via third-party providers (OAuth) | A few minutes |
+| \`ot_anon\` | Abuse prevention for anonymous votes (a random id combined with the IP and stored as an HMAC — not a clear identity) | Up to 12 months |
+
+A cookie notice informs you on your first visit. As only necessary cookies are
+set, no consent is required.
+
+## 5. User account and sign-in
+
+If you create an account or sign in, we process the data you provide (username,
+display name, optionally an e-mail address, a securely hashed password and,
+optionally, a two-factor configuration). The purpose is to provide the account
+and its associated features. The legal basis is Art. 6(1)(b) GDPR. The data is
+stored until you delete your account or request its deletion.
+
+## 6. Sign-in via third-party providers (OAuth)
+
+Optionally, you can sign in via external providers (e.g. GitHub, Discord,
+Modrinth or other services configured by the operator). In doing so, data is
+exchanged between you and the respective provider; we receive the profile
+information required for sign-in (such as an identifier, display name and,
+where applicable, an e-mail address). The privacy notices of the respective
+provider apply in addition. The legal basis is Art. 6(1)(b) or (a) GDPR.
+
+## 7. Public contributions (comments, suggestions, votes)
+
+Contributions such as comments and suggestions are publicly visible and shown
+with your display name. Votes can be cast while signed in or anonymously;
+anonymous votes are processed solely to prevent duplicate voting, using the
+non-identifiable key described in section 4. The legal basis is Art. 6(1)(b)
+or (f) GDPR.
+
+## 8. Synchronisation with GitHub
+
+If a project is connected to GitHub, items (tickets) and comments are
+synchronised with, and transferred to, the linked GitHub repository. The provider
+is GitHub, Inc. Its privacy notices apply in addition. The legal basis is
+Art. 6(1)(f) GDPR.
+
+## 9. Push notifications
+
+Only if you explicitly enable this in your browser do we send push notifications.
+For this purpose, an endpoint provided by your browser is stored. You can disable
+notifications at any time in your browser or in your account settings. The legal
+basis is Art. 6(1)(a) GDPR (consent).
+
+## 10. Disclosure of data
+
+Your data is disclosed to third parties only where this is necessary for
+operation (e.g. to the hosting provider as a processor), where you have consented
+(e.g. OAuth, GitHub sync), or where we are legally obliged to do so.
+
+## 11. Transfers to third countries
+
+Where you sign in via a provider based outside the EU/EEA (e.g. GitHub or Discord
+in the USA), or where a project is connected to GitHub, personal data may be
+transferred to a third country — in particular the USA. Any such transfer takes
+place only on the basis of an adequacy decision of the EU Commission (e.g. the
+EU-US Data Privacy Framework, where the recipient is certified) or appropriate
+safeguards within the meaning of Art. 46 GDPR (in particular standard contractual
+clauses). A copy of the safeguards can be requested from the controller.
+
+> Note: Add here the basis on which the transfer takes place in the specific case
+> (the provider's Data Privacy Framework certification or standard contractual
+> clauses).
+
+## 12. Storage period
+
+We process personal data only for as long as necessary for the respective
+purposes or as required by statutory retention obligations. The data is deleted
+thereafter.
+
+## 13. Your rights
+
+You have the following rights regarding your personal data vis-à-vis the
+controller:
+
+- access (Art. 15 GDPR),
+- rectification (Art. 16 GDPR),
+- erasure (Art. 17 GDPR),
+- restriction of processing (Art. 18 GDPR),
+- data portability (Art. 20 GDPR),
+- objection to processing (Art. 21 GDPR), and
+- withdrawal of a given consent with effect for the future (Art. 7(3) GDPR).
+
+To exercise them, an informal message to ${email} is sufficient.
+
+## 14. Right to lodge a complaint with a supervisory authority
+
+Without prejudice to any other remedy, you have the right to lodge a complaint
+with a data protection supervisory authority, in particular in the Member State
+of your residence, place of work or the place of the alleged infringement.
+
+## 15. Contact
+
+For questions about data protection, you can reach us at ${email}.
+
+_This privacy policy is a template and must be reviewed and adapted by the
+operator before publication. It does not constitute legal advice._
 `;
 }

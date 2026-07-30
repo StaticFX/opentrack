@@ -1,17 +1,15 @@
 import { getConfig } from '$lib/server/config';
 import { env } from '$lib/server/env';
-import { buildDatenschutzTemplate } from '$lib/server/legal';
+import { buildPrivacyPolicy, resolveLang } from '$lib/server/legal';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ url }) => {
+	const lang = resolveLang(url.searchParams.get('lang'));
 	const cfg = await getConfig();
-	// Stored policy wins; otherwise render the generated template that reflects
-	// this instance's actual data processing.
+	// Stored policy for this language wins; otherwise render the generated
+	// template that reflects this instance's actual data processing.
 	const body =
-		cfg.legal.datenschutz.trim() ||
-		buildDatenschutzTemplate(cfg.legal.impressum, {
-			origin: env.origin,
-			siteName: cfg.site.name
-		});
-	return { body };
+		cfg.legal.datenschutz[lang].trim() ||
+		buildPrivacyPolicy(cfg.legal.impressum, { origin: env.origin, siteName: cfg.site.name }, lang);
+	return { body, lang };
 };
